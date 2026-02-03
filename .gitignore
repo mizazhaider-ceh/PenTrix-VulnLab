@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Database
+app/data/*.db
+app/data/*.sqlite
+app/data/backup/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Uploads (user-generated)
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+
+# Solutions (keep secret)
+SOLUTIONS.md
+
+# Logs
+*.log
