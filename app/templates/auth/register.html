@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-bg-pattern"></div>
+    <div class="auth-box animate-in">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            </div>
+            <h1 class="text-gradient">Register</h1>
+        </div>
+        <p class="auth-subtitle">Create your PenTrix account</p>
+        
+        {% if error %}
+        <div class="flash flash-error" style="margin-bottom: 16px;">{{ error }}</div>
+        {% endif %}
+        
+        {% if success %}
+        <div class="flash flash-success" style="margin-bottom: 16px;">{{ success }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/register">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <input type="text" id="username" name="username" placeholder="Choose a username" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <input type="email" id="email" name="email" placeholder="you@example.com" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <input type="password" id="password" name="password" placeholder="Choose a password" required>
+                </div>
+            </div>
+            <!-- [VULN: CH03-C10] Hidden role field — mass assignment via adding role=admin -->
+            <!-- The server accepts any POST field including 'role' -->
+            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+        </form>
+        
+        <div class="auth-links">
+            Already have an account? <a href="/login">Sign in</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 6px; }
+.auth-logo-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex; align-items: center; justify-content: center; color: white;
+}
+.auth-logo h1 { font-size: 1.8rem; font-weight: 800; margin: 0; }
+.auth-subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+.auth-bg-pattern {
+    position: fixed; inset: 0; z-index: 0;
+    background-image: radial-gradient(circle at 30% 70%, rgba(167,139,250,0.06) 0%, transparent 50%),
+                      radial-gradient(circle at 70% 30%, rgba(16,185,129,0.05) 0%, transparent 50%);
+}
+.input-wrapper { position: relative; }
+.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.input-wrapper input { padding-left: 40px; }
+</style>
+{% endblock %}

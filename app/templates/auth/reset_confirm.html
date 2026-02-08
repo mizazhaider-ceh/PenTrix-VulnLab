@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Confirm Password Reset{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-bg-pattern"></div>
+    <div class="auth-box animate-in">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h1 class="text-gradient">New Password</h1>
+        </div>
+        <p class="auth-subtitle">Enter your reset token and new password</p>
+        
+        {% if error %}
+        <div class="flash flash-error" style="margin-bottom: 16px;">{{ error }}</div>
+        {% endif %}
+        
+        {% if message %}
+        <div class="flash flash-success" style="margin-bottom: 16px;">{{ message }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/reset/{{ token }}">
+            <div class="form-group">
+                <label for="token">Reset Token</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    <input type="text" id="token" name="token" value="{{ request.args.get('token', '') }}" placeholder="Enter reset token" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <input type="password" id="new_password" name="new_password" placeholder="Enter new password" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
+        </form>
+        
+        <div class="auth-links">
+            <a href="/login">Back to login</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 6px; }
+.auth-logo-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--info), var(--accent));
+    display: flex; align-items: center; justify-content: center; color: white;
+}
+.auth-logo h1 { font-size: 1.8rem; font-weight: 800; margin: 0; }
+.auth-subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+.auth-bg-pattern {
+    position: fixed; inset: 0; z-index: 0;
+    background-image: radial-gradient(circle at 60% 40%, rgba(56,189,248,0.05) 0%, transparent 50%);
+}
+.input-wrapper { position: relative; }
+.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.input-wrapper input { padding-left: 40px; }
+</style>
+{% endblock %}

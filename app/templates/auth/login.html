@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-bg-pattern"></div>
+    <div class="auth-box animate-in">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h1 class="text-gradient">PenTrix</h1>
+        </div>
+        <p class="auth-subtitle">Corporate Intranet Portal</p>
+        
+        <!-- Terminal-style CTF banner -->
+        <div class="ctf-banner">
+            <div class="ctf-banner-header">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                <span class="ctf-banner-title">terminal</span>
+            </div>
+            <pre class="ctf-banner-text">$ nmap -sV pentrix-corp.internal
+PORT     STATE SERVICE  VERSION
+5000/tcp open  http     Werkzeug/2.3.7
+8080/tcp open  http     Internal API
+6379/tcp open  redis    Redis 7-alpine
+<span style="color:var(--accent);">183 flags hidden. Can you find them all?</span></pre>
+        </div>
+        
+        {% if error %}
+        <div class="flash flash-error" style="margin-bottom: 16px;">{{ error }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                </div>
+            </div>
+            <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                <input type="checkbox" name="remember" value="1" id="remember" style="width:auto; margin:0;">
+                <label for="remember" style="margin:0; font-size:0.85rem; cursor:pointer;">Remember me</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+        </form>
+        
+        <div class="auth-links">
+            <a href="/register">Create an account</a>
+            <span class="auth-divider">&middot;</span>
+            <a href="/reset">Forgot password?</a>
+        </div>
+        
+        <!-- [VULN: CH02-C08] HTML comment with useful info -->
+        <!-- Default credentials: admin/admin, alice/password123 -->
+        <!-- Debug: /debug | Secret: /secret | API: /api/docs -->
+        <!-- Internal Jenkins: http://jenkins.pentrix-corp.internal:8080 -->
+        <!-- Backup admin: /admin2 | Old portal: /legacy | Swagger: /api/docs -->
+        <!-- Deployment Note (dev_user): CORS is wide open, reflecting all origins. -->
+        <!-- Also left .env and .git/HEAD accessible from web root. Fix after sprint 12. -->
+        <!-- Redis at redis://pentrix_redis:6379 has no AUTH. Internal service at port 8080 has /admin and /flag. -->
+        <!-- Reminder: rotate sk-pentrix-internal-key-9876 before Q2 audit -->
+        
+        <!-- [VULN: CH04-C01] Hidden form fields with sensitive data -->
+        <form id="_debug_auth" style="display:none" method="POST" action="/api/v2/internal/auth">
+            <input type="hidden" name="api_key" value="sk-pentrix-internal-key-9876">
+            <input type="hidden" name="admin_token" value="eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlIjoic3VwZXJhZG1pbiJ9.dGVzdC1zaWduYXR1cmU">
+            <input type="hidden" name="backup_password" value="PenTr1x_B4ckup_2024!">
+        </form>
+    </div>
+</div>
+
+<style>
+.auth-logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 6px; }
+.auth-logo-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--info));
+    display: flex; align-items: center; justify-content: center; color: white;
+}
+.auth-logo h1 { font-size: 1.8rem; font-weight: 800; margin: 0; }
+.auth-subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+.auth-bg-pattern {
+    position: fixed; inset: 0; z-index: 0;
+    background-image: radial-gradient(circle at 20% 80%, rgba(16,185,129,0.06) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 20%, rgba(56,189,248,0.05) 0%, transparent 50%);
+}
+.input-wrapper { position: relative; }
+.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.input-wrapper input { padding-left: 40px; }
+.auth-divider { color: var(--text-muted); margin: 0 4px; }
+/* CTF Terminal Banner */
+.ctf-banner {
+    background: #0a0e17;
+    border: 1px solid rgba(56,68,93,0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    font-family: var(--font-mono);
+}
+.ctf-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(56,68,93,0.3);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.red { background: #ef4444; }
+.dot.yellow { background: #f59e0b; }
+.dot.green { background: #10b981; }
+.ctf-banner-title {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+.ctf-banner-text {
+    padding: 12px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre-wrap;
+}
+</style>
+{% endblock %}

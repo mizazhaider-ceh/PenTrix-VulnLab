@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Reset Password{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-bg-pattern"></div>
+    <div class="auth-box animate-in">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            </div>
+            <h1 class="text-gradient">Reset Password</h1>
+        </div>
+        <p class="auth-subtitle">Enter your username to get a reset token</p>
+        
+        {% if error %}
+        <div class="flash flash-error" style="margin-bottom: 16px;">{{ error }}</div>
+        {% endif %}
+        
+        {% if message %}
+        <div class="flash flash-success" style="margin-bottom: 16px;">{{ message }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/reset">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Get Reset Token</button>
+        </form>
+        
+        <div class="auth-links">
+            <a href="/login">Back to login</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 6px; }
+.auth-logo-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--warning), var(--accent));
+    display: flex; align-items: center; justify-content: center; color: white;
+}
+.auth-logo h1 { font-size: 1.8rem; font-weight: 800; margin: 0; }
+.auth-subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+.auth-bg-pattern {
+    position: fixed; inset: 0; z-index: 0;
+    background-image: radial-gradient(circle at 50% 50%, rgba(245,158,11,0.05) 0%, transparent 50%);
+}
+.input-wrapper { position: relative; }
+.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.input-wrapper input { padding-left: 40px; }
+</style>
+{% endblock %}
