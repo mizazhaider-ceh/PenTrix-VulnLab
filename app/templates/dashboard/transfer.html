@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Transfer Funds{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Transfer Funds</h1>
+    <p>Send funds to another user securely</p>
+</div>
+
+{% if message %}
+<div class="flash flash-{{ 'error' if flag else 'info' }} animate-in" style="animation-delay:0.03s;">
+    {{ message }}
+</div>
+{% endif %}
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Your Balance
+        </h3>
+    </div>
+    <div class="card-body">
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(56,189,248,0.05)); border-color: rgba(16,185,129,0.2);">
+            <div class="stat-value" style="font-size:2.2rem;">${{ "%.2f"|format(user.balance|default(1000)) }}</div>
+            <div class="stat-label">Available Balance</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-2 animate-in" style="animation-delay:0.1s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Make a Transfer
+        </h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/account/transfer">
+            <div class="form-group">
+                <label>Recipient Username</label>
+                <input type="text" name="to_user" class="form-control" placeholder="Enter username" required>
+            </div>
+            <div class="form-group">
+                <label>Amount ($)</label>
+                <!-- [VULN: CH13-C02] Client-side min=0.01 but server doesn't validate negative amounts -->
+                <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label>Note (optional)</label>
+                <input type="text" name="note" class="form-control" placeholder="What's this for?">
+            </div>
+            <button type="submit" class="btn btn-primary" style="display:flex; align-items:center; gap:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Transfer
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-2 animate-in" style="animation-delay:0.15s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Recent Transfers
+        </h3>
+    </div>
+    <div class="card-body">
+        <div style="text-align:center; padding:24px;">
+            <p style="color:var(--text-muted);">No recent transfers.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

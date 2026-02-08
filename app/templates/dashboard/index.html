@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- TODO: Remove before production - Internal API docs at /api/v2/internal -->
+<!-- Database migration pending: users.ssn column contains unencrypted SSNs -->
+<!-- Redis cache: redis://pentrix_redis:6379/0 (no auth required) -->
+<!-- Dev note: /reports/export has no authorization check. Any user can dump salary data. -->
+<!-- The YAML restore endpoint uses yaml.load() - needs SafeLoader. See /internal/audit-checklist -->
+<!-- XML import at /tools/xml-import processes external entities (XXE risk) -->
+<!-- Chat logs archived at /internal/chat. Email cache at /internal/emails. -->
+<!-- SECRET{dashboard_source_explorer} — You looked at the dashboard source! -->
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Dashboard</h1>
+    <p>Welcome back, <strong>{{ user.username }}</strong> &mdash; <span style="color:var(--info);">{{ user.role }}</span></p>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-4 mb-3">
+    <div class="stat-card animate-in">
+        <div class="stat-icon" style="background: linear-gradient(135deg, var(--accent), #059669);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="stat-value">{{ posts_count }}</div>
+        <div class="stat-label">Posts</div>
+    </div>
+    <div class="stat-card info animate-in" style="animation-delay:0.05s;">
+        <div class="stat-icon" style="background: linear-gradient(135deg, var(--info), #0284c7);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="stat-value">{{ messages_count }}</div>
+        <div class="stat-label">Messages</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.1s;">
+        <div class="stat-icon" style="background: linear-gradient(135deg, var(--purple), #7c3aed);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="stat-value">{{ files_count }}</div>
+        <div class="stat-label">Files</div>
+    </div>
+    <div class="stat-card warning animate-in" style="animation-delay:0.15s;">
+        <div class="stat-icon" style="background: linear-gradient(135deg, var(--warning), #d97706);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="stat-value">{{ unread_messages }}</div>
+        <div class="stat-label">Unread</div>
+    </div>
+</div>
+
+<!-- Quick Actions & Search -->
+<div class="grid grid-2">
+    <div class="card animate-in" style="animation-delay:0.1s;">
+        <div class="card-header">
+            <h3>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px; margin-right:6px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Quick Search
+            </h3>
+        </div>
+        <div class="card-body">
+            <form action="/search" method="GET">
+                <div class="form-group">
+                    <input type="search" name="q" placeholder="Search employees, posts, files..." value="{{ request.args.get('q', '') }}">
+                </div>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card animate-in" style="animation-delay:0.15s;">
+        <div class="card-header">
+            <h3>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px; margin-right:6px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Quick Actions
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="quick-actions-grid">
+                <a href="/posts/create" class="quick-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> New Post</a>
+                <a href="/messages/send" class="quick-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Message</a>
+                <a href="/files" class="quick-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload</a>
+                <a href="/tickets/create" class="quick-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 1 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 1 1 0-4V7a2 2 0 0 0-2-2H5z"/></svg> Ticket</a>
+                <a href="/tools" class="quick-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Tools</a>
+                <a href="/challenges" class="quick-action accent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Challenges</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card mt-2 animate-in" style="animation-delay:0.2s;">
+    <div class="card-header">
+        <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px; margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Recent Posts
+        </h3>
+        <a href="/posts" class="btn btn-sm">View All</a>
+    </div>
+    <div class="card-body">
+        {% if recent_posts %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in recent_posts %}
+                <tr>
+                    <td><a href="/posts/{{ post.id }}">{{ post.title }}</a></td>
+                    <td>{{ post.username }}</td>
+                    <td class="text-muted">{{ post.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <p>No recent posts</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Auth Flag Notification -->
+{% if auth_flag %}
+<div class="card mt-2 animate-in" style="animation-delay:0.22s; border-color:rgba(16,185,129,0.3); background:linear-gradient(135deg,rgba(16,185,129,0.06),transparent);">
+    <div class="card-body" style="text-align:center;padding:20px;">
+        <div style="font-size:1.5rem;margin-bottom:8px;">🔑</div>
+        <strong style="color:var(--accent);">Authentication Flag Captured!</strong>
+        <div class="mono" style="margin-top:8px;padding:8px 16px;background:rgba(16,185,129,0.08);border:1px dashed rgba(16,185,129,0.3);border-radius:6px;display:inline-block;font-size:0.9rem;color:var(--warning);">{{ auth_flag }}</div>
+        <p style="color:var(--text-muted);font-size:0.82rem;margin-top:8px;">Submit this flag in the box below or on the <a href="/scoreboard" style="color:var(--accent);">Scoreboard</a>.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Submit Flag -->
+<div class="card mt-2 animate-in" style="animation-delay:0.25s;">
+    <div class="card-header">
+        <h3 style="color:var(--accent);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px; margin-right:6px;"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            Submit a Flag
+        </h3>
+    </div>
+    <div class="card-body">
+        <div id="dash-flag-result" style="display:none;" class="flash mb-2"></div>
+        <form id="dash-flag-form" onsubmit="return submitDashFlag(event)">
+            <div class="flag-input-group">
+                <input type="text" name="flag" id="dash-flag-input" placeholder="flag{...} or FLAG{...}" class="mono" autocomplete="off">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function submitDashFlag(e) {
+    e.preventDefault();
+    var input = document.getElementById('dash-flag-input');
+    var result = document.getElementById('dash-flag-result');
+    var val = input.value.trim();
+    if (!val) return false;
+    submitFlag(val).then(function(data) {
+        result.style.display = 'block';
+        if (data.correct) {
+            if (data.duplicate) {
+                result.className = 'flash flash-info mb-2';
+                result.textContent = data.message || 'Already submitted!';
+            } else {
+                result.className = 'flash flash-success mb-2';
+                result.innerHTML = '\u2705 ' + (data.message || 'Flag accepted!');
+            }
+            input.value = '';
+        } else {
+            result.className = 'flash flash-error mb-2';
+            result.textContent = '\u274c ' + (data.message || 'Incorrect flag.');
+            input.classList.add('shake');
+            setTimeout(function(){ input.classList.remove('shake'); }, 500);
+        }
+    }).catch(function() {
+        result.style.display = 'block';
+        result.className = 'flash flash-error mb-2';
+        result.textContent = 'Network error. Please try again.';
+    });
+    return false;
+}
+// Enter key support
+document.addEventListener('DOMContentLoaded', function() {
+    var di = document.getElementById('dash-flag-input');
+    if (di) di.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); submitDashFlag(e); }
+    });
+});
+</script>
+
+<style>
+.stat-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.quick-actions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.quick-action {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: var(--radius);
+    background: var(--bg-tertiary); color: var(--text-secondary);
+    text-decoration: none; font-size: 0.85rem; font-weight: 500;
+    transition: all 0.2s ease; border: 1px solid transparent;
+}
+.quick-action:hover { background: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary); transform: translateY(-1px); }
+.quick-action.accent { background: rgba(16,185,129,0.1); color: var(--accent); border-color: rgba(16,185,129,0.2); }
+.quick-action.accent:hover { background: rgba(16,185,129,0.2); }
+.empty-state { text-align: center; padding: 40px 20px; }
+.empty-icon { color: var(--text-muted); opacity: 0.4; margin-bottom: 12px; }
+.empty-state p { color: var(--text-muted); }
+@media (max-width: 600px) { .quick-actions-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+{% endblock %}
