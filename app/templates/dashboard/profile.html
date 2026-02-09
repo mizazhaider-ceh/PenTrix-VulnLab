@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Profile — {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">User Profile</h1>
+    <p>Viewing profile for <strong>{{ user.username }}</strong></p>
+</div>
+
+<div class="grid grid-2">
+    <!-- Profile Info -->
+    <div class="card animate-in" style="animation-delay:0.05s;">
+        <div class="card-header">
+            <h3 style="display:flex; align-items:center; gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile Information
+            </h3>
+            {% if session.get('user_id') == user.id %}
+            <span class="badge badge-success">Your Profile</span>
+            {% else %}
+            <span class="badge badge-warning">Other User</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <!-- User avatar banner -->
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; padding:16px; background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(56,189,248,0.05)); border-radius:var(--radius); border:1px solid var(--border-color);">
+                <div style="width:52px; height:52px; border-radius:14px; background: linear-gradient(135deg, var(--accent), var(--info)); display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:700; color:white; flex-shrink:0;">{{ user.username[0]|upper }}</div>
+                <div>
+                    <div style="font-size:1.15rem; font-weight:700; color:var(--text-primary);">{{ user.username }}</div>
+                    <div style="font-size:0.82rem; color:var(--text-muted);"><span class="badge badge-info">{{ user.role }}</span></div>
+                </div>
+            </div>
+            <table>
+                <tr><th>ID</th><td>{{ user.id }}</td></tr>
+                <tr><th>Username</th><td>{{ user.username }}</td></tr>
+                <tr><th>Email</th><td>{{ user.email }}</td></tr>
+                <tr><th>Role</th><td><span class="badge badge-info">{{ user.role }}</span></td></tr>
+                <tr><th>Active</th><td>{{ 'Yes' if user.is_active else 'No' }}</td></tr>
+                <!-- [VULN: CH04-C07] Sensitive fields exposed in profile view -->
+                <tr><th>Salary</th><td>${{ user.salary or 'N/A' }}</td></tr>
+                <tr><th>SSN</th><td>{{ user.ssn or 'N/A' }}</td></tr>
+                <!-- [VULN: CH04-C01] Password visible in plaintext -->
+                <tr><th>Password</th><td class="mono" style="color:var(--danger);">{{ user.password }}</td></tr>
+                <tr><th>Reset Token</th><td class="mono">{{ user.reset_token or 'None' }}</td></tr>
+                <tr><th>Created</th><td>{{ user.created_at }}</td></tr>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Edit Profile -->
+    <div class="card animate-in" style="animation-delay:0.1s;">
+        <div class="card-header">
+            <h3 style="display:flex; align-items:center; gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit Profile
+            </h3>
+        </div>
+        <div class="card-body">
+            <!-- [VULN: CH10-C01] No CSRF token on form -->
+            <!-- [VULN: CH03-C04] Mass assignment possible via role field -->
+            <form method="POST" action="/profile/{{ user.id }}/update">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ user.email }}">
+                </div>
+                <div class="form-group">
+                    <label for="username">Display Name</label>
+                    <input type="text" id="username" name="username" value="{{ user.username }}">
+                </div>
+                <!-- [VULN: CH07-C06] Hidden parameter discoverable via fuzzing -->
+                <!-- Try adding: role, salary, ssn, is_active, password -->
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </form>
+            
+            <hr style="border-color: var(--border-color); margin: 24px 0;">
+            
+            <h4 style="margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Profile Search
+            </h4>
+            <form method="GET" action="/profile/search">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Search by username...">
+                </div>
+                <button type="submit" class="btn btn-sm">Search</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if search_results %}
+<div class="card mt-2 animate-in">
+    <div class="card-header">
+        <h3>Search Results</h3>
+    </div>
+    <div class="card-body">
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th></tr>
+            </thead>
+            <tbody>
+                {% for u in search_results %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td><a href="/profile/{{ u.id }}">{{ u.username }}</a></td>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.role }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
