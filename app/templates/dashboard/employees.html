@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Employee Directory{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Employee Directory</h1>
+    <p>Browse all PenTrix Corp employees</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            All Employees
+        </h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:0.82rem;color:var(--text-muted);">Sort by:</span>
+            <!-- [VULN: CH16-C08] ORDER BY injection via sort parameter -->
+            <a href="/employees?sort=username" class="btn btn-sm">Name</a>
+            <a href="/employees?sort=role" class="btn btn-sm">Role</a>
+            <a href="/employees?sort=created_at" class="btn btn-sm">Date</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Active</th>
+                    <th>Joined</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr class="animate-in" style="animation-delay:{{ loop.index * 0.02 }}s;">
+                    <td style="color:var(--text-muted);">#{{ emp.id }}</td>
+                    <td><a href="/profile/{{ emp.id }}" style="color:var(--accent);">{{ emp.username }}</a></td>
+                    <td>{{ emp.email }}</td>
+                    <td><span class="badge {% if emp.role == 'superadmin' %}badge-danger{% elif emp.role == 'admin' %}badge-warning{% else %}badge-info{% endif %}">{{ emp.role }}</span></td>
+                    <td>
+                        {% if emp.is_active %}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        {% else %}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        {% endif %}
+                    </td>
+                    <td style="color:var(--text-muted);">{{ emp.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
