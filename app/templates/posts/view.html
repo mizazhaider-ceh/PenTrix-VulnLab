@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}{{ post.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1>{{ post.title }}</h1>
+    <p>Posted by <strong>{{ post.username }}</strong> on {{ post.created_at }}</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-body" style="line-height:1.8;">
+        <!-- [VULN: CH08-C02] Content rendered with safe filter (stored XSS) -->
+        {{ post.content | safe }}
+    </div>
+</div>
+
+<!-- Comments Section -->
+<div class="card mt-2 animate-in" style="animation-delay:0.1s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Comments ({{ comments | length }})
+        </h3>
+    </div>
+    <div class="card-body">
+        {% for comment in comments %}
+        <div style="padding: 14px 0; border-bottom: 1px solid var(--border-color);">
+            <div class="flex-between mb-1">
+                <strong>{{ comment.username }}</strong>
+                <span class="text-muted" style="font-size:0.82rem;">{{ comment.created_at }}</span>
+            </div>
+            <!-- [VULN: CH08-C02] Comment body rendered unescaped — stored XSS -->
+            <div style="color:var(--text-secondary); line-height:1.6;">{{ comment.body | safe }}</div>
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted); padding:12px 0;">No comments yet.</p>
+        {% endfor %}
+        
+        <hr style="border-color: var(--border-color); margin: 20px 0;">
+        
+        <!-- Add Comment -->
+        <form method="POST" action="/posts/{{ post.id }}/comment">
+            <div class="form-group">
+                <label for="body">Add a comment</label>
+                <textarea id="body" name="body" placeholder="Write your comment... (HTML allowed)" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:5px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Post Comment
+            </button>
+        </form>
+    </div>
+</div>
+
+<a href="/posts" class="btn mt-2" style="display:inline-flex; align-items:center; gap:5px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Posts
+</a>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Create Post{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Create New Post</h1>
+    <p>Share an announcement or article with the team</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-body">
+        <form method="POST" action="/posts/create">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" placeholder="Post title" required>
+            </div>
+            <div class="form-group">
+                <label for="content">Content</label>
+                <textarea id="content" name="content" placeholder="Write your post content... (HTML allowed)" rows="8" required></textarea>
+            </div>
+            <div class="form-group" style="flex-direction:row; align-items:center; gap:8px;">
+                <input type="checkbox" name="is_public" value="1" checked id="is_public" style="width:auto; margin:0;">
+                <label for="is_public" style="margin:0; cursor:pointer; font-size:0.9rem;">Public post</label>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button type="submit" class="btn btn-primary" style="display:flex; align-items:center; gap:6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Publish Post
+                </button>
+                <a href="/posts" class="btn">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
