@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Send Message{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Send Message</h1>
+    <p>Compose and send a new message</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-body">
+        <form method="POST" action="/messages/send">
+            <div class="form-group">
+                <label for="recipient">Recipient Username</label>
+                <input type="text" id="recipient" name="recipient" placeholder="Username" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" placeholder="Message subject" required>
+            </div>
+            <div class="form-group">
+                <label for="body">Message</label>
+                <textarea id="body" name="body" placeholder="Write your message..." rows="5" required></textarea>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button type="submit" class="btn btn-primary" style="display:flex; align-items:center; gap:6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Send
+                </button>
+                <a href="/messages" class="btn">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

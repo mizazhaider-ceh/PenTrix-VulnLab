@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Inbox{% endblock %}
+
+{% block content %}
+<div class="page-header flex-between animate-in">
+    <div>
+        <h1 class="text-gradient">Messages</h1>
+        <p>Your inbox</p>
+    </div>
+    <a href="/messages/send" class="btn btn-primary" style="display:flex; align-items:center; gap:6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        New Message
+    </a>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-body">
+        {% if messages %}
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:32px;"></th>
+                    <th>From</th>
+                    <th>Subject</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for msg in messages %}
+                <tr style="{% if not msg.is_read %}background: rgba(16,185,129,0.04);{% endif %}">
+                    <td>
+                        {% if not msg.is_read %}
+                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent);"></span>
+                        {% else %}
+                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--border-color);"></span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ msg.sender_name }}</strong></td>
+                    <td><a href="/messages/{{ msg.id }}">{{ msg.subject }}</a></td>
+                    <td class="text-muted">{{ msg.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center; padding:48px 20px;">
+            <div style="opacity:0.3; margin-bottom:12px;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+            <p style="color:var(--text-muted);">No messages in your inbox.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

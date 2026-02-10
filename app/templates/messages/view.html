@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Message{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1>{{ message.subject }}</h1>
+    <p>From <strong>{{ message.sender_name }}</strong> &middot; {{ message.created_at }}</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-body" style="line-height:1.8;">
+        <!-- [VULN: CH08] Message body rendered unescaped -->
+        {{ message.body | safe }}
+    </div>
+</div>
+
+{% if flag %}
+<div class="flash flash-success mt-2 animate-in" style="animation-delay:0.1s;">
+    <strong>IDOR Detected!</strong> You accessed another user's message.<br>
+    <code>{{ flag }}</code>
+</div>
+{% endif %}
+
+<a href="/messages" class="btn mt-2" style="display:inline-flex; align-items:center; gap:5px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Inbox
+</a>
+{% endblock %}
