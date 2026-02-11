@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}URL Fetch{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">URL Fetch Tool</h1>
+    <p>Fetch and preview URL content</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Fetch URL
+        </h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/tools/fetch">
+            <div class="form-group">
+                <label for="url">URL</label>
+                <input type="url" id="url" name="url" class="form-control" placeholder="https://example.com or http://internal:8080" value="{{ url or '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Fetch
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if result %}
+<div class="card mt-2 animate-in" style="animation-delay:0.1s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Response
+        </h3>
+        {% if status_code %}
+        <span class="badge {% if status_code == 200 %}badge-success{% else %}badge-warning{% endif %}">HTTP {{ status_code }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="tool-output" style="font-family:'JetBrains Mono',monospace;font-size:0.88rem;padding:16px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.04);white-space:pre-wrap;">{{ result }}</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mt-2 animate-in" style="animation-delay:0.15s;">
+    <div class="card-body" style="display:flex;align-items:flex-start;gap:12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <div>
+            <strong style="color:var(--text-primary);">Hint:</strong>
+            <span style="color:var(--text-secondary);">This tool can fetch any URL the server can reach, including internal services. Try <code style="background:rgba(167,139,250,0.12);color:#a78bfa;padding:2px 6px;border-radius:4px;">http://internal:8080</code> or <code style="background:rgba(167,139,250,0.12);color:#a78bfa;padding:2px 6px;border-radius:4px;">http://127.0.0.1:6379</code>.</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
