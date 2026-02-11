@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Tickets{% endblock %}
+
+{% block content %}
+<div class="page-header flex-between animate-in">
+    <div>
+        <h1 class="text-gradient">Support Tickets</h1>
+        <p>Submit and track support requests</p>
+    </div>
+    <a href="/tickets/create" class="btn btn-primary" style="display:flex; align-items:center; gap:6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Ticket
+    </a>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-body">
+        {% if tickets %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr>
+                    <!-- [VULN: CH03-C09] Sequential IDs — IDOR on /tickets/<id> -->
+                    <td><span style="color:var(--text-muted);">#</span>{{ ticket.id }}</td>
+                    <td><a href="/tickets/{{ ticket.id }}">{{ ticket.subject }}</a></td>
+                    <td>
+                        <span class="badge {% if ticket.status == 'open' %}badge-success{% elif ticket.status == 'closed' %}badge-danger{% else %}badge-warning{% endif %}">
+                            {{ ticket.status }}
+                        </span>
+                    </td>
+                    <td class="text-muted">{{ ticket.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center; padding:48px 20px;">
+            <div style="opacity:0.3; margin-bottom:12px;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 1 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 1 1 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div>
+            <p style="color:var(--text-muted);">No tickets found. <a href="/tickets/create" style="color:var(--accent);">Create one!</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
