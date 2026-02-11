@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Webhook Test{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <a href="/tools" class="btn btn-sm" style="display:flex;align-items:center;gap:4px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+        </a>
+    </div>
+    <h1 class="text-gradient">Webhook Test</h1>
+    <p>[VULN: BONUS-SSRF-C04] Blind SSRF — server makes callback to attacker-controlled URL</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Webhook Callback Test
+        </h3>
+    </div>
+    <div class="card-body">
+        <form id="webhook-form">
+            <div class="form-group">
+                <label for="url">Callback URL</label>
+                <input type="text" id="url" name="url" placeholder="https://your-server.com/callback or http://internal:8080/...">
+            </div>
+            <button type="submit" class="btn btn-primary">Send Webhook</button>
+        </form>
+        <div id="result" class="mt-2" style="display:none;">
+            <div class="card-header"><h4>Response</h4></div>
+            <pre id="result-output" style="padding:16px;background:var(--surface);border-radius:var(--radius);color:var(--text-secondary);overflow-x:auto;"></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('webhook-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var url = document.getElementById('url').value;
+    fetch('/tools/webhook', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        credentials: 'include',
+        body: 'url=' + encodeURIComponent(url)
+    })
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result-output').textContent = JSON.stringify(d, null, 2);
+    })
+    .catch(err => {
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result-output').textContent = 'Error: ' + err.message;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Calculator{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Calculator</h1>
+    <p>Evaluate mathematical expressions</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/><line x1="8" y1="18" x2="8.01" y2="18"/><line x1="12" y1="18" x2="12.01" y2="18"/><line x1="16" y1="18" x2="16.01" y2="18"/></svg>
+            Expression Evaluator
+        </h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/tools/calculator">
+            <div class="form-group">
+                <label for="expression">Expression</label>
+                <input type="text" id="expression" name="expression" class="form-control" placeholder="e.g., 2+2 or __import__('os').popen('id').read()" value="{{ expression or '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                Calculate
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if result is not none %}
+<div class="card mt-2 animate-in" style="animation-delay:0.1s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Result
+        </h3>
+    </div>
+    <div class="card-body">
+        <div class="tool-output" style="font-family:'JetBrains Mono',monospace;font-size:1rem;padding:16px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:var(--accent);">{{ result }}</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mt-2 animate-in" style="animation-delay:0.15s;">
+    <div class="card-body" style="display:flex;align-items:flex-start;gap:12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <div>
+            <strong style="color:var(--text-primary);">Hint:</strong>
+            <span style="color:var(--text-secondary);">This calculator uses Python's <code style="background:rgba(167,139,250,0.12);color:#a78bfa;padding:2px 6px;border-radius:4px;">eval()</code>. What else can you evaluate?</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
