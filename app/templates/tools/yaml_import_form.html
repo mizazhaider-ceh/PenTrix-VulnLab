@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}YAML Import{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <a href="/tools" class="btn btn-sm" style="display:flex;align-items:center;gap:4px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+        </a>
+    </div>
+    <h1 class="text-gradient">YAML Import</h1>
+    <p>[VULN: CH11-C09] Unsafe yaml.load deserialization — can lead to RCE</p>
+</div>
+
+<div class="card animate-in" style="animation-delay:0.05s;">
+    <div class="card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+            Import YAML Configuration
+        </h3>
+    </div>
+    <div class="card-body">
+        <form id="yaml-form">
+            <div class="form-group">
+                <label for="yaml">YAML Data</label>
+                <textarea id="yaml" name="yaml" rows="10" placeholder="name: PenTrix Corp&#10;version: 2.3.3&#10;settings:&#10;  debug: true&#10;  database: sqlite:////app/data/pentrix.db"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Parse YAML</button>
+        </form>
+        <div id="result" class="mt-2" style="display:none;">
+            <div class="card-header"><h4>Parsed Output</h4></div>
+            <pre id="result-output" style="padding:16px;background:var(--surface);border-radius:var(--radius);color:var(--text-secondary);overflow-x:auto;"></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('yaml-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var yaml = document.getElementById('yaml').value;
+    fetch('/tools/yaml-import', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        credentials: 'include',
+        body: 'yaml=' + encodeURIComponent(yaml)
+    })
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result-output').textContent = JSON.stringify(d, null, 2);
+    })
+    .catch(err => {
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result-output').textContent = 'Error: ' + err.message;
+    });
+});
+</script>
+{% endblock %}
