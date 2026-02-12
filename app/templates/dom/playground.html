@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}DOM Vulnerability Lab{% endblock %}
+
+{% block head %}
+<script src="/static/js/angular-old.js"></script>
+<script src="/static/js/dom-lab.js"></script>
+<style>
+.dom-lab-section{background:var(--card-bg);border:1px solid var(--border-color);border-radius:var(--radius);padding:24px;margin-bottom:16px;position:relative;overflow:hidden;}
+.dom-lab-section:hover{border-color:rgba(56,189,248,0.3);}
+.vuln-id{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(56,189,248,0.1);color:var(--info);letter-spacing:0.5px;margin-bottom:8px;}
+.dom-lab-section h3{font-size:1.05rem;margin-bottom:6px;color:var(--text-primary);}
+.output-area{font-family:'JetBrains Mono',monospace;font-size:0.88rem;padding:14px 16px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.04);margin-top:10px;color:var(--text-muted);min-height:36px;}
+.dom-lab-section code{background:rgba(167,139,250,0.12);color:var(--purple,#a78bfa);padding:2px 6px;border-radius:4px;font-size:0.85rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">DOM Vulnerability Lab</h1>
+    <p>A playground for exploring client-side / DOM-based vulnerabilities (Chapter 9)</p>
+</div>
+
+<!-- CH09-C01: Hash XSS -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.03s;">
+    <div class="vuln-id">CH09-C01</div>
+    <h3>DOM XSS via URL Hash Fragment</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">The page reads the URL hash and writes it to the DOM without sanitization.</p>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>#&lt;img src=x onerror=alert(1)&gt;</code></p>
+    <div id="hash-output" class="output-area">Waiting for hash input...</div>
+</div>
+
+<!-- CH09-C02: postMessage XSS -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.06s;">
+    <div class="vuln-id">CH09-C02</div>
+    <h3>DOM XSS via postMessage</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">This page listens for postMessage events with no origin validation.</p>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Open console and run: <code>window.postMessage('&lt;img src=x onerror=alert(1)&gt;', '*')</code></p>
+    <div id="postmessage-output" class="output-area">Waiting for message...</div>
+    <div id="notification"></div>
+</div>
+
+<!-- CH09-C03: Open Redirect -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.09s;">
+    <div class="vuln-id">CH09-C03</div>
+    <h3>Open Redirect via ?redirect= Parameter</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?redirect=https://evil.com&amp;auto=true</code></p>
+    <div id="redirect-info" class="output-area">No redirect parameter set.</div>
+</div>
+
+<!-- CH09-C04: DOM Clobbering -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.12s;">
+    <div class="vuln-id">CH09-C04</div>
+    <h3>DOM Clobbering</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">The code references <code>window.config</code> which can be clobbered by injecting <code>&lt;form id="config"&gt;</code></p>
+    <div id="clobber-output" class="output-area">Config loaded...</div>
+</div>
+
+<!-- CH09-C05: CSTI -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.15s;">
+    <div class="vuln-id">CH09-C05</div>
+    <h3>Client-Side Template Injection</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?name={{7*7}}</code> (AngularJS expression)</p>
+    <div id="angular-output" class="output-area">No name parameter.</div>
+</div>
+
+<!-- CH09-C06: document.write XSS -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.18s;">
+    <div class="vuln-id">CH09-C06</div>
+    <h3>DOM XSS via document.write</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?title=&lt;img src=x onerror=alert('CH09-C06')&gt;</code></p>
+    <div id="docwrite-container" class="output-area">No title parameter.</div>
+</div>
+
+<!-- CH09-C07: innerHTML XSS -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.21s;">
+    <div class="vuln-id">CH09-C07</div>
+    <h3>DOM XSS via innerHTML</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?bio=&lt;svg onload=alert('CH09-C07')&gt;</code></p>
+    <div id="bio-output" class="output-area">No bio parameter.</div>
+</div>
+
+<!-- CH09-C08: javascript: URI -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.24s;">
+    <div class="vuln-id">CH09-C08</div>
+    <h3>Open Redirect via javascript: URI</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?link=javascript:alert(document.cookie)</code></p>
+    <a id="dynamic-link" href="#" style="display:none;" class="btn btn-sm">Dynamic Link</a>
+    <div class="output-area">Add a ?link= parameter to create a dynamic link.</div>
+</div>
+
+<!-- CH09-C09: Prototype Pollution -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.27s;">
+    <div class="vuln-id">CH09-C09</div>
+    <h3>Prototype Pollution via merge()</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?config={"__proto__":{"isAdmin":true}}</code></p>
+    <div id="proto-output" class="output-area">No config parameter.</div>
+</div>
+
+<!-- CH09-C10: eval XSS -->
+<div class="dom-lab-section animate-in" style="animation-delay:0.30s;">
+    <div class="vuln-id">CH09-C10</div>
+    <h3>DOM XSS via eval()</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;">Try: <code>?calc=alert(document.cookie)</code></p>
+    <div id="eval-output" class="output-area">No calc parameter.</div>
+</div>
+
+<div class="card mt-2 animate-in" style="animation-delay:0.33s;">
+    <div class="card-body" style="display:flex;align-items:flex-start;gap:12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <div>
+            <strong style="color:var(--text-primary);">Note:</strong>
+            <span style="color:var(--text-secondary);">All vulnerabilities on this page are client-side. Use your browser's developer tools (F12) to explore. Open the Console to see initialization messages from dom-lab.js.</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
