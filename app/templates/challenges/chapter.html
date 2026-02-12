@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}{{ chapter.name }}{% endblock %}
+
+{% block content %}
+<style>
+.challenge-card{background:var(--card-bg);border:1px solid var(--border-color);border-radius:var(--radius);padding:20px;margin-bottom:16px;transition:border-color 0.2s;}
+.challenge-card:hover{border-color:rgba(16,185,129,0.3);}
+.challenge-card.solved{border-left:3px solid var(--accent);}
+.challenge-id{font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--info);font-weight:600;letter-spacing:0.5px;}
+.challenge-title{font-size:0.95rem;margin-top:4px;color:var(--text-primary);line-height:1.6;font-style:italic;}
+.hint-box{padding:10px 14px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid var(--border-color);margin-top:8px;font-size:0.88rem;}
+.briefing{background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.15);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px;font-size:0.92rem;color:var(--text-secondary);line-height:1.7;position:relative;}
+.briefing::before{content:'📋 MISSION BRIEFING';display:block;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;}
+.ch-subtitle{font-size:0.85rem;color:var(--text-muted);font-weight:500;margin-top:2px;}
+.linkage{font-size:0.78rem;color:var(--text-muted);margin-top:6px;padding:6px 10px;background:rgba(56,189,248,0.05);border-left:2px solid var(--info);border-radius:0 4px 4px 0;}
+.linkage a{color:var(--info);text-decoration:none;}
+.linkage a:hover{text-decoration:underline;}
+</style>
+
+<div class="page-header animate-in">
+    <h1 class="text-gradient">{{ chapter.icon }} {{ chapter.name }}</h1>
+    <p class="ch-subtitle">{{ chapter.subtitle }} &middot; Chapter {{ chapter.number }} &middot; <span style="color:var(--accent);">{{ captured_ids|length }}</span>/{{ challenges|length }} completed</p>
+</div>
+
+<div class="briefing animate-in" style="animation-delay:0.02s;">
+    {{ chapter.briefing }}
+</div>
+
+<div class="progress-bar mb-3 animate-in" style="animation-delay:0.03s;">
+    <div class="progress-fill" style="width: {{ (captured_ids|length / challenges|length * 100) if challenges|length > 0 else 0 }}%"></div>
+</div>
+
+{% for challenge in challenges %}
+<div class="challenge-card animate-in {% if challenge.flag_id in captured_ids %}solved{% endif %}" style="animation-delay:{{ loop.index * 0.03 }}s;">
+    <div class="flex-between">
+        <div>
+            <div class="challenge-id">{{ challenge.flag_id }}</div>
+            <div class="challenge-title">{{ challenge.description }}</div>
+        </div>
+        {% if challenge.flag_id in captured_ids %}
+        <span class="badge badge-success" style="display:flex;align-items:center;gap:4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Solved
+        </span>
+        {% else %}
+        <span class="badge badge-muted">Unsolved</span>
+        {% endif %}
+    </div>
+    
+    {% if challenge.flag_id not in captured_ids %}
+    <!-- Hints -->
+    <div class="mt-1">
+        {% for hint in challenge.hints %}
+        <div class="hint-box" id="hint-{{ challenge.flag_id }}-{{ hint.tier }}">
+            {% if unlocked_hints.get(challenge.flag_id) and hint.tier in unlocked_hints[challenge.flag_id] %}
+                {{ hint.content }}
+            {% else %}
+                <button class="btn btn-sm" onclick="unlockHint('{{ challenge.flag_id }}', {{ hint.tier }})" style="display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Unlock Hint {{ hint.tier }} (-50 pts)
+                </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Flag Submission (AJAX-powered) -->
+    <div class="mt-1">
+        <div class="flag-input-group">
+            <input type="text" id="flag-input-{{ challenge.flag_id }}" placeholder="flag{...} or FLAG{...}" class="mono" {% if challenge.flag_id in captured_ids %}disabled{% endif %}>
+            <button type="button" class="btn btn-primary btn-sm" {% if challenge.flag_id in captured_ids %}disabled{% endif %} onclick="submitChallengeFlag('{{ challenge.flag_id }}')" style="display:flex;align-items:center;gap:4px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                Submit
+            </button>
+        </div>
+    </div>
+
+    {% if challenge.flag_id in captured_ids and challenge.links %}
+    <div class="linkage">
+        🔗 <strong>This discovery leads to:</strong>
+        {% for link_id in challenge.links.leads_to %}
+        <a href="#{{ link_id }}">{{ link_id }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+        <br><span style="color:var(--text-muted);font-size:0.75rem;">{{ challenge.links.context }}</span>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<a href="/challenges" class="btn mt-2 animate-in" style="display:inline-flex;align-items:center;gap:6px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Chapters
+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function submitChallengeFlag(flagId) {
+    var input = document.getElementById('flag-input-' + flagId);
+    if (!input || !input.value.trim()) {
+        showNotification('Please enter a flag value', 'error');
+        return;
+    }
+    submitFlag(input.value.trim()).then(function(data) {
+        if (data.correct && !data.duplicate) {
+            // Mark card as solved
+            var card = input.closest('.challenge-card');
+            if (card) {
+                card.classList.add('solved');
+                // Update badge
+                var badge = card.querySelector('.badge');
+                if (badge) {
+                    badge.className = 'badge badge-success';
+                    badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Solved';
+                }
+            }
+            input.disabled = true;
+            input.value = '';
+            // Update progress bar
+            var progFill = document.querySelector('.progress-fill');
+            if (progFill) {
+                var newPct = (data.total_captured / data.total_flags * 100).toFixed(0);
+                progFill.style.width = newPct + '%';
+            }
+        } else if (!data.correct) {
+            input.classList.add('shake');
+            setTimeout(function() { input.classList.remove('shake'); }, 500);
+        }
+    });
+}
+
+// Allow Enter key to submit
+document.querySelectorAll('[id^="flag-input-"]').forEach(function(input) {
+    input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var flagId = input.id.replace('flag-input-', '');
+            submitChallengeFlag(flagId);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Challenges{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Challenge Chapters</h1>
+    <p>Work through each chapter to find all flags. <strong>183 total</strong> across <strong>18 categories</strong>.</p>
+</div>
+
+<!-- CTF Secrets -->
+<div class="card mb-3 animate-in" style="animation-delay:0.04s; border-color: rgba(210,153,34,0.3); background: linear-gradient(135deg, rgba(210,153,34,0.05), rgba(248,81,73,0.03));">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.2rem;">🔮</span>
+            Hidden Secrets Layer
+        </h3>
+        <a href="/ctf/secrets" class="btn btn-sm" style="background:rgba(210,153,34,0.15);color:#d29922;border-color:rgba(210,153,34,0.3);">Hunt Secrets</a>
+    </div>
+    <div class="card-body">
+        <p style="color:var(--text-secondary);">10 elite secrets hidden across headers, cookies, source code, APIs, and application logic. Format: <code style="color:var(--warning);">SECRET{...}</code></p>
+    </div>
+</div>
+
+<!-- Scenarios -->
+<div class="card mb-3 animate-in" style="animation-delay:0.05s; border-color: rgba(16,185,129,0.3); background: linear-gradient(135deg, rgba(16,185,129,0.05), rgba(56,189,248,0.03));">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            Scenario Paths
+        </h3>
+        <a href="/challenges/scenarios" class="btn btn-sm btn-primary">View Scenarios</a>
+    </div>
+    <div class="card-body">
+        <p style="color:var(--text-secondary);">Three multi-step hacking scenarios that chain multiple vulnerabilities together into realistic attack paths.</p>
+    </div>
+</div>
+
+<!-- Corporate Intel -->
+<div class="card mb-3 animate-in" style="animation-delay:0.06s; border-color: rgba(88,166,255,0.2); background: linear-gradient(135deg, rgba(88,166,255,0.04), rgba(136,132,216,0.03));">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.2rem;">🏢</span>
+            Corporate Intelligence
+        </h3>
+    </div>
+    <div class="card-body">
+        <p style="color:var(--text-secondary);margin-bottom:12px;">Explore PenTrix Corp's internal infrastructure for organic recon clues.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <a href="/internal/comms" class="btn btn-sm" style="font-size:0.78rem;">📡 Comms</a>
+            <a href="/internal/chat" class="btn btn-sm" style="font-size:0.78rem;">💬 Dev Chat</a>
+            <a href="/internal/emails" class="btn btn-sm" style="font-size:0.78rem;">📧 Emails</a>
+            <a href="/internal/notes" class="btn btn-sm" style="font-size:0.78rem;">📌 Notes</a>
+            <a href="/internal/wiki" class="btn btn-sm" style="font-size:0.78rem;">📖 Wiki</a>
+            <a href="/changelog.html" class="btn btn-sm" style="font-size:0.78rem;">📋 Changelog</a>
+        </div>
+    </div>
+</div>
+
+<!-- Overall Progress -->
+{% set total_done = chapters.values()|map(attribute='completed')|sum %}
+{% set total_all = chapters.values()|map(attribute='total')|sum %}
+{% set overall_pct = ((total_done / total_all * 100) if total_all > 0 else 0)|int %}
+<div class="card mb-3 animate-in" style="animation-delay:0.08s;">
+    <div class="card-body" style="padding:20px;">
+        <div class="flex-between mb-1">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.4rem;">🏆</span>
+                <div>
+                    <strong style="font-size:1rem;">Overall Progress</strong>
+                    <span style="color:var(--text-muted);font-size:0.85rem;margin-left:8px;">{{ total_done }} / {{ total_all }} flags captured</span>
+                </div>
+            </div>
+            <span style="font-size:1.3rem;font-weight:800;color:{% if overall_pct == 100 %}var(--accent){% elif overall_pct > 50 %}var(--info){% else %}var(--text-secondary){% endif %};">{{ overall_pct }}%</span>
+        </div>
+        <div class="progress-bar" style="height:8px;border-radius:4px;">
+            <div class="progress-fill" style="width:{{ overall_pct }}%;height:100%;border-radius:4px;transition:width 1s ease;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Chapter Grid -->
+<div class="ch-grid">
+{% for key, ch in chapters.items() %}
+<a href="/challenges/{{ key }}" class="ch-card animate-in" style="text-decoration:none; animation-delay:{{ loop.index * 0.03 }}s; --ch-color: {{ ch.color }};">
+    <div class="ch-card-top">
+        <div class="ch-icon">{{ ch.icon }}</div>
+        <div class="ch-badges">
+            <span class="ch-diff" data-level="{{ ch.difficulty }}">
+                {{ '★' * ch.difficulty }}{{ '☆' * (4 - ch.difficulty) }}
+            </span>
+            <span class="ch-tag">{{ key }}</span>
+        </div>
+    </div>
+    <div class="ch-card-body">
+        <h3 class="ch-name">{{ ch.name }}</h3>
+        {% if ch.subtitle %}<p class="ch-subtitle" style="font-size:0.75rem;color:var(--text-muted);margin:2px 0 4px;">{{ ch.subtitle }}</p>{% endif %}
+        <p class="ch-count">{{ ch.total }} challenges</p>
+    </div>
+    <div class="ch-card-bottom">
+        <div class="ch-prog-info">
+            <span>{{ ch.completed }}/{{ ch.total }}</span>
+            <span class="ch-pct" style="color: {% if ch.percent == 100 %}var(--accent){% elif ch.percent > 50 %}var(--info){% else %}var(--text-muted){% endif %};">{{ ch.percent }}%</span>
+        </div>
+        <div class="progress-bar" style="height:4px;">
+            <div class="progress-fill" style="width:{{ ch.percent }}%;"></div>
+        </div>
+    </div>
+    {% if ch.percent == 100 %}
+    <div class="ch-completed-badge">✓</div>
+    {% endif %}
+</a>
+{% endfor %}
+</div>
+
+<style>
+/* Chapter Grid */
+.ch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+}
+.ch-card {
+    position: relative;
+    background: var(--bg-glass);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    color: inherit;
+    overflow: hidden;
+    border-top: 3px solid var(--ch-color, var(--border-color));
+}
+.ch-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--ch-color, var(--accent));
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px var(--ch-color, var(--accent));
+    color: inherit;
+}
+.ch-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ch-color) 8%, transparent), transparent);
+    pointer-events: none;
+}
+.ch-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    position: relative;
+}
+.ch-icon {
+    font-size: 2rem;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.ch-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+.ch-diff {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+.ch-diff[data-level="1"] { color: #22c55e; }
+.ch-diff[data-level="2"] { color: #f59e0b; }
+.ch-diff[data-level="3"] { color: #ef4444; }
+.ch-diff[data-level="4"] { color: #a855f7; }
+.ch-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+.ch-card-body {
+    position: relative;
+    margin-bottom: 16px;
+}
+.ch-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+.ch-count {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+.ch-card-bottom {
+    position: relative;
+}
+.ch-prog-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+}
+.ch-pct {
+    font-weight: 700;
+}
+.ch-completed-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.85rem;
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+</style>
+{% endblock %}

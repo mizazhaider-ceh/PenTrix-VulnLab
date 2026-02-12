@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Scenarios{% endblock %}
+
+{% block content %}
+<style>
+.scenario-card{background:var(--card-bg);border:1px solid var(--border-color);border-radius:var(--radius);padding:24px;margin-bottom:20px;position:relative;overflow:hidden;}
+.scenario-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:4px 0 0 4px;}
+.scenario-card:nth-child(2)::before{background:var(--accent);}
+.scenario-card:nth-child(3)::before{background:var(--warning);}
+.scenario-card:nth-child(4)::before{background:var(--danger);}
+.scenario-steps{list-style:none;padding:0;counter-reset:step;}
+.scenario-steps li{counter-increment:step;padding:10px 12px 10px 44px;position:relative;border-left:2px solid var(--border-color);margin-left:14px;font-size:0.92rem;color:var(--text-secondary);}
+.scenario-steps li::before{content:counter(step);position:absolute;left:-14px;top:8px;width:26px;height:26px;border-radius:50%;background:var(--surface);border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:var(--text-muted);}
+.scenario-steps li:last-child{border-left-color:transparent;}
+</style>
+
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Hacking Scenarios</h1>
+    <p>Multi-step attack chains that simulate real-world penetration testing</p>
+</div>
+
+<!-- Scenario A -->
+<div class="scenario-card animate-in" style="animation-delay:0.05s;">
+    <div class="flex-between">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            Scenario A — "The Insider"
+        </h3>
+        <span class="badge badge-success">Easy | 3 Steps</span>
+    </div>
+    <p style="color:var(--text-muted);margin-top:8px;">Gain admin access starting as a regular user.</p>
+    <ol class="scenario-steps mt-2">
+        <li><strong>Fingerprinting:</strong> Identify tech stack and find /debug endpoint</li>
+        <li><strong>Broken Authentication:</strong> Login with default credentials found in debug info</li>
+        <li><strong>Broken Access Control:</strong> Access admin panel via IDOR on user ID</li>
+    </ol>
+    <div class="mt-2">
+        <form method="POST" action="/scoreboard/submit" style="display:inline;">
+            <div class="flag-input-group">
+                <input type="text" name="flag" placeholder="FLAG{SCENARIO_A_...}" class="mono">
+                <button type="submit" class="btn btn-primary btn-sm" style="display:flex;align-items:center;gap:4px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                    Submit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scenario B -->
+<div class="scenario-card animate-in" style="animation-delay:0.1s;">
+    <div class="flex-between">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Scenario B — "Data Heist"
+        </h3>
+        <span class="badge badge-warning">Medium | 5 Steps</span>
+    </div>
+    <p style="color:var(--text-muted);margin-top:8px;">Exfiltrate a secret internal salary report as an unauthenticated user.</p>
+    <ol class="scenario-steps mt-2">
+        <li><strong>Fuzzing:</strong> Find hidden /api/v2/internal endpoint</li>
+        <li><strong>CORS:</strong> Exploit origin reflection to read API data cross-origin</li>
+        <li><strong>Broken Access Control:</strong> IDOR on /api/reports/:id to find credentials backup</li>
+        <li><strong>Sensitive Data Exposure:</strong> API returns hashed passwords in response</li>
+        <li><strong>SQLi:</strong> Crack hash or bypass auth to access salary report</li>
+    </ol>
+    <div class="mt-2">
+        <form method="POST" action="/scoreboard/submit" style="display:inline;">
+            <div class="flag-input-group">
+                <input type="text" name="flag" placeholder="FLAG{SCENARIO_B_...}" class="mono">
+                <button type="submit" class="btn btn-primary btn-sm" style="display:flex;align-items:center;gap:4px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                    Submit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scenario C -->
+<div class="scenario-card animate-in" style="animation-delay:0.15s;">
+    <div class="flex-between">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Scenario C — "Full Compromise"
+        </h3>
+        <span class="badge badge-danger">Hard | 8+ Steps</span>
+    </div>
+    <p style="color:var(--text-muted);margin-top:8px;">Achieve Remote Code Execution starting from zero knowledge.</p>
+    <ol class="scenario-steps mt-2">
+        <li><strong>Fingerprinting:</strong> Map the application and discover endpoints</li>
+        <li><strong>Directory Traversal:</strong> Read app source code via file download traversal</li>
+        <li><strong>SQL Injection:</strong> Extract credentials from users table</li>
+        <li><strong>Broken Auth:</strong> Login as admin using extracted credentials</li>
+        <li><strong>XSS:</strong> Stored XSS in admin-visible field to steal session</li>
+        <li><strong>CSRF:</strong> Use admin session to activate network tool feature</li>
+        <li><strong>RCE:</strong> Command injection in ping utility</li>
+        <li><strong>SSRF:</strong> Chain SSRF from RCE to access internal Redis</li>
+        <li><strong>Persistence:</strong> Write cron job via Redis for persistent access</li>
+    </ol>
+    <div class="mt-2">
+        <form method="POST" action="/scoreboard/submit" style="display:inline;">
+            <div class="flag-input-group">
+                <input type="text" name="flag" placeholder="FLAG{SCENARIO_C_...}" class="mono">
+                <button type="submit" class="btn btn-primary btn-sm" style="display:flex;align-items:center;gap:4px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                    Submit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<a href="/challenges" class="btn mt-2 animate-in" style="animation-delay:0.2s; display:inline-flex;align-items:center;gap:6px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Chapters
+</a>
+{% endblock %}
