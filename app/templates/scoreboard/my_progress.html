@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}My Progress{% endblock %}
+
+{% block content %}
+<style>
+.progress-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;}
+.progress-stat{text-align:center;padding:20px 12px;border-radius:var(--radius);background:var(--card-bg);border:1px solid var(--border-color);}
+.progress-stat .ps-value{font-size:2rem;font-weight:700;line-height:1.1;}
+.progress-stat .ps-label{font-size:0.82rem;color:var(--text-muted);margin-top:4px;}
+.chapter-progress{margin-bottom:12px;}
+.chapter-progress .cp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.chapter-progress .cp-title{font-weight:600;font-size:0.92rem;}
+.chapter-progress .cp-count{font-size:0.82rem;}
+</style>
+
+<div class="page-header animate-in">
+    <h1 class="text-gradient">My Progress</h1>
+    <p>Your challenge completion status</p>
+</div>
+
+<!-- Overall Stats -->
+<div class="progress-stat-grid animate-in" style="animation-delay:0.03s;">
+    <div class="progress-stat">
+        <div class="ps-value" style="color:var(--accent);">{{ captured_count }}</div>
+        <div class="ps-label">Flags Found</div>
+    </div>
+    <div class="progress-stat">
+        <div class="ps-value" style="color:var(--info);">{{ total_flags }}</div>
+        <div class="ps-label">Total Flags</div>
+    </div>
+    <div class="progress-stat">
+        <div class="ps-value" style="color:var(--purple, #a78bfa);">{{ score }}</div>
+        <div class="ps-label">Total Points</div>
+    </div>
+    <div class="progress-stat">
+        <div class="ps-value" style="color:var(--danger);">{{ incorrect_attempts }}</div>
+        <div class="ps-label">Wrong Attempts</div>
+    </div>
+</div>
+
+<!-- Per-Chapter Progress -->
+<div class="card animate-in" style="animation-delay:0.06s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Chapter Progress
+        </h3>
+    </div>
+    <div class="card-body">
+        {% for ch_key, ch in chapters.items() %}
+        <div class="chapter-progress">
+            <div class="cp-header">
+                <span class="cp-title">{{ ch_key }}</span>
+                <span class="cp-count" style="color:{% if ch.captured == ch.total %}var(--accent){% elif ch.captured > 0 %}var(--warning){% else %}var(--text-muted){% endif %};">
+                    {{ ch.captured }}/{{ ch.total }}
+                </span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ (ch.captured / ch.total * 100) if ch.total > 0 else 0 }}%"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Captured Flags -->
+{% if captured %}
+<div class="card mt-2 animate-in" style="animation-delay:0.09s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            Captured Flags
+        </h3>
+    </div>
+    <div class="card-body">
+        <table>
+            <thead><tr><th>Flag ID</th><th>Submitted At</th></tr></thead>
+            <tbody>
+                {% for c in captured %}
+                <tr class="animate-in" style="animation-delay:{{ loop.index * 0.02 }}s;">
+                    <td class="mono" style="color:var(--accent);">{{ c.flag_id }}</td>
+                    <td style="color:var(--text-muted);">{{ c.submitted_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

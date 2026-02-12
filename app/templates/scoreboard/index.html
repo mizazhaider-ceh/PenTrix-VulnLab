@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Scoreboard{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h1 class="text-gradient">Scoreboard</h1>
+    <p>Top challengers ranked by points earned from captured flags</p>
+</div>
+
+<!-- Submit Flag -->
+<div class="card mb-3 animate-in" style="animation-delay:0.05s; border-color: rgba(16,185,129,0.2); background: linear-gradient(135deg, rgba(16,185,129,0.03), transparent);">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px; color:var(--accent);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            Submit a Flag
+        </h3>
+        <span class="badge" style="background:var(--accent-soft);color:var(--accent);font-family:var(--font-mono);font-size:0.72rem;">FLAG{...}</span>
+    </div>
+    <div class="card-body">
+        <div id="submit-result" style="display:none;" class="flash mb-2"></div>
+        
+        <form id="flag-submit-form" onsubmit="return submitFlagForm(event)">
+            <div style="display:flex;gap:10px;">
+                <div style="flex:1;position:relative;">
+                    <svg style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                    <input type="text" name="flag" id="flag-input" placeholder="Paste your captured flag here..." class="mono" required style="padding-left:40px;font-size:0.95rem;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding:12px 28px;white-space:nowrap;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Submit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Leaderboard -->
+<div class="card animate-in" style="animation-delay:0.1s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Leaderboard
+        </h3>
+    </div>
+    <div class="card-body">
+        {% if leaders %}
+        {% for entry in leaders %}
+        <div class="leaderboard-row {% if loop.index <= 3 %}top-{{ loop.index }}{% endif %}" style="animation: fadeInUp 0.3s ease {{ loop.index * 0.05 }}s both;">
+            <div class="rank">
+                {% if loop.index == 1 %}<span style="font-size:1.2rem;">&#x1f947;</span>
+                {% elif loop.index == 2 %}<span style="font-size:1.2rem;">&#x1f948;</span>
+                {% elif loop.index == 3 %}<span style="font-size:1.2rem;">&#x1f949;</span>
+                {% else %}#{{ loop.index }}{% endif %}
+            </div>
+            <div style="flex:1;">
+                <strong>{{ entry.username }}</strong>
+                {% if loop.index == 1 %} <span style="color:var(--warning);">&#x1f451;</span>{% endif %}
+            </div>
+            <div>
+                <span class="badge badge-success">{{ entry.flags_captured }} flags</span>
+            </div>
+            <div style="min-width:100px;text-align:right;">
+                <strong style="{% if loop.index == 1 %}color:var(--warning);font-size:1.1rem;{% elif loop.index <= 3 %}color:var(--accent);{% endif %}">{{ entry.score }}</strong> pts
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <div style="font-size:2.5rem; margin-bottom:12px; opacity:0.4;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+            <p style="color:var(--text-muted);">No submissions yet. Be the first!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Personal Progress -->
+{% if session.get('user_id') %}
+<div class="card mt-2 animate-in" style="animation-delay:0.15s;">
+    <div class="card-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Your Progress
+        </h3>
+        <a href="/scoreboard/my" class="btn btn-sm">Detailed View</a>
+    </div>
+    <div class="card-body">
+        <p style="color:var(--text-secondary);">Submit flags to track your progress. Visit the <a href="/challenges" style="color:var(--accent);">Challenges</a> page for guided walkthroughs.</p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.leaderboard-row.top-1 { background: linear-gradient(90deg, rgba(245,158,11,0.08), transparent); border-left: 3px solid var(--warning); }
+.leaderboard-row.top-2 { background: linear-gradient(90deg, rgba(148,163,184,0.06), transparent); border-left: 3px solid #94a3b8; }
+.leaderboard-row.top-3 { background: linear-gradient(90deg, rgba(180,83,9,0.06), transparent); border-left: 3px solid #b45309; }
+.empty-state { text-align: center; padding: 48px 20px; }
+@keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+</style>
+
+<script>
+function submitFlagForm(e) {
+    e.preventDefault();
+    const input = document.getElementById('flag-input');
+    const result = document.getElementById('submit-result');
+    const flag = input.value.trim();
+    if (!flag) return false;
+
+    fetch('/scoreboard/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'flag=' + encodeURIComponent(flag)
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.style.display = 'block';
+        if (data.correct) {
+            result.className = 'flash flash-success mb-2';
+            if (data.duplicate) {
+                result.textContent = data.message || 'Already submitted!';
+            } else {
+                result.innerHTML = '<strong>\u2705 ' + (data.message || 'Flag accepted!') + '</strong>';
+                launchConfetti();
+            }
+            input.value = '';
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            result.className = 'flash flash-error mb-2';
+            result.textContent = '\u274c ' + (data.message || 'Invalid flag.');
+            input.classList.add('shake');
+            setTimeout(() => input.classList.remove('shake'), 500);
+        }
+    })
+    .catch(() => {
+        result.style.display = 'block';
+        result.className = 'flash flash-error mb-2';
+        result.textContent = 'Network error. Please try again.';
+    });
+    return false;
+}
+</script>
+{% endblock %}
