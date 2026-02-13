@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Changelog{% endblock %}
+
+{% block content %}
+<style>
+.changelog { max-width: 800px; margin: 0 auto; }
+.release { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); margin: 16px 0; overflow: hidden; }
+.release-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.release-version { font-weight: 700; font-size: 1.05rem; color: var(--text-primary); }
+.release-date { font-size: 0.82rem; color: var(--text-muted); }
+.release-tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.tag-latest { background: rgba(63,185,80,0.1); color: #3fb950; }
+.tag-security { background: rgba(248,81,73,0.1); color: #f85149; }
+.tag-feature { background: rgba(88,166,255,0.1); color: #58a6ff; }
+.release-body { padding: 16px 20px; }
+.release-body ul { margin: 0; padding-left: 20px; }
+.release-body li { margin: 6px 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+.release-body li code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; }
+.release-note { font-size: 0.82rem; color: var(--text-muted); margin-top: 10px; padding: 10px 14px; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 2px solid var(--border-color); }
+.flag-inline { color: var(--warning); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+</style>
+
+<div class="page-header animate-in">
+    <h1 class="text-gradient">📋 Release Changelog</h1>
+    <p style="color:var(--text-muted);">PenTrix Corp Internal Portal &mdash; Version History</p>
+</div>
+
+<div class="changelog">
+
+<div class="release animate-in" style="animation-delay:0.03s;">
+    <div class="release-header">
+        <div>
+            <span class="release-version">v2.3.3</span>
+            <span class="release-tag tag-latest">Latest</span>
+        </div>
+        <span class="release-date">March 15, 2024</span>
+    </div>
+    <div class="release-body">
+        <ul>
+            <li>Added network diagnostics tool at <code>/tools/ping</code></li>
+            <li>Increased file upload size limit to 50MB</li>
+            <li>Added GraphQL endpoint with <strong>introspection enabled</strong> for developer convenience</li>
+            <li>New XML import tool for bulk data processing</li>
+            <li>Added YAML restore endpoint for backup recovery</li>
+            <li>Deployed internal microservice on port 8080</li>
+        </ul>
+        <div class="release-note">
+            🔖 Build commit: <code>a1b2c3d4e5f6</code> &mdash; <span class="flag-inline">{{ flag }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="release animate-in" style="animation-delay:0.06s;">
+    <div class="release-header">
+        <div>
+            <span class="release-version">v2.3.2</span>
+            <span class="release-tag tag-security">Security</span>
+        </div>
+        <span class="release-date">March 1, 2024</span>
+    </div>
+    <div class="release-body">
+        <ul>
+            <li>"Fixed" CORS configuration by reflecting the Origin header (security team please verify)</li>
+            <li>Added <code>X-Frame-Options</code> to the TODO list</li>
+            <li>Planned migration from plaintext passwords to bcrypt (deferred to next sprint)</li>
+            <li>Added Content-Security-Policy to the security checklist (not yet implemented)</li>
+        </ul>
+        <div class="release-note">
+            ⚠️ Note: Most security items from this release were postponed. See <a href="/internal/audit-checklist" style="color:var(--info);">/internal/audit-checklist</a> for current status.
+        </div>
+    </div>
+</div>
+
+<div class="release animate-in" style="animation-delay:0.09s;">
+    <div class="release-header">
+        <div>
+            <span class="release-version">v2.3.1</span>
+            <span class="release-tag tag-feature">Feature</span>
+        </div>
+        <span class="release-date">February 1, 2024</span>
+    </div>
+    <div class="release-body">
+        <ul>
+            <li>Added API v2 endpoints (<code>/api/v2/</code>)</li>
+            <li>Exposed <code>/actuator</code> health endpoints for monitoring</li>
+            <li>Implemented JWT authentication using shared <code>SECRET_KEY</code></li>
+            <li>Added employee directory with salary information visible to all users</li>
+            <li>Server-Side Request Forgery... I mean, server-side <em>fetch tool</em> deployed at <code>/tools/fetch</code></li>
+        </ul>
+        <div class="release-note">
+            📝 Dev note: JWT tokens use the same secret as Flask sessions. This simplifies key management.
+            Admin API key: <code>sk-pentrix-admin-key-1234</code> (rotate before audit).
+        </div>
+    </div>
+</div>
+
+<div class="release animate-in" style="animation-delay:0.12s;">
+    <div class="release-header">
+        <div>
+            <span class="release-version">v2.3.0</span>
+            <span class="release-tag tag-feature">Feature</span>
+        </div>
+        <span class="release-date">January 15, 2024</span>
+    </div>
+    <div class="release-body">
+        <ul>
+            <li>Major rewrite — migrated from PHP to Flask/Python</li>
+            <li>SQLite database deployed at <code>/app/data/pentrix.db</code></li>
+            <li>Backup system stores copies at <code>/backup/</code> during migration</li>
+            <li>Added admin panel with user management (no IP restriction yet)</li>
+            <li>Created test accounts for QA: alice, bob, charlie, dev_user, hr_manager</li>
+            <li>Debug endpoint at <code>/debug</code> enabled for development</li>
+            <li>Left <code>.env</code>, <code>.git/HEAD</code>, <code>config.json</code> accessible (cleanup pending)</li>
+        </ul>
+        <div class="release-note">
+            🚨 MIGRATION NOTE: Old backup stored at <code>/backup/db.sqlite</code>. Staging endpoints (<code>/test</code>, <code>/dev</code>) still active. Will disable before go-live.
+            <br>Default credentials: admin:admin / dev_user:dev_secret
+        </div>
+    </div>
+</div>
+
+<div class="release animate-in" style="animation-delay:0.15s;">
+    <div class="release-header">
+        <div>
+            <span class="release-version">v2.2.0</span>
+        </div>
+        <span class="release-date">December 1, 2023</span>
+    </div>
+    <div class="release-body">
+        <ul>
+            <li>Added messaging system (no access control between users)</li>
+            <li>Added support ticket system (XSS in ticket body not sanitized)</li>
+            <li>File upload system deployed (all MIME types accepted)</li>
+            <li>Added transfer system between user accounts</li>
+            <li>Coupon system with race condition in redemption logic</li>
+        </ul>
+        <div class="release-note">
+            📝 Known issue: Transfer accepts negative amounts. Coupon redemption has timing vulnerability — uses_left checked but decremented non-atomically.
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- pentrix-changelog-generator v1.0 -->
+<!-- deploy-pipeline: jenkins.pentrix.corp:8443 -->
+<!-- artifact-store: s3://pentrix-builds/releases/ -->
+{% endblock %}

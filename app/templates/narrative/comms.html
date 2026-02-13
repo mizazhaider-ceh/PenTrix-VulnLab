@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Internal Communications{% endblock %}
+
+{% block content %}
+<style>
+.comms-container { max-width: 800px; margin: 0 auto; }
+.msg-thread { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); margin: 16px 0; overflow: hidden; }
+.msg-thread-header { padding: 14px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.msg-thread-header h3 { font-size: 0.95rem; margin: 0; color: var(--text-primary); }
+.msg-thread-header .tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.tag-confidential { background: rgba(248,81,73,0.1); color: #f85149; }
+.tag-general { background: rgba(88,166,255,0.1); color: #58a6ff; }
+.tag-urgent { background: rgba(210,153,34,0.1); color: #d29922; }
+.tag-it { background: rgba(63,185,80,0.1); color: #3fb950; }
+.msg-item { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.msg-item:last-child { border-bottom: none; }
+.msg-sender { font-weight: 600; font-size: 0.88rem; color: var(--info); }
+.msg-time { font-size: 0.75rem; color: var(--text-muted); margin-left: 8px; }
+.msg-body { font-size: 0.88rem; line-height: 1.65; margin-top: 6px; color: var(--text-secondary); }
+.msg-body code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; }
+.channel-label { font-size: 0.78rem; color: var(--text-muted); margin: 24px 0 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+</style>
+
+<div class="page-header animate-in">
+    <h1 class="text-gradient">📡 Internal Communications</h1>
+    <p style="color:var(--text-muted);">PenTrix Corp messaging system &mdash; archived conversations from internal channels.</p>
+</div>
+
+<div class="comms-container">
+
+<div class="channel-label animate-in"># general</div>
+<div class="msg-thread animate-in" style="animation-delay:0.05s;">
+    <div class="msg-thread-header">
+        <h3># general — Team Updates</h3>
+        <span class="tag tag-general">General</span>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">admin</span><span class="msg-time">Mar 15, 9:02 AM</span>
+        <div class="msg-body">Welcome to the new internal portal! Please report any bugs through the ticket system at <code>/tickets</code>.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">alice</span><span class="msg-time">Mar 15, 9:15 AM</span>
+        <div class="msg-body">Thanks! Quick question — is the old portal still running on port 8080? I saw <code>http://internal:8080</code> responding.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">dev_user</span><span class="msg-time">Mar 15, 9:18 AM</span>
+        <div class="msg-body">That's the internal microservice. It shouldn't be accessible externally. Only through the server-side fetch tool.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">charlie</span><span class="msg-time">Mar 15, 9:30 AM</span>
+        <div class="msg-body">I tried <code>/tools/fetch?url=http://internal:8080/admin</code> and it returned admin data. Is that intended? 🤔</div>
+    </div>
+</div>
+
+<div class="channel-label animate-in" style="animation-delay:0.1s;"># dev-ops</div>
+<div class="msg-thread animate-in" style="animation-delay:0.12s;">
+    <div class="msg-thread-header">
+        <h3># dev-ops — Infrastructure</h3>
+        <span class="tag tag-it">IT</span>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">dev_user</span><span class="msg-time">Mar 14, 2:30 PM</span>
+        <div class="msg-body">Pushed the latest build. Docker Compose has 3 services: web (:5000), internal (:8080), redis (:6379). Redis has no auth — @admin can we add a password?</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">admin</span><span class="msg-time">Mar 14, 3:05 PM</span>
+        <div class="msg-body">Redis auth is on the backlog. For now it's fine since it's only internal. Also please rotate the Flask <code>SECRET_KEY</code> — it's still <code>super_secret_key_12345</code> from dev.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">dev_user</span><span class="msg-time">Mar 14, 3:12 PM</span>
+        <div class="msg-body">Will do. Also, I noticed the <code>.env</code> and <code>.git/HEAD</code> are being served by Flask. Should we block those routes or add a web server in front?</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">admin</span><span class="msg-time">Mar 14, 4:00 PM</span>
+        <div class="msg-body">Add it to the TODO list. The security audit is next month. Let's clean up by then. Priority: remove <code>/debug</code>, <code>/admin2</code>, and the backup endpoints.</div>
+    </div>
+</div>
+
+<div class="channel-label animate-in" style="animation-delay:0.15s;"># security-concerns</div>
+<div class="msg-thread animate-in" style="animation-delay:0.18s;">
+    <div class="msg-thread-header">
+        <h3># security-concerns — Vulnerability Reports</h3>
+        <span class="tag tag-urgent">Urgent</span>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">alice</span><span class="msg-time">Mar 13, 11:20 AM</span>
+        <div class="msg-body">I found something weird. If I change the user ID in the URL from <code>/profile/2</code> to <code>/profile/1</code>, I can see admin's profile including salary and SSN. Same with <code>/messages/view/1</code>.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">bob</span><span class="msg-time">Mar 13, 11:45 AM</span>
+        <div class="msg-body">Yeah, the file download is the same — <code>/files/download/3</code> gives me someone else's files. No auth check at all.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">dev_user</span><span class="msg-time">Mar 13, 12:00 PM</span>
+        <div class="msg-body">Those are all IDOR issues. I'll add authorization checks... eventually. The SQL queries also use string formatting instead of parameterized queries in some routes. That's a bigger problem.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">hr_manager</span><span class="msg-time">Mar 13, 2:15 PM</span>
+        <div class="msg-body">URGENT: The <code>/reports/export</code> endpoint dumps all employee data including SSNs and salaries. Any logged-in user can access it. There's no role check.</div>
+    </div>
+</div>
+
+<div class="channel-label animate-in" style="animation-delay:0.22s;"># random</div>
+<div class="msg-thread animate-in" style="animation-delay:0.25s;">
+    <div class="msg-thread-header">
+        <h3># random — Off Topic</h3>
+        <span class="tag tag-general">General</span>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">charlie</span><span class="msg-time">Mar 12, 4:30 PM</span>
+        <div class="msg-body">Has anyone noticed the ping tool? I entered <code>127.0.0.1; cat /etc/passwd</code> and it actually executed. 💀</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">bob</span><span class="msg-time">Mar 12, 4:45 PM</span>
+        <div class="msg-body">Bruh. The YAML restore endpoint uses <code>yaml.load()</code> without SafeLoader. I could deserialize arbitrary Python objects.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">alice</span><span class="msg-time">Mar 12, 5:00 PM</span>
+        <div class="msg-body">Also XML import doesn't disable external entities. I tried a basic XXE payload and it read local files. 😬</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">dev_user</span><span class="msg-time">Mar 12, 5:15 PM</span>
+        <div class="msg-body">Ok ok I hear you all. I'll add <code>yaml.safe_load()</code> and disable DTD processing... after the current sprint. Maybe.</div>
+    </div>
+</div>
+
+<div class="channel-label animate-in" style="animation-delay:0.28s;"># hr-confidential</div>
+<div class="msg-thread animate-in" style="animation-delay:0.3s;">
+    <div class="msg-thread-header">
+        <h3># hr-confidential — HR Only</h3>
+        <span class="tag tag-confidential">Confidential</span>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">hr_manager</span><span class="msg-time">Mar 11, 10:00 AM</span>
+        <div class="msg-body">Reminder: the salary master spreadsheet is uploaded at <code>/files/</code> as <code>salary_master_q4.xlsx</code> (file ID 2). Only HR should have access but I'm not sure the permissions work.</div>
+    </div>
+    <div class="msg-item">
+        <span class="msg-sender">admin</span><span class="msg-time">Mar 11, 10:30 AM</span>
+        <div class="msg-body">The file permissions are based on an <code>is_private</code> flag in the database. But the download endpoint doesn't check it. We'll fix that soon. Also the employee directory at <code>/dashboard/employees</code> shows salary info to everyone.</div>
+    </div>
+</div>
+
+</div>
+
+<!-- PenTrix Internal Comms — pentrix-msg-relay-01 -->
+<!-- Cache-Control: no-store (but we forgot to set it) -->
+<!-- Session-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 -->
+{% endblock %}

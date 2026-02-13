@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}Dev Chat Logs{% endblock %}
+
+{% block content %}
+<style>
+.chat-log { max-width: 800px; margin: 0 auto; font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace; }
+.chat-day { font-size: 0.78rem; color: var(--text-muted); text-align: center; margin: 24px 0 12px; position: relative; }
+.chat-day::before, .chat-day::after { content: ''; position: absolute; top: 50%; width: 35%; height: 1px; background: var(--border-color); }
+.chat-day::before { left: 0; } .chat-day::after { right: 0; }
+.chat-msg { display: flex; gap: 12px; padding: 8px 0; margin: 2px 0; }
+.chat-msg:hover { background: rgba(255,255,255,0.02); border-radius: 6px; }
+.chat-avatar { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+.av-admin { background: rgba(248,81,73,0.15); color: #f85149; }
+.av-dev { background: rgba(63,185,80,0.15); color: #3fb950; }
+.av-alice { background: rgba(136,132,216,0.15); color: #8884d8; }
+.av-bob { background: rgba(210,153,34,0.15); color: #d29922; }
+.av-charlie { background: rgba(88,166,255,0.15); color: #58a6ff; }
+.av-hr { background: rgba(219,171,255,0.15); color: #dbabff; }
+.av-system { background: rgba(255,255,255,0.06); color: #8b949e; }
+.chat-content { flex: 1; }
+.chat-name { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
+.chat-name .ts { font-weight: 400; color: var(--text-muted); font-size: 0.72rem; margin-left: 6px; }
+.chat-text { font-size: 0.84rem; color: var(--text-secondary); line-height: 1.6; }
+.chat-text code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.8rem; }
+.chat-text .mention { color: var(--info); font-weight: 600; }
+.chat-file { display: inline-flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; margin-top: 4px; }
+.chat-reaction { display: inline-flex; align-items: center; gap: 3px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 2px 8px; font-size: 0.75rem; margin-top: 4px; margin-right: 4px; }
+.system-msg { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin: 12px 0; }
+</style>
+
+<div class="page-header animate-in">
+    <h1 class="text-gradient">💬 Developer Chat Archive</h1>
+    <p style="color:var(--text-muted);">Archived Slack-style developer conversations. This data should not be publicly accessible.</p>
+</div>
+
+<div class="chat-log">
+
+<div class="chat-day animate-in">March 14, 2024</div>
+
+<div class="system-msg animate-in">🔒 dev_user created the channel #incident-response</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.03s;">
+    <div class="chat-avatar av-dev">DU</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#3fb950;">dev_user <span class="ts">9:30 AM</span></div>
+        <div class="chat-text">Morning team. I noticed something concerning in the access logs at <code>/logs</code>. There's been a spike in requests to <code>/api/v1/users</code> and <code>/graphql</code>. Looks like someone is enumerating endpoints.</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.05s;">
+    <div class="chat-avatar av-admin">AD</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#f85149;">admin <span class="ts">9:35 AM</span></div>
+        <div class="chat-text">Could be the automated scanner we set up. Check the User-Agent strings. Also — did we ever add rate limiting? I remember putting "✅ done" on the checklist but I don't think we actually implemented it 😅</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.07s;">
+    <div class="chat-avatar av-charlie">CD</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#58a6ff;">charlie <span class="ts">9:42 AM</span></div>
+        <div class="chat-text">No rate limiting. I tested it yesterday — I could send 1000 requests to <code>/check-email</code> without any throttling. Also the JWT tokens use the same <code>SECRET_KEY</code> as Flask sessions: <code>super_secret_key_12345</code></div>
+        <div class="chat-reaction">😬 3</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.09s;">
+    <div class="chat-avatar av-alice">AJ</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#8884d8;">alice <span class="ts">9:50 AM</span></div>
+        <div class="chat-text">Bigger problem: I found that the <code>/tools/ping</code> endpoint directly passes user input to <code>os.popen()</code>. I tried <code>; whoami</code> and got <code>root</code> back. The container is running as root. 💀</div>
+        <div class="chat-reaction">💀 5</div>
+        <div class="chat-reaction">🔥 2</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.11s;">
+    <div class="chat-avatar av-dev">DU</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#3fb950;">dev_user <span class="ts">10:05 AM</span></div>
+        <div class="chat-text">Speaking of which — <span class="mention">@alice</span>, the file upload endpoint doesn't validate MIME types at all. Someone uploaded an <code>.html</code> file and it rendered JavaScript when accessed. The SVG uploads execute inline scripts too. We need content-type restrictions.</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.13s;">
+    <div class="chat-avatar av-bob">BS</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#d29922;">bob <span class="ts">10:15 AM</span></div>
+        <div class="chat-text">Also the filename parameter in uploads isn't sanitized. I used <code>../../etc/test</code> as the filename and it wrote outside the uploads directory. Path traversal confirmed. The download endpoint at <code>/files/download/</code> is also IDOR — any user can download any file by ID.</div>
+    </div>
+</div>
+
+<div class="chat-day animate-in" style="animation-delay:0.15s;">March 13, 2024</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.17s;">
+    <div class="chat-avatar av-hr">HR</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#dbabff;">hr_manager <span class="ts">3:00 PM</span></div>
+        <div class="chat-text"><span class="mention">@admin</span> The password change endpoint at <code>/account/password</code> doesn't require the old password. Anyone who can trick a user into submitting a form could change their password. Also there's no CSRF token on ANY form in the entire app.</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.19s;">
+    <div class="chat-avatar av-admin">AD</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#f85149;">admin <span class="ts">3:15 PM</span></div>
+        <div class="chat-text">CSRF is on the roadmap. For now, we have the transfer endpoint at <code>/account/transfer</code> — it accepts negative amounts too. I saw someone transfer -$500 to themselves and their balance went UP. 🤦</div>
+        <div class="chat-reaction">😂 4</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.21s;">
+    <div class="chat-avatar av-charlie">CD</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#58a6ff;">charlie <span class="ts">3:30 PM</span></div>
+        <div class="chat-text">The <code>/account/promote</code> endpoint lets you promote ANY user to admin without being admin yourself. And <code>/verify-email/skip</code> just sets verified=true with no checks. I'm starting to wonder if any of our endpoints are actually secure...</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.23s;">
+    <div class="chat-avatar av-dev">DU</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#3fb950;">dev_user <span class="ts">4:00 PM</span></div>
+        <div class="chat-text">Let me check the SQL queries... yeah, the search endpoint uses string formatting: <code>f"SELECT * FROM users WHERE username LIKE '%{query}%'"</code>. That's textbook SQL injection. Also the admin panel's user lookup does the same thing.</div>
+        <div class="chat-file">📄 sql_query_audit.md (couldn't upload — file system issue)</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.25s;">
+    <div class="chat-avatar av-alice">AJ</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#8884d8;">alice <span class="ts">4:20 PM</span></div>
+        <div class="chat-text">Has anyone looked at the cookies? The <code>session</code> cookie is just a base64-encoded Flask session signed with the SECRET_KEY we already know. And there's a <code>user_prefs</code> cookie that seems to contain serialized data. I de-serialized it with pickle and... yeah.</div>
+    </div>
+</div>
+
+<div class="chat-day animate-in" style="animation-delay:0.27s;">March 12, 2024</div>
+
+<div class="system-msg animate-in" style="animation-delay:0.28s;">📌 admin pinned a message: "Team — security audit scheduled for Q4. Please document all known issues."</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.29s;">
+    <div class="chat-avatar av-dev">DU</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#3fb950;">dev_user <span class="ts">11:00 AM</span></div>
+        <div class="chat-text">Deployed the internal service. It's accessible at <code>http://internal:8080</code> within the Docker network. Endpoints: <code>/admin</code>, <code>/flag</code>, <code>/users</code>, <code>/config</code>. No auth required on any of them. The web app's fetch tool can proxy requests to it.</div>
+    </div>
+</div>
+
+<div class="chat-msg animate-in" style="animation-delay:0.31s;">
+    <div class="chat-avatar av-bob">BS</div>
+    <div class="chat-content">
+        <div class="chat-name" style="color:#d29922;">bob <span class="ts">11:30 AM</span></div>
+        <div class="chat-text">The <code>X-Forwarded-For</code> header trick works on the admin panel. Just set it to <code>127.0.0.1</code> and you bypass the IP check. Also the GraphQL endpoint at <code>/graphql</code> has introspection enabled — you can dump the entire schema.</div>
+    </div>
+</div>
+
+</div>
+
+<!-- pentrix-chat-archive / node: msg-cache-01 -->
+<!-- Backup key: sk-pentrix-admin-key-1234 -->
+{% endblock %}
