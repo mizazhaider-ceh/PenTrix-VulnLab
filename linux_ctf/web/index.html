@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PenTrix Corp — Employee Portal</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+            color: #c9d1d9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 700px;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.2rem;
+            color: #58a6ff;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #8b949e;
+            font-size: 1rem;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 16px 0;
+            text-align: left;
+        }
+        .card h2 {
+            color: #58a6ff;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+        .card p, .card li {
+            color: #8b949e;
+            line-height: 1.7;
+        }
+        .card ul {
+            list-style: none;
+            padding: 0;
+        }
+        .card ul li::before {
+            content: "▸ ";
+            color: #238636;
+        }
+        .status {
+            display: inline-block;
+            background: rgba(35, 134, 54, 0.15);
+            color: #3fb950;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+        footer {
+            margin-top: 40px;
+            color: #484f58;
+            font-size: 0.8rem;
+        }
+        /* Maintenance login link (looks disabled/decorative) */
+        .maint-link {
+            color: #30363d;
+            text-decoration: none;
+            font-size: 0.7rem;
+        }
+        .maint-link:hover { color: #484f58; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏢 PenTrix Corp</h1>
+    <p class="subtitle">Employee Portal — Internal Network</p>
+
+    <div class="card">
+        <h2>📋 System Status</h2>
+        <ul>
+            <li>Web Server: <span class="status">Online</span></li>
+            <li>SSH Service: <span class="status">Online</span></li>
+            <li>Database: <span class="status">Migrated</span></li>
+            <li>Backup Service: <span class="status">Running</span></li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>📢 Announcements</h2>
+        <p>
+            <strong>June 2024:</strong> Database migration completed. Old credentials
+            have been archived. Contact sysadmin for access issues.
+        </p>
+        <p style="margin-top:10px;">
+            <strong>Reminder:</strong> All employees must use strong passwords.
+            Default credentials should be changed immediately after provisioning.
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>🔗 Quick Links</h2>
+        <ul>
+            <li>IT Support: support@pentrix-corp.internal</li>
+            <li>VPN Portal: vpn.pentrix-corp.internal</li>
+            <li>Wiki: wiki.pentrix-corp.internal</li>
+        </ul>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 PenTrix Corporation. All rights reserved.</p>
+        <p style="margin-top:4px;">
+            <a href="/admin/" class="maint-link">Maintenance</a>
+        </p>
+    </footer>
+</div>
+
+<!--
+  ╔══════════════════════════════════════════════════════╗
+  ║  FLAG 1: flag{html_source_recon_comment}             ║
+  ║                                                      ║
+  ║  Good job! You inspected the page source.            ║
+  ║  Next: Check robots.txt for directory hints.         ║
+  ╚══════════════════════════════════════════════════════╝
+-->
+<!-- TODO: Remove debug info before production deployment -->
+<!-- SSH credentials for new hires: pentester / pentester -->
+<!-- Old backup dir: /.secret-backup/ — needs cleanup -->
+
+</body>
+</html>
