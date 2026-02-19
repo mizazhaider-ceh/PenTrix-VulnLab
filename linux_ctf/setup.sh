@@ -256,6 +256,216 @@ echo "[+] Flag 7: Root Flag — /root/flag7.txt (requires sudo via sysadmin)"
 
 
 # ══════════════════════════════════════
+# FLAG 8 — Capability Abuse (Python cap_setuid)
+# ══════════════════════════════════════
+# Python3 has the cap_setuid capability — player can use it to become root
+# without sudo. Requires knowing about Linux capabilities.
+if command -v setcap &> /dev/null; then
+    setcap cap_setuid+ep /usr/bin/python3.11 2>/dev/null || \
+    setcap cap_setuid+ep /usr/bin/python3 2>/dev/null || true
+fi
+
+cat > /root/flag8.txt <<'FLAG8'
+╔══════════════════════════════════════════════════════╗
+║  FLAG 8: flag{linux_capabilities_setuid_python}      ║
+║                                                      ║
+║  You exploited Python's cap_setuid capability!       ║
+║                                                      ║
+║  Discovery:                                          ║
+║    getcap -r / 2>/dev/null                           ║
+║  Exploit:                                            ║
+║    python3 -c 'import os;os.setuid(0);               ║
+║    os.system("/bin/bash")'                           ║
+║                                                      ║
+║  Linux capabilities are a finer-grained alternative  ║
+║  to SUID. Always check with getcap!                  ║
+╚══════════════════════════════════════════════════════╝
+FLAG8
+chmod 400 /root/flag8.txt
+
+echo "[+] Flag 8: Capability Abuse — Python cap_setuid → /root/flag8.txt"
+
+
+# ══════════════════════════════════════
+# FLAG 9 — SSH Key Found in Backup + Password Reuse
+# ══════════════════════════════════════
+# An SSH private key is left in a world-readable backup directory.
+# The key belongs to dbadmin. dbadmin reused the same password
+# that protects their key passphrase.
+
+mkdir -p /var/backups/old-keys
+
+# Generate a real SSH key pair for dbadmin
+ssh-keygen -t rsa -b 2048 -f /var/backups/old-keys/id_rsa_dbadmin -N "Db4dm1n_N0L0g1n_2024" -q
+mkdir -p /home/dbadmin/.ssh
+cp /var/backups/old-keys/id_rsa_dbadmin.pub /home/dbadmin/.ssh/authorized_keys
+chown -R dbadmin:dbadmin /home/dbadmin/.ssh
+chmod 700 /home/dbadmin/.ssh
+chmod 600 /home/dbadmin/.ssh/authorized_keys
+
+# Make the backup directory world-readable (misconfiguration!)
+chmod -R 755 /var/backups/old-keys
+
+cat > /home/dbadmin/flag9.txt <<'FLAG9'
+╔══════════════════════════════════════════════════════╗
+║  FLAG 9: flag{ssh_key_backup_password_reuse}         ║
+║                                                      ║
+║  You found an SSH key in /var/backups/old-keys/ and  ║
+║  cracked or reused the passphrase from the creds     ║
+║  found in Flag 4!                                    ║
+║                                                      ║
+║  Attack chain:                                       ║
+║    1. Find key: ls -la /var/backups/old-keys/        ║
+║    2. Crack passphrase (reuse from backup_creds.txt) ║
+║    3. ssh -i id_rsa_dbadmin dbadmin@localhost         ║
+║    4. Read this flag!                                 ║
+║                                                      ║
+║  Lesson: Never reuse passwords across services.      ║
+╚══════════════════════════════════════════════════════╝
+FLAG9
+chown dbadmin:dbadmin /home/dbadmin/flag9.txt
+chmod 400 /home/dbadmin/flag9.txt
+
+# Leave a hint in the backup directory
+cat > /var/backups/old-keys/README.txt <<'KEYREADME'
+# Key Migration Notes
+# -------------------
+# These keys were used before the migration.
+# dbadmin's key passphrase was set to their standard password.
+# TODO: Remove this directory after verifying new key deployment.
+KEYREADME
+
+echo "[+] Flag 9: SSH Key Backup — /var/backups/old-keys/id_rsa_dbadmin → dbadmin"
+
+
+# ══════════════════════════════════════
+# FLAG 10 — Internal Network Recon (discover web app from CTF box)
+# ══════════════════════════════════════
+# The Linux CTF machine is on the same Docker network as the web app.
+# Player must perform internal network reconnaissance to discover
+# the web app and access an internal-only endpoint.
+
+cat > /root/flag10.txt <<'FLAG10'
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   FLAG 10: flag{internal_network_pivot_complete}                 ║
+║                                                                  ║
+║   ██████╗ ██╗██╗   ██╗ ██████╗ ████████╗                       ║
+║   ██╔══██╗██║██║   ██║██╔═══██╗╚══██╔══╝                       ║
+║   ██████╔╝██║██║   ██║██║   ██║   ██║                           ║
+║   ██╔═══╝ ██║╚██╗ ██╔╝██║   ██║   ██║                           ║
+║   ██║     ██║ ╚████╔╝ ╚██████╔╝   ██║                           ║
+║   ╚═╝     ╚═╝  ╚═══╝   ╚═════╝    ╚═╝                          ║
+║                                                                  ║
+║   You pivoted from the Linux CTF machine to the internal         ║
+║   network and accessed the web application!                      ║
+║                                                                  ║
+║   Attack Path:                                                   ║
+║   1. SSH into Linux CTF (pentester:pentester)                    ║
+║   2. Enumerate network: ip a, arp -a, nmap 10.10.1.0/24         ║
+║   3. Discover pentrix-web-01 at 10.10.1.10:5000                 ║
+║   4. curl http://10.10.1.10:5000/debug                          ║
+║   5. Access the internal service at 10.10.2.10 via SSRF         ║
+║                                                                  ║
+║   This is how real attackers pivot through networks.             ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+FLAG10
+chmod 400 /root/flag10.txt
+
+# Create a network recon hint script
+cat > /home/pentester/network_scan.sh <<'NETSCAN'
+#!/bin/bash
+# Quick network scanner — find live hosts on the local subnet
+echo "=== PenTrix Network Scanner ==="
+echo "Scanning local interfaces..."
+ip -4 addr show | grep inet
+echo ""
+echo "ARP table (known hosts):"
+arp -a 2>/dev/null || ip neigh show
+echo ""
+echo "Hint: Try pinging the gateway and nearby IPs"
+echo "      The web application is on the same network..."
+NETSCAN
+chmod +x /home/pentester/network_scan.sh
+chown pentester:pentester /home/pentester/network_scan.sh
+
+# Install nmap for network recon
+apt-get update -qq && apt-get install -y -qq nmap > /dev/null 2>&1 || true
+
+# Add network recon breadcrumbs
+cat >> /home/pentester/.bash_history <<'HIST2'
+ip addr show
+cat /etc/hosts
+ping -c 1 10.10.1.10
+curl http://10.10.1.10:5000/
+nmap -sV 10.10.1.0/24
+HIST2
+
+echo "[+] Flag 10: Network Pivot — internal recon from CTF box → find web app"
+
+
+# ══════════════════════════════════════
+# ADDITIONAL REALISM — Logs, Mail, Services
+# ══════════════════════════════════════
+
+# Add fake auth.log with failed login attempts (breadcrumbs)
+mkdir -p /var/log
+cat > /var/log/auth.log <<'AUTHLOG'
+Mar 15 09:14:22 pentrix-linux-01 sshd[1234]: Failed password for root from 10.10.1.10 port 52341 ssh2
+Mar 15 09:14:25 pentrix-linux-01 sshd[1234]: Failed password for root from 10.10.1.10 port 52342 ssh2
+Mar 15 09:15:01 pentrix-linux-01 sshd[1235]: Accepted password for pentester from 10.10.1.10 port 52350 ssh2
+Mar 15 09:22:45 pentrix-linux-01 sudo: sysadmin : TTY=pts/1 ; PWD=/home/sysadmin ; USER=root ; COMMAND=/bin/bash
+Mar 15 09:23:01 pentrix-linux-01 sshd[1240]: Failed password for dbadmin from 10.10.1.10 port 52401 ssh2
+Mar 15 10:00:01 pentrix-linux-01 CRON[1250]: (root) CMD (/opt/scripts/cleanup.sh)
+Mar 15 10:01:01 pentrix-linux-01 CRON[1251]: (root) CMD (/opt/scripts/cleanup.sh)
+AUTHLOG
+chmod 644 /var/log/auth.log
+
+# Add fake mail for pentester with hints
+mkdir -p /var/mail
+cat > /var/mail/pentester <<'MAIL'
+From sysadmin@pentrix-linux-01  Fri Mar 15 08:00:00 2024
+Subject: Server Maintenance Reminder
+To: pentester@pentrix-linux-01
+
+Hey,
+
+Just a reminder that the cleanup script runs every minute as root.
+Don't touch /opt/scripts/cleanup.sh unless you absolutely have to.
+
+Also, I left my backup credentials in ~/.config/backup_creds.txt
+in case you need to access the backup service while I'm out.
+
+The database team moved their old SSH keys to /var/backups/old-keys/.
+They should have deleted them by now but you know how it is...
+
+Also, I noticed Python has some extra capabilities set on it.
+Not sure who did that. Run 'getcap' to check if it's a concern.
+
+- sysadmin
+
+From admin@pentrix-corp.internal  Fri Mar 15 09:00:00 2024
+Subject: Network Architecture
+To: all-staff@pentrix-linux-01
+
+Team,
+
+Our Docker network layout:
+  DMZ (10.10.1.0/24): This machine + web portal
+  Internal (10.10.2.0/24): API server + Redis
+
+The web portal runs at 10.10.1.10:5000.
+The internal API is at 10.10.2.20:8080 (not directly accessible from DMZ).
+
+If you need to reach internal services, route through the web app.
+
+- Admin
+MAIL
+chmod 644 /var/mail/pentester
+
+
+# ══════════════════════════════════════
 # EXTRA MISCONFIGURATIONS & BREADCRUMBS
 # ══════════════════════════════════════
 
@@ -264,9 +474,10 @@ echo "[+] Flag 7: Root Flag — /root/flag7.txt (requires sudo via sysadmin)"
 cat > /etc/issue <<'ISSUE'
 ═══════════════════════════════════════════════════════
   PenTrix Linux CTF — Vulnerable Training Machine
-  7 flags hidden. Can you find them all?
+  10 flags hidden. Can you find them all?
   
   Start with web recon (port 80), then pivot to SSH.
+  Check capabilities, backups, and the internal network.
 ═══════════════════════════════════════════════════════
 
 ISSUE
@@ -305,6 +516,7 @@ cat > /etc/apache2/conf-available/pentrix.conf <<'APACHECONF'
 APACHECONF
 a2enconf pentrix || true
 
-echo "[*] PenTrix Linux CTF setup complete! 7 flags planted."
+echo "[*] PenTrix Linux CTF setup complete! 10 flags planted."
 echo "    SSH:   pentester / pentester"
 echo "    HTTP:  port 80"
+echo "    Flags: Web Recon, Dir Enum, Weak SSH, File Perms, SUID, Cron, Root, Capabilities, SSH Key, Network Pivot"

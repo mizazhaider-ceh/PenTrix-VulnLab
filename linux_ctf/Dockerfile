@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     passwd \
     findutils \
+    libcap2-bin \
+    nmap \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Copy setup assets ──

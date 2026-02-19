@@ -1,15 +1,17 @@
 
 ═══════════════════════════════════════════════════════
   Welcome to PenTrix Linux CTF
-  A vulnerable training machine with 7 hidden flags.
+  A vulnerable training machine with 10 hidden flags.
   
-  Your mission: Find all 7 flags and root this box!
+  Your mission: Find all 10 flags and root this box!
   
   Hints:
   • Start with web recon (port 80)
   • Check common files: robots.txt, page source
   • Enumerate users, permissions, cron jobs
-  • Look for SUID binaries
+  • Look for SUID binaries and Linux capabilities
+  • Check /var/backups and /var/mail
+  • Explore the network — you're not alone
   • Escalate privileges to root
 ═══════════════════════════════════════════════════════
 
