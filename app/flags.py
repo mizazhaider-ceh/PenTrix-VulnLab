@@ -252,6 +252,22 @@ MEANINGFUL_FLAGS = {
     'SCENARIO-A': 'flag{insider_threat_complete}',
     'SCENARIO-B': 'flag{data_heist_accomplished}',
     'SCENARIO-C': 'flag{full_compromise_achieved}',
+
+    # ── CH17: Advanced Exploitation — "Red Team Operator" ──
+    'CH17-C01': 'flag{race_condition_double_spend}',
+    'CH17-C02': 'flag{race_condition_coupon_abuse}',
+    'CH17-C03': 'flag{jwt_key_confusion_rs256_hs256}',
+    'CH17-C04': 'flag{client_side_price_manipulation}',
+    'CH17-C05': 'flag{negative_quantity_credit_exploit}',
+    'CH17-C06': 'flag{type_juggling_auth_bypass}',
+    'CH17-C07': 'flag{parameter_pollution_mass_assign}',
+    'CH17-C08': 'flag{idor_chain_read_confidential}',
+    'CH17-C09': 'flag{idor_chain_write_unauthorized}',
+    'CH17-C10': 'flag{idor_chain_delete_critical}',
+    'CH17-C11': 'flag{http_verb_tampering_bypass}',
+    'CH17-C12': 'flag{predictable_token_forged}',
+    'CH17-C13': 'flag{ssrf_redis_command_injection}',
+    'CH17-C14': 'flag{account_takeover_security_qa}',
 }
 
 
@@ -526,6 +542,25 @@ FLAGS = {
     'SCENARIO-A': 'Scenario A: The Insider — Total lateral movement from user to admin.',
     'SCENARIO-B': 'Scenario B: Data Heist — Full data exfiltration as an outsider.',
     'SCENARIO-C': 'Scenario C: Full Compromise — Remote code execution from zero knowledge.',
+
+    # ═══ Chapter 17 — Advanced Exploitation: "Red Team Operator" ═══
+    # You have proven your skills across individual techniques. Now chain
+    # them together like a real operator. These challenges require deep
+    # understanding, creative thinking, and multi-step exploitation.
+    'CH17-C01': 'Two requests enter at the same time. Only one balance check runs. Drain the vault.',
+    'CH17-C02': 'A single-use code should block the second redemption. What if both arrive simultaneously?',
+    'CH17-C03': 'The verification endpoint trusts multiple algorithms. Use the public key where it doesn\'t belong.',
+    'CH17-C04': 'The store calculates your total. But what if you told it a different price?',
+    'CH17-C05': 'Quantities should be positive. The server doesn\'t enforce that. Reverse the transaction direction.',
+    'CH17-C06': 'A PIN is a string. Or is it? The type of your input matters more than the value.',
+    'CH17-C07': 'The form sends name and email. What if the JSON body adds role=admin to the merge?',
+    'CH17-C08': 'You can see your own reports. But report IDs are sequential. What about report #1?',
+    'CH17-C09': 'Reading was unauthorized. Writing is worse. Modify what isn\'t yours.',
+    'CH17-C10': 'The full IDOR chain: read, write, destroy. Delete someone else\'s critical report.',
+    'CH17-C11': 'GET returns 403. But the access check only runs on GET. Try another verb.',
+    'CH17-C12': 'Each token is derived from a counter. Predict the next one before it\'s issued.',
+    'CH17-C13': 'The webhook calls any URL. Redis listens without auth. Connect the dots via Gopher.',
+    'CH17-C14': 'The security question reveals itself. The answer hides in plain sight. Reset the admin.',
 }
 
 # Pre-generate all flags using meaningful names
@@ -1140,6 +1175,64 @@ def _build_hints():
             ("The Billion Laughs attack: each entity references the previous one ten times. Exponential expansion.",
              "Entity a1 = 'lol'. Entity a2 = '&a1;&a1;&a1;...'. By a9, the expansion is billions of characters.",
              "Define 9 levels of entity expansion, each 10x the previous. The parser runs out of memory processing them."),
+        ],
+        'CH17': [
+            # C01 — Race Condition: Double-Spend Transfer
+            ("The finance team noticed negative balances appearing overnight. Concurrent access to the transfer endpoint wasn't tested.",
+             "When two requests check the balance simultaneously, both see 'sufficient funds' before either deducts. A TOCTOU bug.",
+             "Send 10+ parallel POST requests to /api/transfer with amount near your full balance. Use curl with & or threading."),
+            # C02 — Race Condition: Coupon Double-Use
+            ("A single-use promotion code was redeemed 47 times in one second. The accounting team is investigating.",
+             "The coupon's uses_left is checked before decrement — but between check and write, other requests slip through.",
+             "Use a tool like Turbo Intruder or GNU parallel to send 20 simultaneous requests with the same coupon code."),
+            # C03 — JWT Key Confusion
+            ("The JWT verification endpoint was reconfigured last quarter. It now accepts multiple algorithms 'for compatibility'.",
+             "When a system accepts both RS256 and HS256, an attacker can sign with HS256 using the public key as the HMAC secret.",
+             "Fetch the public key from /api/jwt/public-key. Sign a forged token with HS256 using that key. Submit to /api/jwt/verify-advanced."),
+            # C04 — Business Logic: Price Manipulation
+            ("The e-commerce module's checkout trusts a hidden form field for the item price. The catalog displays one thing; the server accepts another.",
+             "Intercept the purchase request with Burp Suite. The 'price' parameter can be modified before submission.",
+             "POST /api/store/purchase with item_id and a price field of 0.01. The server uses your price instead of the catalog price."),
+            # C05 — Business Logic: Negative Quantity
+            ("Order processing accepts quantity as-is from the client. It multiplies price × quantity — but never checks the sign.",
+             "Negative quantities reverse the arithmetic. A negative purchase becomes a credit to your account.",
+             "Send quantity=-5 in the purchase request. The total becomes negative, and your balance increases instead of decreasing."),
+            # C06 — Type Juggling Auth Bypass
+            ("The PIN verification API accepts JSON. It expects a string '0847', but doesn't validate the type.",
+             "In many frameworks, boolean true is loosely compared as truthy. Sending {\"pin\": true} may bypass the check.",
+             "POST /api/auth/verify-pin with Content-Type: application/json and body {\"pin\": true}. Boolean true bypasses truthiness checks."),
+            # C07 — Parameter Pollution + Mass Assignment
+            ("The user update endpoint merges form data and JSON body. The form shows safe fields; the JSON can carry extras.",
+             "When both Content-Type: application/x-www-form-urlencoded and JSON data are sent, the server merges them with JSON taking priority.",
+             "Send a POST with form data for display_name, but add a JSON body with {\"role\": \"admin\"}. The merge gives JSON priority."),
+            # C08 — IDOR Chain: View Reports
+            ("The reports API shows only your reports in the list. But individual report access uses a sequential integer ID.",
+             "GET /api/reports shows your reports. GET /api/reports/1 fetches report #1 regardless of ownership — a classic IDOR.",
+             "Enumerate /api/reports/1 through /api/reports/5. Each returns a different confidential report readable by any authenticated user."),
+            # C09 — IDOR Chain: Edit Reports
+            ("If reading other users' reports works, does writing to them work too? The authorization gap may extend to PUT requests.",
+             "After confirming read IDOR, try PUT /api/reports/1 with a modified title or content. The server doesn't check ownership.",
+             "PUT /api/reports/1 with JSON body {\"title\": \"Pwned\", \"content\": \"Modified by attacker\"}. No authorization check on writes."),
+            # C10 — IDOR Chain: Delete Reports
+            ("The full IDOR chain: view → edit → delete. Each represents an escalation in impact. Test the DELETE method too.",
+             "DELETE /api/reports/5 removes the Incident Response Log. This is the highest-impact IDOR — destruction of evidence.",
+             "Send DELETE /api/reports/<id> for any report you don't own. The server processes it without ownership verification."),
+            # C11 — HTTP Verb Tampering
+            ("The admin user list returns 403 on GET. But the access control only checks one HTTP method.",
+             "HTTP verb tampering: if GET is blocked, try POST, PUT, PATCH, or DELETE. Many ACL implementations only filter one method.",
+             "Send a PUT or PATCH request to /api/admin/users. The 403 only applies to GET — other methods return the full user list."),
+            # C12 — Insecure Randomness: Predictable Token
+            ("Authentication tokens generated by the system follow a predictable pattern. Each new token increments something.",
+             "Request multiple tokens from /api/auth/request-token. The MD5 hashes are of sequential integers. Identify the counter.",
+             "Tokens are MD5(counter). Request two tokens, crack the MD5s to find the counter, then predict the next: MD5(counter+1)."),
+            # C13 — SSRF → Redis Command Injection
+            ("The webhook test endpoint makes HTTP requests. The internal Redis server at 10.10.2.30:6379 has no authentication.",
+             "Redis speaks a text protocol. The Gopher URI scheme can send raw TCP data — craft a Gopher URL targeting Redis.",
+             "POST /api/webhook/test with url=gopher://10.10.2.30:6379/_SET%20pwned%20true%0D%0A to inject Redis commands via SSRF."),
+            # C14 — Account Takeover via Security Questions
+            ("The password reset uses security questions. GET /api/user/security-question?username=admin reveals the question AND a hint about the answer.",
+             "The admin's security question is about their pet. Their profile bio (visible to any user) mentions a pet named 'fluffy'.",
+             "POST /api/user/security-question with {\"username\":\"admin\",\"answer\":\"fluffy\",\"new_password\":\"hacked\"}. Full account takeover."),
         ],
     }
 
