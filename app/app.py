@@ -121,6 +121,7 @@ def create_app():
     from routes.api import api_bp
     from routes.scoreboard import scoreboard_bp
     from routes.challenges import challenges_bp
+    from routes.advanced import advanced_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -134,6 +135,7 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(scoreboard_bp)
     app.register_blueprint(challenges_bp)
+    app.register_blueprint(advanced_bp)
     
     # ═══════════════════════════════════════
     # GLOBAL ROUTES — Discovery & Fingerprinting targets
