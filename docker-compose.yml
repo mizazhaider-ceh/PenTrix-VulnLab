@@ -1,9 +1,34 @@
+###############################################################################
+#  PenTrix Vuln Lab — Docker Compose  (Enterprise-Style Network Topology)
+#  ─────────────────────────────────────────────────────────────────────────
+#  Network layout:
+#
+#   [Internet / Attacker]
+#         │
+#    ┌────┴────┐     pentrix_dmz   (exposed perimeter)
+#    │ WEB:5000│─────────────────────── LINUX_CTF :80/:22
+#    └────┬────┘
+#         │
+#    pentrix_internal  (backend — NOT exposed to host)
+#         │
+#    ┌────┴──────┐     ┌───────────┐
+#    │ INTERNAL  │     │   REDIS   │
+#    │  :8080    │     │   :6379   │
+#    └───────────┘     └───────────┘
+#
+#  Attack path:  SSRF from WEB → INTERNAL/REDIS → pivot to LINUX_CTF
+###############################################################################
+
 version: '3.8'
 
 services:
+  # ═══════════════════════════════════════
+  # PRIMARY WEB APPLICATION  (perimeter + backend bridge)
+  # ═══════════════════════════════════════
   web:
     build: .
     container_name: pentrix_web
+    hostname: pentrix-web-01
     ports:
       - "${PORT:-5000}:5000"
     restart: unless-stopped
@@ -22,48 +47,145 @@ services:
       - SECRET_KEY=super_secret_key_12345
       - API_KEY=sk-pentrix-internal-key-9876
       - REDIS_URL=redis://redis:6379/0
+      - LINUX_CTF_HOST=linux_ctf
     volumes:
       - ./app:/app
       - pentrix_data:/app/data
     networks:
-      - pentrix_net
+      pentrix_dmz:
+        ipv4_address: 10.10.1.10
+      pentrix_internal:
+        ipv4_address: 10.10.2.10
     depends_on:
-      - redis
-      - internal
+      redis:
+        condition: service_healthy
+      internal:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    labels:
+      com.pentrix.role: "web-frontend"
+      com.pentrix.network: "dmz,internal"
 
+  # ═══════════════════════════════════════
+  # INTERNAL MICROSERVICE  (backend only — SSRF target)
+  # ═══════════════════════════════════════
   internal:
     build: ./internal_service
     container_name: pentrix_internal
+    hostname: pentrix-internal-01
     restart: unless-stopped
     expose:
       - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       - INTERNAL_SECRET=internal_flag_secret_2024
+      - REDIS_HOST=redis
+      - DB_PASSWORD=Sup3rS3cret_Pr0d!
     networks:
-      - pentrix_net
+      pentrix_internal:
+        ipv4_address: 10.10.2.20
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    labels:
+      com.pentrix.role: "internal-api"
+      com.pentrix.network: "internal"
 
+  # ═══════════════════════════════════════
+  # REDIS CACHE  (backend only — no auth, intentional)
+  # ═══════════════════════════════════════
   redis:
     image: redis:7-alpine
     container_name: pentrix_redis
+    hostname: pentrix-redis-01
     restart: unless-stopped
+    # [VULN] No password — reachable via SSRF chain from web
+    command: redis-server --save 60 1 --loglevel warning
     expose:
       - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
     networks:
-      - pentrix_net
+      pentrix_internal:
+        ipv4_address: 10.10.2.30
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+    labels:
+      com.pentrix.role: "cache"
+      com.pentrix.network: "internal"
 
+  # ═══════════════════════════════════════
+  # LINUX CTF MACHINE  (DMZ — SSH + HTTP exposed)
+  # ═══════════════════════════════════════
   linux_ctf:
     build: ./linux_ctf
     container_name: pentrix_linux_ctf
+    hostname: pentrix-linux-01
     restart: unless-stopped
     ports:
       - "${LINUX_HTTP_PORT:-8888}:80"
       - "${LINUX_SSH_PORT:-2222}:22"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
-      - pentrix_net
+      pentrix_dmz:
+        ipv4_address: 10.10.1.20
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    labels:
+      com.pentrix.role: "linux-target"
+      com.pentrix.network: "dmz"
 
+# ═══════════════════════════════════════════════════════════
+# NETWORKS — Enterprise-style segmentation
+# ═══════════════════════════════════════════════════════════
 networks:
-  pentrix_net:
+  # DMZ: externally accessible services (web portal, linux CTF)
+  pentrix_dmz:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.1.0/24
+          gateway: 10.10.1.1
+    labels:
+      com.pentrix.zone: "dmz"
+
+  # Internal: backend services (API, Redis) — NOT exposed to host
+  pentrix_internal:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.10.2.0/24
+          gateway: 10.10.2.1
+    labels:
+      com.pentrix.zone: "internal"
 
 volumes:
   pentrix_data:
+    labels:
+      com.pentrix.purpose: "persistent-database"
