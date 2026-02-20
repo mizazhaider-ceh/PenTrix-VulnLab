@@ -10,7 +10,8 @@
 
 A **professional-grade**, deliberately vulnerable web application lab for practicing penetration testing, API exploitation, SSRF chains, and Linux privilege escalation — inside a segmented Docker network.
 
-> **You're not solving CTF puzzles. You're breaching PenTrix Corp — a fictional company with sloppy DevOps, internal drama, and broken security at every layer.**
+> **You're not solving CTF puzzles. You're breaching PenTrix Corp — a fictional company with sloppy DevOps, internal drama, and broken security at every layer. Go Ehance Your Skills**
+
 
 ---
 
