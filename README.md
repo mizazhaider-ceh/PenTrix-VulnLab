@@ -325,8 +325,12 @@ See [SECURITY.md](SECURITY.md)  all vulnerabilities in this project are **intent
 </p>
 
 <div align="center">
+
+
 ![Visitors](https://api.visitorbadge.io/api/visitors?path=mizazhaider-ceh%2FX-Recon&label=Visitors&countColor=%2300f3ff)
+
 </div>
+
 
   
 
