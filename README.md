@@ -321,7 +321,7 @@ See [SECURITY.md](SECURITY.md)  all vulnerabilities in this project are **intent
 <p align="center">
   <em>"Not every path leads somewhere. The skill isn't just finding things — it's knowing which findings matter."</em>
   <br/><br/>
-  <strong>Built for the security community.</strong>
+  <strong>Built for the security community and Everyone who wants to enhance his skills</strong>
 </p>
 
 <div align="center">
