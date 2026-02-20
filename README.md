@@ -322,4 +322,11 @@ See [SECURITY.md](SECURITY.md)  all vulnerabilities in this project are **intent
   <em>"Not every path leads somewhere. The skill isn't just finding things — it's knowing which findings matter."</em>
   <br/><br/>
   <strong>Built for the security community.</strong>
+
+
+
+![Visitors](https://api.visitorbadge.io/api/visitors?path=mizazhaider-ceh%2FX-Recon&label=Visitors&countColor=%2300f3ff)
+
+
+  
 </p>
