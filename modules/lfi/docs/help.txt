@@ -1,0 +1,12 @@
+Help page
+
+Q: How do I view a document?
+A: Open /lfi/view and click one of the listed documents, or pass
+   ?file=<name> yourself.
+
+Q: How do I download a document?
+A: Use /lfi/download with the same file parameter.
+
+Q: Is this safe?
+A: The server joins your file name onto the docs directory. What could
+   possibly go wrong?

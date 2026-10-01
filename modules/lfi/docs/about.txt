@@ -1,0 +1,10 @@
+About this module
+
+PenTrix VulnLab - Path Traversal / Local File Inclusion (LFI).
+
+Reading files with unsanitised user input is one of the oldest web bugs.
+If the server hands the raw parameter straight to the filesystem, the
+attacker can request anything: ../../secret.txt, /etc/passwd, and so on.
+
+Naive blacklists (removing '../' once) usually fail too, because the
+replacement creates brand new traversal sequences.

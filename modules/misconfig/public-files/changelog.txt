@@ -1,0 +1,12 @@
+PenTrix demo site - release notes
+
+v0.3.1 (2026-09-28)
+- Updated homepage copy
+- Fixed broken link in the footer
+
+v0.3.0 (2026-09-20)
+- New dark theme
+- Added contact form
+
+v0.2.0 (2026-09-05)
+- Initial public release
