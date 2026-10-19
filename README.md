@@ -61,6 +61,8 @@ npm test
 
 This lab teaches **Burp Suite first**. Every challenge is fully solvable through the standard Burp workflow: intercept with the Proxy, tamper in the Repeater, automate the boring parts with the Intruder. Burp Community edition is enough for all 201 challenges. Pro adds Scanner and Collaborator, which you will not need here.
 
+**New to these tools?** Read the full step-by-step setup guide: [docs/TOOL_SETUP_GUIDE.md](docs/TOOL_SETUP_GUIDE.md) (install Burp, connect the browser proxy, install the CA certificate, plus ZAP, sqlmap, ffuf, gobuster, and nmap walkthroughs).
+
 | Tool | What it is | Where it shines in this lab |
 |---|---|---|
 | **Burp Suite** (recommended) | The intercepting proxy, request editor, and fuzzer real pentesters live in | Everywhere. XSS, SQLi, IDOR, SSRF, JWT, auth, race conditions: intercept it, replay it, mutate it |

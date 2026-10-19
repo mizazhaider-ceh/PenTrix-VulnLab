@@ -1,5 +1,7 @@
 # Recommended Tools for PenTrix VulnLab
 
+**Step-by-step install instructions for every tool on this page:** [docs/TOOL_SETUP_GUIDE.md](TOOL_SETUP_GUIDE.md)
+
 You do not need a big toolbox for this lab. You need one main tool, a
 few helpers, and the patience to actually understand the bug in front
 of you. This page tells you exactly that, nothing more.
