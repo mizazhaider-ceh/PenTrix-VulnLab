@@ -10,7 +10,7 @@ pages instead of being followed through a real redirect.
 
 ## oauth – OAuth Flaws
 
-**1. Redirect URI Prefix Bypass** – `PENTRIX{oauth_redirect-bypass}`
+**1. Redirect URI Prefix Bypass** – `PENTRIX{...}`
 
 1. Log in to the IdP as alice: `GET /oauth/login/alice`.
 2. Open the authorization URL with an attacker-controlled redirect URI that still
@@ -32,7 +32,7 @@ Why it works: redirect validation uses a naive string-prefix check instead of an
 exact match against the registered URI, so `http://app.pentrix.lab.evil.com/cb`
 passes and the code leaves for the attacker host.
 
-**2. Authorization Code Leaked in Server Log** – `PENTRIX{oauth_code-leak}`
+**2. Authorization Code Leaked in Server Log** – `PENTRIX{...}`
 
 1. Open `GET /oauth/idp/log`. Every issued code is written there in clear, and a
    recent login by alice is pre-seeded. Copy her code, e.g.
@@ -41,12 +41,12 @@ passes and the code leaves for the attacker host.
    ```
    curl -b jar-bob -X POST --data "client_id=pentrix-spa&code=<alice-code>" http://localhost:3111/oauth/idp/token
    ```
-   Response contains `access_token` and `flag: PENTRIX{oauth_code-leak}`.
+   Response contains `access_token` and `flag: PENTRIX{...}`.
    (`pentrix-spa` is a public client, so no secret is needed.)
 Why it works: codes are secrets, but the IdP logs them to a world-readable log,
 and the token endpoint accepts a code whose owner differs from the requester.
 
-**3. Login CSRF (Missing state Parameter)** – `PENTRIX{oauth_no-state}`
+**3. Login CSRF (Missing state Parameter)** – `PENTRIX{...}`
 
 1. As the attacker, log in to the IdP as bob and open
    `GET /oauth/no-state/attacker`. It mints a code for bob's account and prints
@@ -55,14 +55,14 @@ and the token endpoint accepts a code whose owner differs from the requester.
    ```
    curl -b jar-alice -c jar-alice "http://localhost:3111/oauth/client/callback?code=<bob-code>"
    ```
-   The response shows `PENTRIX{oauth_no-state}` and explains that the client
+   The response shows `PENTRIX{...}` and explains that the client
    session is now bob while the IdP session is alice: alice is logged in to the
    client **as the attacker**.
 Why it works: the client callback exchanges any `code` it is given and never
 validates a `state` parameter, so an attacker-minted code silently logs the
 victim in under the attacker's account.
 
-**4. Implicit Flow Token in URL Fragment** – `PENTRIX{oauth_implicit}`
+**4. Implicit Flow Token in URL Fragment** – `PENTRIX{...}`
 
 1. As the victim (alice), run the implicit flow and approve it:
    ```
@@ -81,12 +81,12 @@ victim in under the attacker's account.
    ```
    curl "http://localhost:3111/oauth/idp/userinfo?access_token=<tok>"
    ```
-   Response contains `flag: PENTRIX{oauth_implicit}`.
+   Response contains `flag: PENTRIX{...}`.
 Why it works: the implicit flow puts the access token in the URL fragment, and
 fragments are kept in browser history, so anyone who can read the history owns
 the token and the IdP accepts it regardless of who presents it.
 
-**5. Scope Tampering** – `PENTRIX{oauth_scope-upgrade}`
+**5. Scope Tampering** – `PENTRIX{...}`
 
 1. As bob (a plain user), authorize with a scope you were never granted:
    ```
@@ -98,11 +98,11 @@ the token and the IdP accepts it regardless of who presents it.
    curl -X POST --data "client_id=pentrix-spa&code=<code>" http://localhost:3111/oauth/idp/token
    curl "http://localhost:3111/oauth/idp/admin-data?access_token=<tok>"
    ```
-   Response contains the admin secret and `flag: PENTRIX{oauth_scope-upgrade}`.
+   Response contains the admin secret and `flag: PENTRIX{...}`.
 Why it works: the authorize endpoint takes `scope` from the request and grants
 whatever is asked for without checking the user's role.
 
-**6. Client Secret in Public JavaScript** – `PENTRIX{oauth_secret-in-js}`
+**6. Client Secret in Public JavaScript** – `PENTRIX{...}`
 
 1. Download the public bundle: `GET /oauth/client/app.js`. It contains the
    confidential client's secret in clear:
@@ -115,12 +115,12 @@ whatever is asked for without checking the user's role.
    ```
    curl -b jar-bob -X POST --data "client_id=pentrix-client&client_secret=sk_live_9f2c7b41d8e0a5c6&code=<code>" http://localhost:3111/oauth/idp/token
    ```
-   Response contains `flag: PENTRIX{oauth_secret-in-js}`.
+   Response contains `flag: PENTRIX{...}`.
 Why it works: a "confidential" client's secret is shipped to every browser in
 the public JavaScript bundle, so it is not secret at all and anyone can
 complete the confidential-client exchange.
 
-**7. Authorization Code Replay** – `PENTRIX{oauth_code-replay}`
+**7. Authorization Code Replay** – `PENTRIX{...}`
 
 1. As bob, authorize `pentrix-spa` (`response_type=code`) and approve; copy the code.
 2. Exchange the same code twice:
@@ -129,11 +129,11 @@ complete the confidential-client exchange.
    curl -b jar-bob -X POST --data "client_id=pentrix-spa&code=<code>" http://localhost:3111/oauth/idp/token
    ```
    Both responses return valid, different access tokens; the second response
-   contains `flag: PENTRIX{oauth_code-replay}`.
+   contains `flag: PENTRIX{...}`.
 Why it works: the IdP counts code uses but never invalidates them, so a
 single-use code stays valid forever.
 
-**8. PKCE Downgrade** – `PENTRIX{oauth_pkce-skip}`
+**8. PKCE Downgrade** – `PENTRIX{...}`
 
 1. As bob, authorize with a code challenge:
    ```
@@ -144,7 +144,7 @@ single-use code stays valid forever.
    ```
    curl -b jar-bob -X POST --data "client_id=pentrix-spa&code=<code>" http://localhost:3111/oauth/idp/token
    ```
-   Response contains a valid token and `flag: PENTRIX{oauth_pkce-skip}`.
+   Response contains a valid token and `flag: PENTRIX{...}`.
 Why it works: the IdP records the challenge but the token endpoint never
 requires the verifier, so PKCE provides no binding at all.
 
@@ -159,7 +159,7 @@ five beacons were verified with curl against the served code: the expected
 payload format awards the flag; malformed payloads are rejected (lab 2 rejects
 a wrong token, lab 5 requires the deletion to have happened).
 
-**1. No Origin Check on Message Handler** – `PENTRIX{postmsg_no-check}`
+**1. No Origin Check on Message Handler** – `PENTRIX{...}`
 
 1. Open `/postmsg/no-check/attacker` in the browser.
 2. Click "Fire payload". The attacker page runs:
@@ -172,7 +172,7 @@ a wrong token, lab 5 requires the deletion to have happened).
 Why it works: the `message` listener trusts any sender and renders the payload
 as HTML, so any website can inject markup (and scripts) into the victim page.
 
-**2. Secret Leaked via Wildcard targetOrigin** – `PENTRIX{postmsg_wildcard}`
+**2. Secret Leaked via Wildcard targetOrigin** – `PENTRIX{...}`
 
 1. Open `/postmsg/wildcard/attacker` in the browser. It embeds the victim
    widget in an iframe.
@@ -184,7 +184,7 @@ as HTML, so any website can inject markup (and scripts) into the victim page.
 Why it works: `targetOrigin '*'` broadcasts the secret to every embedding page,
 including a malicious one, which just listens and forwards it.
 
-**3. Unsanitized Message Data Rendered as HTML** – `PENTRIX{postmsg_data-xss}`
+**3. Unsanitized Message Data Rendered as HTML** – `PENTRIX{...}`
 
 1. Open `/postmsg/data-xss/attacker` in the browser.
 2. Click "Fire payload". The attacker page posts an object, not a string:
@@ -197,7 +197,7 @@ including a malicious one, which just listens and forwards it.
 Why it works: message data is rendered as raw HTML with no sanitization, so an
 object-shaped message becomes live markup in the victim page.
 
-**4. Substring Origin Check Bypass** – `PENTRIX{postmsg_substring}`
+**4. Substring Origin Check Bypass** – `PENTRIX{...}`
 
 1. Open `/postmsg/substring/attacker`. The victim checks
    `originToTest.includes('pentrix.lab')`, so an attacker domain containing that
@@ -211,7 +211,7 @@ object-shaped message becomes live markup in the victim page.
 Why it works: a substring match instead of an exact comparison lets
 `https://pentrix.lab.evil.com` ride on the trusted string `pentrix.lab`.
 
-**5. Privileged Action via Forged Message** – `PENTRIX{postmsg_csrf-action}`
+**5. Privileged Action via Forged Message** – `PENTRIX{...}`
 
 1. Open `/postmsg/csrf-action/attacker` in the browser. It embeds the victim's
    account settings page.
@@ -240,7 +240,7 @@ curl; the evaluation paths below were additionally proven by extracting the
 exact served JavaScript and running it: `{{7*7}}` renders `49`, `[[7*7]]`
 renders `49`, and `{{constructor.constructor("return 1+1")()}}` evaluates to `2`.
 
-**1. Basic Template Evaluation** – `PENTRIX{csti_basic}`
+**1. Basic Template Evaluation** – `PENTRIX{...}`
 
 1. Open `/csti/basic` and save a greeting containing an expression, e.g.
    `Hello {{7*7}}!`.
@@ -250,7 +250,7 @@ Why it works: `{{ expression }}` is compiled with `Function` and executed, so
 any arithmetic (or JavaScript) inside the delimiters evaluates in the victim's
 browser.
 
-**2. Filter Bypass via Alternative Delimiter** – `PENTRIX{csti_filter-bypass}`
+**2. Filter Bypass via Alternative Delimiter** – `PENTRIX{...}`
 
 1. Open `/csti/filter-bypass`. Submitting `{{7*7}}` is rejected with
    "Blocked by the filter" (the server refuses any template containing `{{`
@@ -262,7 +262,7 @@ Why it works: the blacklist is server-side and only knows `{{ }}`, while the
 client-side engine evaluates `[[ ]]` too, so the filter and the engine disagree
 about what is a template.
 
-**3. Constructor Breakout to Code Execution** – `PENTRIX{csti_constructor}`
+**3. Constructor Breakout to Code Execution** – `PENTRIX{...}`
 
 1. Open `/csti/constructor`. Every expression can see `constructor` (which is
    `Object`), and `Object.constructor` is `Function`, so a template can compile
@@ -279,7 +279,7 @@ Why it works: exposing `constructor` in the expression scope hands out `Function
 turning template evaluation into arbitrary JavaScript execution in the victim's
 browser.
 
-**4. CSTI Inside an HTML Attribute** – `PENTRIX{csti_attr}`
+**4. CSTI Inside an HTML Attribute** – `PENTRIX{...}`
 
 1. Open `/csti/attr` and save `{{7*7}}` as the badge text. View source: the
    server entity-encodes it into the `value` attribute.
@@ -290,7 +290,7 @@ Why it works: server-side entity encoding only changes how the bytes look in
 HTML source; `getAttribute` decodes them back, and encoding never stopped the
 client-side engine from evaluating the template.
 
-**5. Stored Template in Profile Name** – `PENTRIX{csti_stored}`
+**5. Stored Template in Profile Name** – `PENTRIX{...}`
 
 1. Open `/csti/stored` and save `{{7*7}}` as a display name. It is stored in the
    database (`csti_profiles`) and rendered on every view.

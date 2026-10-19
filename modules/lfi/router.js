@@ -6,7 +6,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
-const { award, captured } = require('../../lib/flags');
+const { award, captured, flagFor } = require('../../lib/flags');
 
 const router = express.Router();
 // Router-scoped form parsing only (app-level middleware is out of scope).
@@ -89,7 +89,7 @@ function readTarget(file) {
 
 function showCaptured(req, vulnId) {
   return captured(req, 'lfi', vulnId)
-    ? flagBox(`PENTRIX{lfi_${vulnId}}`)
+    ? flagBox(flagFor('lfi', vulnId))
     : '';
 }
 

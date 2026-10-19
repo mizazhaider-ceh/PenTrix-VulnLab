@@ -18,10 +18,12 @@ Status legend: VERIFIED = exercised live, CODE = read in source, UNTESTED = not 
 
 ## Exploitability (VERIFIED end to end)
 
-- SQLi login bypass: `admin' OR '1'='1' -- ` -> logged in as admin, flag
-  `PENTRIX{sqli_login-bypass}` awarded and persisted in session. Real
-  vulnerability, real technique, real validation. This is the quality bar every
-  module must meet (Rule 2).
+- SQLi login bypass: `admin' OR '1'='1' -- ` -> logged in as admin, the
+  per-deployment flag for that challenge awarded and persisted in session
+  (at the time of testing flags were still deterministic
+  `PENTRIX{module_vuln}`; since then flags are random per deployment).
+  Real vulnerability, real technique, real validation. This is the quality
+  bar every module must meet (Rule 2).
 
 ## Module contract (CODE, from MODULE_CONTRACT.md)
 

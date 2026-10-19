@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
 
-const { getDb } = require('./lib/db');
+const { getDb, ensureFlags } = require('./lib/db');
 const { page, esc, difficultyPill, progressBar, emptyState, payloadBlock, errorPage } = require('./lib/page');
 const { captured } = require('./lib/flags');
 
@@ -81,6 +81,11 @@ if (fs.existsSync(modulesDir)) {
   }
 }
 app.locals.registry = registry;
+
+// Seed per-deployment random flags for every registered challenge.
+// Flags live only in the SQLite file (gitignored); the source never
+// contains a real flag, so reading GitHub reveals nothing.
+ensureFlags(registry.flatMap((m) => m.vulns.map((v) => ({ modId: m.id, vulnId: v.id }))));
 
 // ---- shell helpers (M4) ----
 const DIFFICULTIES = ['Beginner', 'Easy', 'Intermediate', 'Medium', 'Mixed', 'Hard'];

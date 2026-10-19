@@ -29,6 +29,10 @@ npm start
 - Full walkthroughs live in `SOLUTIONS.md`. Try without them first.
 - Every vulnerability is marked in the source with `// VULN:` comments so you can study the code after solving.
 
+## Flags are random per deployment
+
+Every challenge flag is generated when the app first boots (`PENTRIX{` + 32 random hex chars) and stored only in the local SQLite database (`data/vulnlab.db`, gitignored). **Reading the source on GitHub reveals no flags.** Deleting the database and restarting generates a fresh set. The walkthroughs in `SOLUTIONS.md` show `PENTRIX{...}` as a placeholder and teach the technique, never the flag.
+
 ## Vulnerability inventory
 
 235 intentionally vulnerable challenges across 29 modules:

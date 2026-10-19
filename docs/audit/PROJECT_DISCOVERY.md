@@ -6,7 +6,8 @@ Hypotheses are marked as such.
 ## What it is
 
 Intentionally vulnerable web app for security training. Students pick a module,
-exploit real vulnerabilities, capture flags (`PENTRIX{module_vuln}`), track
+exploit real vulnerabilities, capture flags (random `PENTRIX{...}` per deployment,
+generated at first boot and stored only in the gitignored database), track
 progress on a scoreboard. Marked everywhere: run locally only, never public.
 
 ## Stack (observed, not assumed)
@@ -66,8 +67,8 @@ some mark helper code, not separate challenges).
 
 ## Seed data (observed in lib/db.js)
 
-- users: admin/admin123 (role admin, secret PENTRIX{sqli_union}), alice/alice123,
-  bob/bob123. Weak creds are intentional per code comment.
+- users: admin/admin123 (role admin, secret random per deployment),
+  alice/alice123, bob/bob123. Weak creds are intentional per code comment.
 - products, orders, comments, reset_tokens tables.
 
 ## What was NOT found

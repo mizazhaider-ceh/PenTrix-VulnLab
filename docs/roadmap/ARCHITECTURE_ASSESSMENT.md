@@ -421,8 +421,9 @@ future frontend redesign. These are load-bearing:
   (scoreboard).
 - Vuln entry fields: `id`, `name`, `difficulty`, `hint`, `how`, `link`
   (index-page convention; shell uses the first three).
-- `lib/flags`: `award(req, modId, vulnId)` returns `PENTRIX{modId_vulnId}` and
-  marks capture; `captured(req, modId, vulnId)` reads it. Flag format is fixed.
+- `lib/flags`: `award(req, modId, vulnId)` looks up the per-deployment random
+  flag from the `flags` table and marks capture; `captured(req, modId, vulnId)`
+  reads it. Flag format is `PENTRIX{<32 hex>}`, contents random per deployment.
   Session key namespace: `req.session.flags['<modId>:<vulnId>'] = true`.
 - `lib/page`: `page(title, bodyHtml)`, `esc(s)`, `flagBox(flag)`,
   `hintBox(hint)`, `brief(title, html)`.
