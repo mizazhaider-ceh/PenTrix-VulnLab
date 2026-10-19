@@ -11,6 +11,28 @@ An intentionally vulnerable web application for learning **real-world web securi
 > Never deploy it to a public server or expose it to the internet.
 > Run it only on your own machine or an isolated lab network.
 
+## Why I built this
+
+I am a cybersecurity student, and I learn by breaking things.
+
+When I started learning web security, I tried the existing labs. Some handed me the flag just for opening a page. Some taught the theory and skipped the part where you actually exploit something. Some felt nothing like the real websites I wanted to learn to test.
+
+So I built the lab I wished existed.
+
+Every challenge in PenTrix VulnLab is a small, believable website with a real bug in it. No hand-holding, no fake flags, no shortcuts. You either exploit it for real, or you get nothing. That is how the real world works, and that is how this lab works.
+
+I built it for students like me: people who learn by doing, late at night, with curl and Burp and too much coffee. If that is you, welcome. Break everything.
+
+*Muhammad Izaz Haider ([@mizazhaider-ceh](https://github.com/mizazhaider-ceh))*
+
+## Who this is for
+
+- **Students** meeting web security for the first time and wanting real practice, not slides.
+- **Self-learners** grinding toward pentesting certifications or their first CTF.
+- **CTF players** who want 235 warm-up challenges with honest, uncheatable flags.
+- **Instructors** who need a one-command lab for a classroom (event mode is on the way).
+- **Career switchers** who want proof of skill: solve paths, earn certificates, show your work.
+
 ## Quick start
 
 ```bash
@@ -164,6 +186,8 @@ PenTrix-VulnLab/
 │   │       ├── login.js    # one file per challenge
 │   │       └── ...
 │   └── ...                 # 28 more modules, same shape
+├── scenarios/              # kill-chain scenarios (in development)
+├── paths/                  # guided career paths (in development)
 ├── public/                 # claymorphism CSS, client JS
 ├── data/                   # SQLite database (gitignored, created on boot)
 ├── docs/
@@ -174,8 +198,34 @@ PenTrix-VulnLab/
 │   ├── research/           # platform benchmarks, skills research
 │   └── roadmap/            # architecture assessment, decisions, plan, progress
 ├── SOLUTIONS.md            # technique walkthroughs (never flags)
-└── docker-compose.yml      # localhost-only, healthchecked, resourced-limited
+└── docker-compose.yml      # localhost-only, healthchecked, resource-limited
 ```
+
+## FAQ
+
+**Is it safe to run?**
+Yes, on your own machine. The container binds to `127.0.0.1` only, drops Linux capabilities, and is resource-limited. It is still intentionally vulnerable software, so keep it off shared networks.
+
+**Can I deploy it to the internet so friends can play?**
+No. Never. It is a practice target, not a hardened app. If you want a shared event, run it on an isolated lab network you fully control.
+
+**How do flags work?**
+Every install generates its own 235 random flags on first boot, stored in a gitignored local database. The source on GitHub contains zero flags, so nothing can be spoiled by reading code.
+
+**I solved a challenge but got no flag. Why?**
+Because the lab only awards flags for genuine exploitation. A request that does not actually trigger the vulnerability earns nothing. Re-read the briefing, check the hint, and make the exploit real.
+
+**I found an unintended vulnerability in the lab itself.**
+That is a bonus flag in spirit. Open an issue and tell the story.
+
+**Can I add my own challenges?**
+A simple challenge-builder format is in development. Until then, issues and pull requests with new challenge ideas are welcome.
+
+**Do I need Burp Suite?**
+No. Everything is solvable with curl and a browser. Burp just makes some challenges faster.
+
+**Where do I start if I am brand new?**
+Open the app and follow the "Start here" card. It points to the gentlest module first. Then follow the career paths as they land.
 
 ## Rules
 
