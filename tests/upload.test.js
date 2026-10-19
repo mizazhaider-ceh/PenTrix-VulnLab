@@ -8,11 +8,17 @@ const path = require('node:path');
 const { bootLab, flagFromDb, capturedSet, FLAG_RE } = require('./helpers');
 
 // The avatar-overwrite challenge mutates uploads/avatars/avatar-bob.png on
-// disk. Reset it to the pristine fixture before the exploit runs so the test
-// is idempotent across re-runs in the same tree.
+// disk. Snapshot the pristine bytes at load and reset to the text fixture
+// before the exploit runs so the test is idempotent across re-runs in the
+// same tree. The original PNG is restored afterwards so the working tree
+// stays clean.
 const AVATAR_BOB = path.join(__dirname, '..', 'uploads', 'avatars', 'avatar-bob.png');
+const BOB_ORIGINAL = fs.readFileSync(AVATAR_BOB);
 function resetBobAvatar() {
   fs.writeFileSync(AVATAR_BOB, 'BOB-ORIGINAL-AVATAR-v1\n');
+}
+function restoreBobAvatar() {
+  fs.writeFileSync(AVATAR_BOB, BOB_ORIGINAL);
 }
 
 // Local raw-binary client: the upload endpoints take raw request bytes, not
@@ -44,6 +50,7 @@ function uploadClient(base) {
 
 test('upload module', async (t) => {
   const { srv, dataDir } = await bootLab(t);
+  t.after(restoreBobAvatar);
   const flagOf = (id) => flagFromDb(dataDir, 'upload', id);
   const OCTET = { 'content-type': 'application/octet-stream' };
 
