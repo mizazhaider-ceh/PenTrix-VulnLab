@@ -151,9 +151,8 @@ lands for that challenge.
 
 Recorded 2026-10-19. M12 chains several challenges across modules into
 story-driven kill chains with staged unlock: stage N+1 opens only after
-stage N's flag is captured. Scenario flags live in the flags table with
-module_id `scenario` (same `PENTRIX{<32 hex>}` format, seeded by
-`ensureFlags`, INSERT OR IGNORE makes reseeding safe).
+stage N's flag is captured. Scenario flags use module_id `scenario`
+(same `PENTRIX{<32 hex>}` format, generated at first boot like every other flag).
 
 ### Framework
 

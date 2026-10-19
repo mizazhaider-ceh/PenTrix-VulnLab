@@ -2,7 +2,7 @@
 
 Full walkthroughs for all 201 challenges. **Try each one yourself first** – the hints on each module page are there to nudge you, not to hand you the answer.
 
-> **Flags are random per deployment.** Every challenge flag is generated when the app first boots and stored only in the local database (which is gitignored). The walkthroughs below show `PENTRIX{...}` as a placeholder wherever a flag appears: they teach you *how* to earn it, and your lab will award the real one when your exploit succeeds.
+> **Flags are random per deployment.** Every challenge flag is generated fresh on your machine when the app first boots, and no flag ever appears in a tracked file. The walkthroughs below show `PENTRIX{...}` as a placeholder wherever a flag appears: they teach you *how* to earn it, and your lab will award the real one when your exploit succeeds.
 
 Base URL for every payload below: `http://localhost:3000`
 

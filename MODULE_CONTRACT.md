@@ -41,8 +41,8 @@ const { award, flagFor, captured } = require('../../lib/flags');
 - `esc(s)` escapes HTML. Use it on ALL user input you reflect, EXCEPT where the
   vulnerability itself requires reflecting raw input (mark those spots `// VULN:`).
 - `award(req, '<id>', '<vuln-id>')` marks the flag captured in the session and
-  RETURNS the flag string `PENTRIX{<32 hex>}` (random per deployment, looked up
-  from the flags table). Show it with `flagBox(flag)`.
+  RETURNS the flag string `PENTRIX{<32 hex>}` (random per deployment, issued by
+  the flag system). Show it with `flagBox(flag)`.
 - `brief(title, html)` renders the module briefing box. Use it at the top of your index page.
 
 ## Rules

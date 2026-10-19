@@ -7,7 +7,7 @@ Hypotheses are marked as such.
 
 Intentionally vulnerable web app for security training. Students pick a module,
 exploit real vulnerabilities, capture flags (random `PENTRIX{...}` per deployment,
-generated at first boot and stored only in the gitignored database), track
+generated at first boot on the student's machine), track
 progress on a scoreboard. Marked everywhere: run locally only, never public.
 
 ## Stack (observed, not assumed)

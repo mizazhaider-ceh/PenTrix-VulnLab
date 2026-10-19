@@ -178,3 +178,13 @@ per-challenge HTTP tests already prove Burp solvability (Burp is only a
 proxy), so the existing suite stays the verification backbone. FLAG BAR
 (D-decisions on genuine multi-step exploitation) and FLAG SECRECY are
 unchanged: Burp-first must never mean easier flags.
+
+## D18. Flag storage location is never disclosed in public materials (owner doctrine)
+
+Decision (2026-10-20, owner instruction): no public material (README, docs,
+website, presentations, videos, social posts) may say where or how flags are
+stored. The only permitted statements: flags are randomly generated per
+install at first boot on the student's own machine, no flag literal exists
+in any tracked file, and only genuine exploits earn flags. This extends FLAG
+SECRECY: even naming the storage mechanism is a spoiler, because it tells
+people to go dig in the database instead of hacking the challenges.

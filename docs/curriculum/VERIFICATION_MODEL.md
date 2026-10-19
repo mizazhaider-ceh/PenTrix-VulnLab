@@ -74,7 +74,7 @@ injection cannot award. The v3-v10 gadgets already required output evidence
 ### Dedupe: removed vulnerabilities
 The following vuln ids were removed as exact-concept duplicates (see
 LAB_QUALITY_MATRIX.md). Their routes were deleted. No flags reference them;
-the flags table and scoreboard use the surviving ids.
+the flag system and scoreboard use the surviving ids.
 
 - `xss`: `stored-xss-profile`, `xss-hash-write`
 - `auth`: `jwt-none`, `rememberme`, `apikey-leak`
@@ -111,7 +111,7 @@ reading it off the page.
 - Hint ladders (`hints`), tool pills (`tools`), track banners, and remediation
   panels (`fixPanel`) are display-only. They do not touch `award()` calls.
 - Module `difficulty` changed from `Mixed` to honest values; `track` and
-  `prerequisites` added. These are metadata; the flags table is unaffected.
+  `prerequisites` added. These are metadata; flag awards are unaffected.
 - CORS module: pending rebuild (see M7 report); current `/cors/prove`
   endpoint unchanged until the rebuild lands.
 - `cmdi` v3-v10 (cmdi-ifs, cmdi-braces, cmdi-newline, cmdi-backtick,

@@ -109,8 +109,7 @@ Student code is untrusted. The runner executes it in a bare `node:vm` context:
 
 ### Badge storage (lib/fixbadges.js)
 
-Badges are per-user and persistent. The table `fix_badges` lives in the same
-SQLite database as the flags table:
+Badges are per-user and persistent. They are stored with the app's other local data in a table called `fix_badges`:
 
 - `user_key` - the express session id, the same identity the flag system uses
 - `module`, `vuln_id` - which challenge the badge is for

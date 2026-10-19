@@ -126,7 +126,7 @@ This keeps the weighting logic in one place (`lib/page.js`) while `app.js` owns 
 ## Module Metadata Reference
 
 Each module's `module.exports` includes:
-- `id`: stable module identifier (never changes; referenced by flags table).
+- `id`: stable module identifier (never changes; used by the flag system).
 - `name`, `tagline`, `description`: display metadata.
 - `difficulty`: `Beginner`, `Intermediate`, or `Advanced` (honest, not "Mixed").
 - `track`: one of `Foundations`, `Injection`, `Auth and Sessions`, `Advanced`.

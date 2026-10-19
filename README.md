@@ -221,7 +221,7 @@ This repo went through a full engineering transformation:
 - **Safety groundwork.** Localhost-only container binding, healthcheck, resource limits, non-root image, loader validation, env-based session secret, database untracked.
 - **Claymorphism redesign.** A light-only, candy-colored, soft-3D interface: super-rounded cards, squishy buttons, floating blobs, Nunito + DM Sans.
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
-- **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
+- **Per-deployment random flags.** Flag values are generated fresh at first boot, on your own machine. GitHub reveals nothing.
 - **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
 - **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked.
 - **Kill-chain scenarios.** Three story-driven scenarios live at `/scenarios`: Shop Takeover, API Heist, and Ghost in the CMS. Staged unlock: each stage opens only after the previous stage's flag is captured, and finishing all stages earns a scenario flag.
@@ -234,7 +234,7 @@ This repo went through a full engineering transformation:
 PenTrix-VulnLab/
 ├── app.js                  # Express app, module mounting, scoreboard, about
 ├── lib/
-│   ├── db.js               # SQLite setup, seed, flags table
+│   ├── db.js               # SQLite setup and seed
 │   ├── flags.js            # flagFor() lookup, award() with exploit verification
 │   └── page.js             # shared page shell, nav, scoreboard components
 ├── modules/
@@ -271,7 +271,7 @@ Yes, on your own machine. The container binds to `127.0.0.1` only, drops Linux c
 No. Never. It is a practice target, not a hardened app. If you want a shared event, run it on an isolated lab network you fully control.
 
 **How do flags work?**
-Every install generates its own 201 random flags on first boot, stored in a gitignored local database. The source on GitHub contains zero flags, so nothing can be spoiled by reading code.
+Every install generates its own 201 random flags on first boot, on your machine. The source on GitHub contains zero flags, so nothing can be spoiled by reading code.
 
 **I solved a challenge but got no flag. Why?**
 Because the lab only awards flags for genuine exploitation. A request that does not actually trigger the vulnerability earns nothing. Re-read the briefing, check the hint, and make the exploit real.

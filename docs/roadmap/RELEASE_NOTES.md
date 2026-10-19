@@ -23,7 +23,7 @@ progress: 63 of 201 challenges are done on `main`; the rest are underway.
 - Exploit-verified flag awards. Flag routes now check that the award
   corresponds to a genuine exploit, not to knowledge of the answer.
 - Per-deployment random flags: every install generates its own random
-  `PENTRIX{<32 hex>}` flags into a gitignored SQLite table at first boot.
+  `PENTRIX{<32 hex>}` flags at first boot, on your machine.
   No real flag literal exists in tracked files; flags cannot be derived
   from the source. `SOLUTIONS.md` teaches method, never lists flags.
 
