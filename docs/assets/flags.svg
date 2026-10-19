@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" font-family="Nunito,'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8B7CF6"/>
+    </marker>
+    <linearGradient id="genBtn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="440" rx="28" fill="#F4F1FA"/>
+  <circle cx="1080" cy="360" r="100" fill="#BAE6FD" opacity="0.45"/>
+  <circle cx="80" cy="70" r="60" fill="#FBCFE8" opacity="0.45"/>
+  <text x="60" y="58" font-size="30" font-weight="800" fill="#332F3A">Flags are born on your machine, not in this repo</text>
+  <text x="60" y="88" font-size="19" fill="#635F69">Reading the source on GitHub reveals zero flags. The only way to get one is to exploit the vulnerability.</text>
+
+  <g font-size="18" font-weight="700" text-anchor="middle">
+    <rect x="60" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
+    <circle cx="150" cy="166" r="18" fill="#0EA5E9"/>
+    <text x="150" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">▶</text>
+    <text x="150" y="208" fill="#332F3A">First boot</text>
+    <text x="150" y="232" font-size="14" font-weight="600" fill="#635F69">docker compose up</text>
+
+    <rect x="290" y="130" width="180" height="130" rx="24" fill="url(#genBtn)"/>
+    <circle cx="380" cy="166" r="18" fill="#ffffff" opacity="0.25"/>
+    <text x="380" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">⚄</text>
+    <text x="380" y="208" fill="#ffffff">Generate</text>
+    <text x="380" y="232" font-size="14" font-weight="600" fill="#EDE9FE">crypto.randomBytes</text>
+
+    <rect x="520" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
+    <circle cx="610" cy="166" r="18" fill="#7C3AED"/>
+    <text x="610" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">▤</text>
+    <text x="610" y="208" fill="#332F3A">SQLite store</text>
+    <text x="610" y="232" font-size="14" font-weight="600" fill="#635F69">gitignored, local only</text>
+
+    <rect x="750" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
+    <circle cx="840" cy="166" r="18" fill="#DB2777"/>
+    <text x="840" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">⚒</text>
+    <text x="840" y="208" fill="#332F3A">You exploit</text>
+    <text x="840" y="232" font-size="14" font-weight="600" fill="#635F69">real technique, real tools</text>
+
+    <rect x="980" y="130" width="160" height="130" rx="24" fill="#10B981"/>
+    <circle cx="1060" cy="166" r="18" fill="#ffffff" opacity="0.25"/>
+    <text x="1060" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">⚑</text>
+    <text x="1060" y="208" fill="#ffffff">Flag awarded</text>
+    <text x="1060" y="232" font-size="14" font-weight="600" fill="#D1FAE5">PENTRIX{…}</text>
+  </g>
+  <g stroke="#8B7CF6" stroke-width="3" fill="none" marker-end="url(#arr2)">
+    <line x1="240" y1="195" x2="282" y2="195"/>
+    <line x1="470" y1="195" x2="512" y2="195"/>
+    <line x1="700" y1="195" x2="742" y2="195"/>
+    <line x1="930" y1="195" x2="972" y2="195"/>
+  </g>
+
+  <g>
+    <rect x="60" y="300" width="1080" height="90" rx="24" fill="#ffffff" stroke="#F59E0B" stroke-width="2" stroke-dasharray="10 8"/>
+    <text x="100" y="338" font-size="20" font-weight="800" fill="#332F3A">What GitHub sees: <tspan fill="#DC2626">nothing</tspan></text>
+    <text x="100" y="366" font-size="17" fill="#635F69">No flag literal exists in any tracked file. Delete data/vulnlab.db and reboot for a fresh set of 235.</text>
+  </g>
+</svg>

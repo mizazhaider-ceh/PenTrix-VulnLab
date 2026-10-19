@@ -1,6 +1,11 @@
-# 🧪 PenTrix VulnLab
+![PenTrix VulnLab](docs/assets/hero.svg)
 
-An intentionally vulnerable web application for learning web security, built by **The PenTrix**.
+![modules](https://img.shields.io/badge/modules-29-7C3AED?style=for-the-badge)
+![challenges](https://img.shields.io/badge/challenges-235-DB2777?style=for-the-badge)
+![node](https://img.shields.io/badge/node-20%2B-10B981?style=for-the-badge)
+![status](https://img.shields.io/badge/status-intentionally%20vulnerable-F59E0B?style=for-the-badge)
+
+An intentionally vulnerable web application for learning **real-world web security**, built by **The PenTrix**. Every challenge behaves like a small genuine website, a shop, a login portal, a blog, an API, and every flag is earned by genuine multi-step exploitation. Nothing is handed to you, and nothing leaks from the source.
 
 > ⚠️ **WARNING: This application is intentionally vulnerable.**
 > Never deploy it to a public server or expose it to the internet.
@@ -13,6 +18,8 @@ docker compose up --build
 # open http://localhost:3000
 ```
 
+The compose file binds to `127.0.0.1` only, ships a healthcheck, drops Linux capabilities, and caps CPU and memory. The database persists in `./data` (gitignored).
+
 Or without Docker (Node 20+):
 
 ```bash
@@ -20,20 +27,56 @@ npm install
 npm start
 ```
 
-## How it works
+Set `SESSION_SECRET` to a private value for any graded or shared use. The app falls back to an insecure dev secret when it is unset, which is fine for local labs only.
 
-- Pick a module on the home page (XSS, SQLi, IDOR, SSRF, and more).
-- Each module briefs you on what to attack, with hints when you're stuck.
-- Exploit the vulnerability for real, capture the flag (`PENTRIX{...}`).
-- Track your progress on the **Scoreboard** page.
-- Full walkthroughs live in `SOLUTIONS.md`. Try without them first.
-- Every vulnerability is marked in the source with `// VULN:` comments so you can study the code after solving.
+## How a session goes
 
-## Flags are random per deployment
+1. **Pick a module** on the home page. 29 to choose from, with search and difficulty filters.
+2. **Read the briefing**, then open a challenge. Each one looks and behaves like a real little website. The vulnerability is there to be discovered, not announced.
+3. **Find the bug.** Exploit it the way a real attacker would, with real tools: curl, Burp, your browser.
+4. **Capture the flag.** Progress lands on the scoreboard.
+5. **Stuck?** Reveal the hint. Still stuck? `SOLUTIONS.md` walks the technique, never the flag.
 
-Every challenge flag is generated when the app first boots (`PENTRIX{` + 32 random hex chars) and stored only in the local SQLite database (`data/vulnlab.db`, gitignored). **Reading the source on GitHub reveals no flags.** Deleting the database and restarting generates a fresh set. The walkthroughs in `SOLUTIONS.md` show `PENTRIX{...}` as a placeholder and teach the technique, never the flag.
+## Flags are born on your machine, not in this repo
 
-## Vulnerability inventory
+![Flag lifecycle](docs/assets/flags.svg)
+
+- On first boot the app generates its own **235 flags**: `PENTRIX{` + 32 random hex characters.
+- They live only in the local SQLite database (`data/vulnlab.db`), which is gitignored and mounted as a Docker volume.
+- **No flag literal exists in any tracked file.** Reading the source on GitHub reveals nothing.
+- Delete the database and reboot for a fresh set. Your flags and everyone else's are different, so sharing them proves nothing.
+
+## Shortcuts earn nothing
+
+![Verification integrity](docs/assets/verification.svg)
+
+Flags are awarded only when the exploit genuinely works:
+
+| Real exploitation | Result |
+|---|---|
+| SQLi login bypass with a working payload | Flag awarded |
+| Reflected XSS that actually fires in the victim context | Flag awarded |
+| Blind extraction, character by character | Flag awarded |
+
+| Shortcut | Result |
+|---|---|
+| Bare curl beacon with no exploit behind it | `400`, no flag |
+| Replaying a stolen token | `400`, no flag |
+| Just visiting a demo page | Nothing |
+
+Every challenge is paired with tests proving the real path works and the fakes fail.
+
+## Architecture
+
+![Architecture](docs/assets/architecture.svg)
+
+- **Express + SQLite**, zero build step, plain CSS and JS. Clone it, read it, run it.
+- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each of the **235 challenges lives in its own file** under `modules/<id>/challenges/`, owning its page, its routes, and its vulnerability.
+- **`lib/flags.js`** looks up the per-deployment flag and verifies the exploit before awarding. Challenge code never touches flag values.
+- **Scoreboard** tracks progress from session state. It never displays secrets.
+- Every vulnerability is marked in the source with `// VULN:` comments (280 across the codebase) so you can study the code *after* solving.
+
+## The lab catalog
 
 235 intentionally vulnerable challenges across 29 modules:
 
@@ -69,11 +112,53 @@ Every challenge flag is generated when the app first boots (`PENTRIX{` + 32 rand
 | **formula** – CSV Formula Injection (4) | Classic `=cmd` · DDE execution · `HYPERLINK` exfiltration · Pipe prefix |
 | **redos** – ReDoS (4) | Catastrophic email/URL regexes · Nested-quantifier username · Regex-injection search |
 
+## What we built
+
+This repo went through a full engineering transformation:
+
+- **Phase Zero, audit.** Live exploitation of the original app, feature inventory, architecture and risk analysis, documented in `docs/audit/`.
+- **Phase One, planning.** Lab quality matrix (every challenge graded), design brief, motion system, platform research, architecture assessment, and a 10-milestone implementation plan in `docs/roadmap/`.
+- **Safety groundwork.** Localhost-only container binding, healthcheck, resource limits, non-root image, loader validation, env-based session secret, database untracked.
+- **Claymorphism redesign.** A light-only, candy-colored, soft-3D interface: super-rounded cards, squishy buttons, floating blobs, Nunito + DM Sans.
+- **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
+- **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
+- **One file per challenge.** Each of the 235 challenges owns its file, its page, and its code. No monolithic module files.
+- **In progress:** real-website feel for every challenge page, motion polish, and a curriculum depth pass. The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
+
+## Project layout
+
+```
+PenTrix-VulnLab/
+├── app.js                  # Express app, module mounting, scoreboard, about
+├── lib/
+│   ├── db.js               # SQLite setup, seed, flags table
+│   ├── flags.js            # flagFor() lookup, award() with exploit verification
+│   └── page.js             # shared page shell, nav, scoreboard components
+├── modules/
+│   ├── sqli/
+│   │   ├── index.js        # module contract: id, name, briefing, challenge registry
+│   │   └── challenges/
+│   │       ├── login.js    # one file per challenge
+│   │       └── ...
+│   └── ...                 # 28 more modules, same shape
+├── public/                 # claymorphism CSS, client JS
+├── data/                   # SQLite database (gitignored, created on boot)
+├── docs/
+│   ├── assets/             # diagrams used in this README
+│   ├── audit/              # Phase Zero findings
+│   ├── curriculum/         # lab quality matrix
+│   ├── design/             # design brief, motion system
+│   ├── research/           # platform benchmarks, skills research
+│   └── roadmap/            # architecture assessment, decisions, plan, progress
+├── SOLUTIONS.md            # technique walkthroughs (never flags)
+└── docker-compose.yml      # localhost-only, healthchecked, resourced-limited
+```
+
 ## Rules
 
 1. Attack **only** this application.
 2. Flags prove exploitation. Share write-ups, not just flags.
-3. Built for learning. If you find an *unintended* vulnerability, that's a bonus flag in spirit.
+3. Built for learning. If you find an *unintended* vulnerability, that is a bonus flag in spirit.
 
 ## License
 

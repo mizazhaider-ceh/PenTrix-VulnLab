@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" font-family="Nunito,'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#10B981"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F87171"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="420" rx="28" fill="#F4F1FA"/>
+  <circle cx="1120" cy="60" r="70" fill="#A7F3D0" opacity="0.5"/>
+  <circle cx="70" cy="370" r="70" fill="#FECACA" opacity="0.5"/>
+  <text x="60" y="58" font-size="30" font-weight="800" fill="#332F3A">Verification integrity: shortcuts earn nothing</text>
+  <text x="60" y="88" font-size="19" fill="#635F69">Every challenge is paired with tests proving the real exploit works and the fakes fail.</text>
+
+  <g>
+    <rect x="60" y="130" width="520" height="230" rx="24" fill="#ffffff" stroke="#10B981" stroke-width="3"/>
+    <circle cx="110" cy="175" r="20" fill="#10B981"/>
+    <text x="102" y="183" font-size="22" font-weight="800" fill="#ffffff">✓</text>
+    <text x="142" y="183" font-size="22" font-weight="800" fill="#065F46">Real exploitation</text>
+    <text x="100" y="225" font-size="18" fill="#332F3A">SQLi bypass with <tspan font-family="'Cascadia Code',Consolas,monospace">' OR '1'='1</tspan> --</text>
+    <text x="100" y="255" font-size="18" fill="#332F3A">Reflected XSS payload that actually fires</text>
+    <text x="100" y="285" font-size="18" fill="#332F3A">Blind extraction, character by character</text>
+    <g stroke="#10B981" stroke-width="3" fill="none" marker-end="url(#arrG)">
+      <line x1="320" y1="315" x2="420" y2="315"/>
+    </g>
+    <rect x="430" y="290" width="120" height="50" rx="25" fill="#10B981"/>
+    <text x="490" y="322" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle">FLAG</text>
+  </g>
+
+  <g>
+    <rect x="620" y="130" width="520" height="230" rx="24" fill="#ffffff" stroke="#F87171" stroke-width="3"/>
+    <circle cx="670" cy="175" r="20" fill="#F87171"/>
+    <text x="662" y="183" font-size="22" font-weight="800" fill="#ffffff">✕</text>
+    <text x="702" y="183" font-size="22" font-weight="800" fill="#991B1B">Shortcuts</text>
+    <text x="660" y="225" font-size="18" fill="#332F3A">Bare curl beacon with no exploit → 400</text>
+    <text x="660" y="255" font-size="18" fill="#332F3A">Replaying a stolen token → 400</text>
+    <text x="660" y="285" font-size="18" fill="#332F3A">Just visiting a demo page → nothing</text>
+    <g stroke="#F87171" stroke-width="3" fill="none" marker-end="url(#arrR)">
+      <line x1="880" y1="315" x2="980" y2="315"/>
+    </g>
+    <rect x="990" y="290" width="120" height="50" rx="25" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="1050" y="322" font-size="19" font-weight="800" fill="#64748B" text-anchor="middle">NO FLAG</text>
+  </g>
+</svg>

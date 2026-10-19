@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" font-family="Nunito,'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <linearGradient id="violetBtn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="pinkBtn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EC4899"/><stop offset="1" stop-color="#DB2777"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" rx="28" fill="#F4F1FA"/>
+  <circle cx="1050" cy="40" r="150" fill="#FBCFE8" opacity="0.55"/>
+  <circle cx="120" cy="330" r="130" fill="#BAE6FD" opacity="0.5"/>
+  <circle cx="620" cy="330" r="70" fill="#DDD6FE" opacity="0.7"/>
+  <circle cx="880" cy="300" r="26" fill="#A7F3D0" opacity="0.8"/>
+  <circle cx="480" cy="60" r="18" fill="#FDE68A" opacity="0.9"/>
+
+  <text x="80" y="120" font-size="64" font-weight="800" fill="#332F3A">PenTrix <tspan fill="#7C3AED">VulnLab</tspan></text>
+  <text x="80" y="165" font-size="22" fill="#635F69">An intentionally vulnerable web app for learning real-world</text>
+  <text x="80" y="195" font-size="22" fill="#635F69">web security. Every flag is earned by genuine exploitation.</text>
+
+  <g font-size="20" font-weight="700">
+    <rect x="80" y="225" width="150" height="52" rx="26" fill="#ffffff"/>
+    <rect x="80" y="225" width="150" height="52" rx="26" fill="none" stroke="#E4E0F2" stroke-width="2"/>
+    <circle cx="112" cy="251" r="10" fill="#7C3AED"/>
+    <text x="130" y="258" fill="#332F3A">29 modules</text>
+    <rect x="246" y="225" width="172" height="52" rx="26" fill="#ffffff"/>
+    <rect x="246" y="225" width="172" height="52" rx="26" fill="none" stroke="#E4E0F2" stroke-width="2"/>
+    <circle cx="278" cy="251" r="10" fill="#DB2777"/>
+    <text x="296" y="258" fill="#332F3A">235 challenges</text>
+    <rect x="434" y="225" width="158" height="52" rx="26" fill="#ffffff"/>
+    <rect x="434" y="225" width="158" height="52" rx="26" fill="none" stroke="#E4E0F2" stroke-width="2"/>
+    <circle cx="466" cy="251" r="10" fill="#10B981"/>
+    <text x="484" y="258" fill="#332F3A">0 shortcuts</text>
+  </g>
+
+  <g>
+    <rect x="760" y="80" width="360" height="200" rx="28" fill="#ffffff"/>
+    <rect x="760" y="80" width="360" height="200" rx="28" fill="none" stroke="#E4E0F2" stroke-width="2"/>
+    <rect x="792" y="112" width="296" height="44" rx="22" fill="#F4F1FA"/>
+    <text x="812" y="141" font-size="19" font-family="'Cascadia Code',Consolas,monospace" fill="#635F69">&gt; exploit --for-real</text>
+    <rect x="792" y="170" width="296" height="78" rx="22" fill="url(#violetBtn)"/>
+    <text x="812" y="202" font-size="20" font-weight="800" fill="#ffffff">FLAG CAPTURED</text>
+    <text x="812" y="230" font-size="18" font-family="'Cascadia Code',Consolas,monospace" fill="#EDE9FE">PENTRIX{9f2c…e41a}</text>
+    <circle cx="1040" cy="128" r="20" fill="url(#pinkBtn)"/>
+    <text x="1032" y="136" font-size="20" font-weight="800" fill="#ffffff">✓</text>
+  </g>
+</svg>
