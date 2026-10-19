@@ -28,7 +28,7 @@ function challengeForm() {
       <button class="clay-btn clay-btn-primary" type="submit">Go</button>
     </form>
     <p class="note">Try <code>?next=//evil.com</code> and watch the
-    <code>Location</code> header with <code>curl -i</code>.</p>`;
+    <code>Location</code> header in the Burp Repeater response.</p>`;
 }
 
 // GET /go -> v1 protocol-relative redirect. After login, the app sends the

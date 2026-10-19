@@ -28,7 +28,7 @@ function challengeForm() {
       <button class="clay-btn clay-btn-primary" type="submit">Go</button>
     </form>
     <p class="note">Try <code>?next=javascript:alert(1)</code> and inspect the
-    <code>Location</code> header with <code>curl -i</code>.</p>`;
+    <code>Location</code> header in the Burp Repeater response.</p>`;
 }
 
 // GET /js -> v2 javascript: scheme redirect. This promo endpoint redirects to

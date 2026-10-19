@@ -28,7 +28,7 @@ router.get('/code-leak', (req, res) => {
         <li>Exchange it at <code>POST /oauth/idp/token</code> with
         <code>client_id=pentrix-spa</code> (a public client, so no secret is needed).</li>
       </ol>
-      ${payloadBlock('Token exchange', 'curl -s -b jar -X POST http://localhost:3000/oauth/idp/token \\\n  -d "client_id=pentrix-spa" \\\n  -d "code=<code-from-the-log>"')}
+      ${payloadBlock('Burp Repeater', 'POST /oauth/idp/token HTTP/1.1\nHost: localhost:3000\nContent-Type: application/x-www-form-urlencoded\nCookie: <your-session-cookie>\n\nclient_id=pentrix-spa&code=<code-from-the-log>')}
     </div>
     <div class="clay-card">
       <h3>Flag condition</h3>

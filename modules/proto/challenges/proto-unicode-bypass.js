@@ -46,10 +46,12 @@ router.get('/unicode', (req, res) => {
       <p><button class="clay-btn clay-btn-primary" type="button" onclick="fetch('/proto/unicode/merge', {method:'POST', headers:{'Content-Type':'text/plain'}, body: document.getElementById('jb').value}).then(r => r.text()).then(t => document.getElementById('out').innerHTML = t);">Import config</button></p>
       <div id="out"></div>
       <hr />
-      <p>Or with curl:</p>
-      <pre><code>curl -X POST http://localhost:3000/proto/unicode/merge \\
-  -H 'Content-Type: text/plain' \\
-  -d '{"\\u005f\\u005fproto\\u005f\\u005f": {"role": "admin"}}'</code></pre>
+      <p>Or in Burp Repeater:</p>
+      <pre><code>POST /proto/unicode/merge HTTP/1.1
+Host: localhost:3000
+Content-Type: text/plain
+
+{"\\u005f\\u005fproto\\u005f\\u005f": {"role": "admin"}}</code></pre>
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto/unicode/admin">Open admin check</a></p>
     `, { crumb: 'JSON config importer', nav: ['Home', 'Configs', 'Admin'] })}
   `));

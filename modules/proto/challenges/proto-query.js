@@ -54,7 +54,7 @@ router.get('/query', (req, res) => {
       <code>user.role === 'admin'</code>.</p>
       <p><a class="clay-btn clay-btn-secondary" href="/proto/query/admin">Open admin check</a></p>
     `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > Merge console' })}
-    ${payloadBlock('curl', 'curl -s "http://localhost:3000/proto/query?__proto__[role]=admin"\ncurl -s http://localhost:3000/proto/query/admin')}
+    ${payloadBlock('Burp Repeater', 'GET /proto/query?__proto__[role]=admin HTTP/1.1\nHost: localhost:3000\n\nGET /proto/query/admin HTTP/1.1\nHost: localhost:3000\n')}
     ${hintLadder(vuln)}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
   `));
