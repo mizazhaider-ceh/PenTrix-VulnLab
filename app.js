@@ -42,7 +42,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 getDb(); // init + seed
 
-// ---- auto-mount modules: modules/<id>/router.js ----
+// ---- auto-mount modules: modules/<id>/index.js (falls back to router.js
+// during the challenge-split migration; the fallback is removed once every
+// module has an index.js) ----
 const modulesDir = path.join(__dirname, 'modules');
 // Route prefixes owned by the app shell; modules may not claim them.
 const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads']);
@@ -50,7 +52,9 @@ const seenIds = new Set();
 const registry = [];
 if (fs.existsSync(modulesDir)) {
   for (const dir of fs.readdirSync(modulesDir)) {
-    const modPath = path.join(modulesDir, dir, 'router.js');
+    const indexPath = path.join(modulesDir, dir, 'index.js');
+    const legacyPath = path.join(modulesDir, dir, 'router.js');
+    const modPath = fs.existsSync(indexPath) ? indexPath : legacyPath;
     if (!fs.existsSync(modPath)) continue;
     let mod;
     try {
