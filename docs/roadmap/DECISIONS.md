@@ -150,3 +150,19 @@ dilution: playfulness lives in the shell (cards, buttons, blobs, the
 flag-capture moment) while challenge pages stay clear, high-contrast, and
 restrained (see MOTION_SYSTEM.md section 5). The lab-engine half of the
 project (D11) is unaffected by this change.
+
+## D16. Burp Suite is the lab's first-class tool (owner doctrine)
+
+Decision (2026-10-19, owner instruction): every one of the 201 challenges
+must be fully solvable through the standard Burp Suite workflow (Proxy
+intercept, Repeater, Intruder, with Community edition sufficient unless a
+challenge note says otherwise). The lab's voice now very highly recommends
+industry-standard tools over raw bash/curl: Burp Suite first, then OWASP
+ZAP, sqlmap, ffuf/gobuster, nmap where each fits. curl one-liners stop
+being the default; challenge `start` fields and hint ladders name the Burp
+step instead. Rationale: students learn the tooling real pentesters use,
+and proxy-based testing is the industry default for web work. The
+per-challenge HTTP tests already prove Burp solvability (Burp is only a
+proxy), so the existing suite stays the verification backbone. FLAG BAR
+(D-decisions on genuine multi-step exploitation) and FLAG SECRECY are
+unchanged: Burp-first must never mean easier flags.

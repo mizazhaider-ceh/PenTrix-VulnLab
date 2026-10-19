@@ -21,7 +21,7 @@ So I built the lab I wished existed.
 
 Every challenge in PenTrix VulnLab is a small, believable website with a real bug in it. No hand-holding, no fake flags, no shortcuts. You either exploit it for real, or you get nothing. That is how the real world works, and that is how this lab works.
 
-I built it for students like me: people who learn by doing, late at night, with curl and Burp and too much coffee. If that is you, welcome. Break everything.
+I built it for students like me: people who learn by doing, late at night, with Burp open, proxy intercepting, and too much coffee. If that is you, welcome. Break everything.
 
 *Muhammad Izaz Haider ([@mizazhaider-ceh](https://github.com/mizazhaider-ceh))*
 
@@ -57,11 +57,26 @@ Run the regression suite (boots the app on a throwaway database; needs Node 20 a
 npm test
 ```
 
+## Recommended tools
+
+This lab teaches **Burp Suite first**. Every challenge is fully solvable through the standard Burp workflow: intercept with the Proxy, tamper in the Repeater, automate the boring parts with the Intruder. Burp Community edition is enough for all 201 challenges. Pro adds Scanner and Collaborator, which you will not need here.
+
+| Tool | What it is | Where it shines in this lab |
+|---|---|---|
+| **Burp Suite** (recommended) | The intercepting proxy, request editor, and fuzzer real pentesters live in | Everywhere. XSS, SQLi, IDOR, SSRF, JWT, auth, race conditions: intercept it, replay it, mutate it |
+| **OWASP ZAP** | The free and open-source proxy alternative | Same job as Burp for intercepting and replaying, plus spidering the app before you start a module |
+| **sqlmap** | Automated SQL injection exploitation | `sqli` module. Confirm the injection by hand in Burp first, then let sqlmap do the heavy lifting on blind and error-based challenges |
+| **ffuf** | Fast web fuzzer | `lfi` path traversal wordlists, `ssrf` blocklist bypasses (decimal, hex, octal encodings), `api` endpoint enumeration |
+| **gobuster** | Directory and file brute-forcer | `misconfig` module: hunting exposed `.git`, `.env`, backup and swap files, directory listings |
+| **nmap** | Network mapper | Know your target. The lab is localhost-only, so there is little to map here, but port scanning and service fingerprinting are part of any real engagement |
+
+curl still works fine for quick beacons and one-off requests, but it is no longer the lab's default voice. If you reach for curl, do it because the request is simple, not because you skipped learning the proxy.
+
 ## How a session goes
 
 1. **Pick a module** on the home page. 29 to choose from, with search and difficulty filters.
 2. **Read the briefing**, then open a challenge. Each one looks and behaves like a real little website. The vulnerability is there to be discovered, not announced.
-3. **Find the bug.** Exploit it the way a real attacker would, with real tools: curl, Burp, your browser.
+3. **Find the bug.** Exploit it the way a real attacker would, with real tools: Burp Suite first (Proxy, Repeater, Intruder), your browser, and curl when a quick one-liner earns its keep.
 4. **Capture the flag.** Progress lands on the scoreboard.
 5. **Want a story?** Open `/scenarios` for a kill-chain: several challenges chained into one attack, stages unlocking one at a time.
 6. **Want a career path?** Open `/paths`: ordered challenge sequences from beginner to intermediate, ending in a verifiable certificate.
@@ -266,7 +281,7 @@ That is a bonus flag in spirit. Open an issue and tell the story.
 A simple challenge-builder format is in development. Until then, issues and pull requests with new challenge ideas are welcome.
 
 **Do I need Burp Suite?**
-No. Everything is solvable with curl and a browser. Burp just makes some challenges faster.
+It is the lab's first-class tool, and I very highly recommend it. Every one of the 201 challenges is fully solvable through the standard Burp workflow (Proxy, Repeater, Intruder), and the Burp Community edition is enough, you do not need Pro. curl still works for many challenges, and your browser handles the rest, but the lab teaches Burp-first: hints and technique walkthroughs name the Burp step, not the curl one-liner.
 
 **Where do I start if I am brand new?**
 Open the app and follow the "Start here" card. It points to the gentlest module first. Then start the **Zero to Web Pentester** path at `/paths`: ten steps from gentlest to trickiest, ending with your first certificate.
