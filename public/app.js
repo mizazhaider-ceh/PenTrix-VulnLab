@@ -40,6 +40,22 @@
     }
   });
 
+  /* Claim-status widgets (beacon challenges): poll the module's claim-status
+     endpoint and flip the status pill when the server has captured the flag. */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-status-url]'), function (el) {
+    var url = el.getAttribute('data-status-url');
+    var txt = el.querySelector('.claim-text');
+    var check = function () {
+      fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+        el.classList.toggle('status-captured', !!j.captured);
+        el.classList.toggle('status-missing', !j.captured);
+        if (txt) txt.textContent = j.captured ? 'Flag captured' : 'No valid beacon received yet';
+      }).catch(function () { /* keep last state */ });
+    };
+    check();
+    setInterval(check, 3000);
+  });
+
   /* Live filters: enhance the GET filter forms so results update without a
      reload. Without JS the forms submit normally (server-side filtering). */
   function wireFilter(formId, opts) {

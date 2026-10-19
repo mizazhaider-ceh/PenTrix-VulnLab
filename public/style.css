@@ -260,3 +260,4 @@ html.page-exit body{opacity:0;transition:opacity 160ms var(--ease-out)}
   .clay-btn-primary:hover,.clay-btn-secondary:hover{transform:none}
   .pill:hover,.clay-pill:hover,.badge:hover{transform:none}
 }
+.app-nav{margin-left:auto}

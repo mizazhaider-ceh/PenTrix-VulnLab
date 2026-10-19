@@ -4,3 +4,4 @@ uploads/*
 !uploads/.gitkeep
 npm-debug.log
 .playwright-mcp/
+modules/**/*.log
