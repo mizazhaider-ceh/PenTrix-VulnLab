@@ -92,12 +92,12 @@ a.clay-card:focus-visible{outline:none;box-shadow:var(--shadow-clay-card),0 0 0 
 .progress-meta{display:flex;align-items:center;gap:12px;font-size:.85rem;color:var(--clay-muted);font-weight:700}
 .progress-meta .clay-progress{flex:1}
 .tbl-scroll{margin:12px 0 32px}
-.tbl{width:100%;border-collapse:separate;border-spacing:0;background:rgba(255,255,255,.85);border-radius:var(--r-med);overflow:hidden;box-shadow:var(--shadow-clay-card)}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;background:rgba(255,255,255,.85);border-radius:var(--r-med);overflow:clip;box-shadow:var(--shadow-clay-card)}
 .tbl caption{text-align:left;font-family:var(--font-display);font-weight:800;padding:16px 20px 8px;font-size:1.05rem}
 .tbl th,.tbl td{text-align:left;padding:12px 18px;border-bottom:1px solid var(--hairline)}
 .tbl thead th{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--clay-muted);background:var(--clay-well)}
 .tbl tbody tr:last-child th,.tbl tbody tr:last-child td{border-bottom:0}
-@media(min-width:720px){.tbl-scroll{overflow:visible}.tbl thead th{position:sticky;top:84px;z-index:5}}
+@media(min-width:720px){.tbl-scroll{overflow:visible}}
 @media(max-width:719px){.tbl-scroll{overflow-x:auto;border-radius:var(--r-med)}.tbl{min-width:560px}}
 .sb-module{background:rgba(255,255,255,.72);border-radius:var(--r-card);box-shadow:var(--shadow-clay-card);padding:28px;margin-bottom:24px}
 .sb-head{display:flex;align-items:center;gap:16px;margin-bottom:8px;flex-wrap:wrap}

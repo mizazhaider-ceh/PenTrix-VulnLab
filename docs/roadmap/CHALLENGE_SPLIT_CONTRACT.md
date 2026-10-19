@@ -6,6 +6,8 @@ zero behavior change, only file organization.
 
 ## Target layout
 
+Reference implementation: `modules/api/` (verified, see `tests/api.test.js`).
+
 ```
 modules/<id>/
   index.js                 # aggregator, keeps the module contract
@@ -14,6 +16,20 @@ modules/<id>/
     <vuln-id>.js          # one file per vuln, e.g. login-bypass.js
     ...
 ```
+
+Require paths from a challenge file: `../../../lib/...` (challenges are two
+levels below the module root) and `../shared`. From `index.js`: `../../lib/...`
+and `./shared`.
+
+## Vuln metadata (current shape)
+
+Copy the existing vuln object verbatim, including `hints` (the 3-step ladder)
+and `tools`, plus `link` (a URL that exists: either a real page for the
+challenge or `/<id>#<vuln-id>` pointing at its card on the module index) and
+optionally `start` (a copyable first step, for example a curl command, shown
+as a "Starting point" block on the module index; it must not reveal the exploit).
+Module-level demo routes that belong to no challenge (for example the quick
+login in `api`) live in `index.js` with a comment saying so.
 
 ## Challenge file shape (`modules/<id>/challenges/<vulnId>.js`)
 
