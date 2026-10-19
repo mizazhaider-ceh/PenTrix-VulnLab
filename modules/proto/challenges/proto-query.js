@@ -1,0 +1,89 @@
+'use strict';
+// Query-string pollution: GET /proto/query parses the raw query string into
+// nested objects and deep-merges them into the global app config.
+// The finisher wires this up: ../shared must export the module-level helpers
+// { merge, parseNested, rawQuery, config } (moved from router.js), and the
+// module mount (index.js) must apply the urlencoded/json/text body parsers.
+const express = require('express');
+const { esc, page, brief, flagBox, fixPanel, hintLadder, toolsPill, difficultyPill, payloadBlock, appShell } = require('../../../lib/page');
+const { award } = require('../../../lib/flags');
+const { merge, parseNested, rawQuery, config } = require('../shared');
+
+const router = express.Router();
+
+const vuln = {
+  id: 'proto-query',
+  name: 'Query-String Pollution',
+  difficulty: 'Medium',
+  hint: 'The merge endpoint folds every query parameter into the app config. What happens when a parameter is named __proto__[role]?',
+  hints: ["Query params are deep-merged into config. What happens with ?__proto__[role]=admin?", "The merge pollutes Object.prototype. Every object now has role=admin.", "Try ?__proto__[role]=admin, then check the admin panel."],
+  tools: "B, C",
+  how: 'Pollute Object.prototype.role via the query string, then open the admin check.',
+  link: '/proto#proto-query',
+  start: 'curl -s "http://localhost:3000/proto/query?__proto__[role]=admin"\ncurl -s http://localhost:3000/proto/query/admin',
+};
+
+// GET /proto/query -> the merge console. Parses the raw query string into
+// nested objects and deep-merges them into the app config.
+router.get('/query', (req, res) => {
+  const data = parseNested(rawQuery(req));
+  // VULN: every query parameter is deep-merged into the global config object.
+  merge(config, data);
+  res.send(page('Query-String Pollution', `
+    ${brief('App config console', `ConfigDesk is the admin console for a small demo shop.
+      The merge console below folds query parameters into the running app config,
+      so operators can tweak behavior without a restart. Bracket notation nests:
+      <code>a[b]=c</code> becomes a nested object before merging.`)}
+    <p>${difficultyPill(vuln.difficulty)}</p>
+    ${toolsPill(vuln)}
+    ${appShell('ConfigDesk', `
+      <h2>Merge query parameters into the app config</h2>
+      <p>This console runs your raw query string through a nested parser and
+      deep-merges the result into the global config. The merge trusts every key it sees.</p>
+      <p><b>Try it:</b>
+        <a href="/proto/query?__proto__[role]=admin"><code>?__proto__[role]=admin</code></a>
+      </p>
+      <form onsubmit="location='/proto/query?'+document.getElementById('qs').value; return false;">
+        <label class="clay-field" for="qs">Query string</label>
+        <input class="clay-input" id="qs" size="55" placeholder="__proto__[role]=admin" />
+        <button class="clay-btn clay-btn-primary" type="submit">Merge</button>
+      </form>
+      <p>Keys merged this request: <code>${esc(Object.keys(data).join(', ') || '(none)')}</code></p>
+      <hr />
+      <p>Step 2: the admin check creates a brand-new <code>{}</code> and tests
+      <code>user.role === 'admin'</code>.</p>
+      <p><a class="clay-btn clay-btn-secondary" href="/proto/query/admin">Open admin check</a></p>
+    `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > Merge console' })}
+    ${payloadBlock('curl', 'curl -s "http://localhost:3000/proto/query?__proto__[role]=admin"\ncurl -s http://localhost:3000/proto/query/admin')}
+    ${hintLadder(vuln)}
+    <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
+  `));
+});
+
+// GET /proto/query/admin -> the admin check. A fresh {} is created and
+// user.role is read; prototype pollution can inject that value.
+router.get('/query/admin', (req, res) => {
+  const user = {}; // fresh object: no role is assigned anywhere in this handler
+  // VULN: the authorization check reads user.role, which prototype pollution can inject.
+  if (user.role === 'admin') {
+    const flag = award(req, 'proto', 'proto-query');
+    return res.send(page('Admin panel', `
+      ${brief('Admin panel', `A fresh <code>{}</code> just passed the
+        <code>role === 'admin'</code> check. <code>Object.prototype.role</code> is polluted.`)}
+      ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-query')}
+      <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
+    `));
+  }
+  res.send(page('Admin panel', `
+    ${brief('Admin panel', `Access denied. A fresh <code>{}</code> has
+      <code>role = ${esc(String(user.role))}</code>. Pollute
+      <code>Object.prototype.role</code> via the merge console, then reload this page.`)}
+    <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto/query">Back to the merge console</a></p>
+  `));
+});
+
+module.exports = {
+  vuln,
+  router,
+};
