@@ -7,7 +7,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -310,13 +310,15 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
 
   res.send(page('CORS Misconfiguration', `
     ${brief('Module briefing', BRIEF_HTML)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -327,13 +329,17 @@ module.exports = {
   name: 'CORS Misconfiguration',
   tagline: 'Broken cross-origin policies that hand your data to evil.com.',
   description: 'Six CORS misconfiguration labs: a reflected Origin with credentials, a trusted null origin, a regex allowlist beaten by pentrix.lab.evil.com, a wildcard origin on sensitive user data, a subdomain suffix check with no allowlist, and a sensitive header leaked through Access-Control-Expose-Headers. Each lab is proven through a shared /cors/prove endpoint that inspects the real response headers for your Origin.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Auth and Sessions',
+  prerequisites: ['xss'],
   vulns: [
     {
       id: 'cors-reflect',
       name: 'Reflected Origin with Credentials',
       difficulty: 'Medium',
       hint: 'The endpoint echoes any Origin back and adds Access-Control-Allow-Credentials: true. There is no allowlist at all.',
+      hints: ["The API reflects any Origin with credentials. What does that let an attacker's page do?", "Any website can make authenticated requests and read the responses. The browser allows it because of the reflected ACAO.", "From the attacker page (127.0.0.1 origin), fetch the victim API with credentials. The secret comes back."],
+      tools: "B",
       how: 'Prove it: /cors/prove?vuln=cors-reflect&origin=https://evil.com',
     },
     {
@@ -341,6 +347,8 @@ module.exports = {
       name: 'Null Origin Trusted',
       difficulty: 'Medium',
       hint: 'Only one origin value is trusted here, and it is the one sandboxed iframes and file:// pages send.',
+      hints: ["The API trusts Origin: null with credentials. When is the origin null?", "Sandboxed iframes and file:// pages send Origin: null.", "Load the attacker in a sandboxed iframe (null origin) and fetch with credentials."],
+      tools: "B",
       how: 'Prove it: /cors/prove?vuln=cors-null&origin=null',
     },
     {
@@ -348,6 +356,8 @@ module.exports = {
       name: 'Regex Allowlist Bypass',
       difficulty: 'Medium',
       hint: 'The regex is ^https://.*pentrix\\.lab with no subdomain boundary and no end anchor. It matches strings, not domain boundaries.',
+      hints: ["The allowlist regex is ^http://localhost with no end anchor. What origins match?", "http://localhost:PORT matches, and so would http://localhost.evil.com. Serve the attacker page from localhost.", "Open the attacker page via http://localhost:PORT (not 127.0.0.1). The origin passes the regex."],
+      tools: "B",
       how: 'Prove it with origin https://pentrix.lab.evil.com, which passes the regex but is not under pentrix.lab.',
     },
     {
@@ -355,6 +365,8 @@ module.exports = {
       name: 'Wildcard on Sensitive Data',
       difficulty: 'Easy',
       hint: 'Access-Control-Allow-Origin: * on an endpoint that returns every user\'s email address.',
+      hints: ["The API sends ACAO: * with user emails. What does * mean?", "Any website can read it. No credentials needed, just fetch.", "From the attacker page, fetch /cors/api/users. The emails are readable."],
+      tools: "B",
       how: 'Prove it: /cors/prove?vuln=cors-wildcard-data&origin=https://evil.com',
     },
     {
@@ -362,6 +374,8 @@ module.exports = {
       name: 'Subdomain Suffix Check',
       difficulty: 'Medium',
       hint: 'The check is hostname.endsWith(".trusted.pentrix.lab") with no allowlist of real subdomains behind it.',
+      hints: ["The check allows 'localhost' and its subdomains via suffix match. What's the trust root?", "The root is 'localhost'. The attacker page on localhost passes.", "Serve the attacker from http://localhost:PORT. The suffix check passes."],
+      tools: "B",
       how: 'Prove it with origin https://evil.trusted.pentrix.lab.',
     },
     {
@@ -369,6 +383,8 @@ module.exports = {
       name: 'Exposed Admin Token Header',
       difficulty: 'Easy',
       hint: 'The response carries X-Admin-Token and the endpoint lists it in Access-Control-Expose-Headers.',
+      hints: ["The API exposes X-Admin-Token via ACAO: *. Can JS read response headers cross-origin?", "Only if listed in Access-Control-Expose-Headers. It is.", "Fetch /cors/api/token from the attacker page and read the X-Admin-Token header."],
+      tools: "B",
       how: 'Prove it: /cors/prove?vuln=cors-expose-headers&origin=https://evil.com',
     },
   ],

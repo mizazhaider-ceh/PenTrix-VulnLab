@@ -5,7 +5,7 @@
 // Inputs are length-capped so the worst case stays in seconds, not minutes.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -41,7 +41,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -58,6 +59,7 @@ router.get('/', (req, res) => {
       <b>${THRESHOLD_MS} ms</b> and the flag is awarded. Inputs are length-capped
       so the worst case is seconds, not minutes. Time your requests with
       <code>time curl ...</code> or watch the reported time on the page.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -201,13 +203,17 @@ module.exports = {
   name: 'ReDoS',
   tagline: 'One crafted string to block the event loop.',
   description: 'Four endpoints validate user input with catastrophic regular expressions. Find the evil input shape for each pattern, push the check past 1500 ms, and watch a single request deny service.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Advanced',
+  prerequisites: ['Injection track'],
   vulns: [
     {
       id: 'redos-email',
       name: 'Catastrophic Email Regex',
       difficulty: 'Medium',
       hint: 'The local part is ((...+)+): nested quantifiers. Send a long run of valid characters with no @ anywhere.',
+      hints: ["The email regex has nested quantifiers. What input makes it backtrack?", "A long valid run followed by a bad tail. The engine tries all splits.", "Submit a+...+@ with a long 'a' run and a bad ending. Measure the time."],
+      tools: "B, C",
       how: 'Submit 30 a\'s followed by a non-matching character as the email (add a few more, up to the length cap, if your machine is very fast).',
     },
     {
@@ -215,6 +221,8 @@ module.exports = {
       name: 'Nested Quantifier Username',
       difficulty: 'Easy',
       hint: 'The pattern is shown on the page: ^(a+)+$. Give it what it wants, then take it away at the last character.',
+      hints: ["The pattern is (a+)+. Classic catastrophic backtracking.", "Each 'a' can be grouped many ways. Exponential.", "Submit 'aaaaaaaaaaaaaaaaaaaaaaaa!' and time it."],
+      tools: "B, C",
       how: 'Submit 27 a\'s plus a trailing character that breaks the match (add a few more, up to the length cap, if your machine is very fast).',
     },
     {
@@ -222,6 +230,8 @@ module.exports = {
       name: 'Catastrophic URL Regex',
       difficulty: 'Medium',
       hint: 'The path group is ([\\/\\w .-]*)*. Repeat a path segment many times, then end with a character the pattern rejects.',
+      hints: ["The URL regex has nested quantifiers in the path group.", "Same as email: long run + bad tail.", "Craft the evil URL and measure."],
+      tools: "B, C",
       how: 'Submit http://example.com/ with the path segment a/ repeated 12 times and a trailing !.',
     },
     {
@@ -229,6 +239,8 @@ module.exports = {
       name: 'Regex Injection Search',
       difficulty: 'Medium',
       hint: 'Your query is compiled into ^((q)+)+$ as the repeated atom. The haystack is 26 a\'s plus !. Which atom gives the nesting something to chew on?',
+      hints: ["Your search term becomes a regex atom. Can you inject a catastrophic pattern?", "Submit ^((a)+)+$ as the search. The server compiles it.", "The search itself is the ReDoS. Time the response."],
+      tools: "B, C",
       how: 'Search for the haystack\'s character so the compiled pattern becomes ^((a)+)+$.',
     },
   ],

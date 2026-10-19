@@ -5,7 +5,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 const router = express.Router();
@@ -25,7 +25,9 @@ const VULNS = [
     id: 'debug',
     name: 'Verbose Debug Errors',
     difficulty: 'Easy',
-    hint: 'The debug page behaves differently when the err query parameter is set. Try appending ?err=1 to the URL.',
+    hint: 'The debug page behaves differently when the err query parameter is set. Try appending ?err=1 to the URL. Debug switches also hide behind other obvious parameter names.',
+    hints: ["The debug page says 'off'. But there's a link to 'Simulate an error'. What does ?err=1 do?", "The err parameter triggers a verbose stack trace with a full config dump, including secrets.", "Open /misconfig/debug?err=1 and read the leaked config."],
+    tools: "B",
     how: 'Request /misconfig/debug?err=1 to trigger a verbose stack trace with a config dump.',
     link: '/misconfig/debug',
   },
@@ -34,6 +36,8 @@ const VULNS = [
     name: 'Exposed Database Backup',
     difficulty: 'Easy',
     hint: 'Admins sometimes leave database dumps where the web server can serve them. Guess the filename.',
+    hints: ["Is there a database backup in the web root? What files might be there?", "backup.sql or db.bak in the web root gets served to anyone. It's a full database dump.", "Fetch /misconfig/backup.sql (or guess the name) and read it."],
+    tools: "B, C",
     how: 'Download /misconfig/backup.sql and read the dump for plaintext credentials and tokens.',
     link: '/misconfig/backup.sql',
   },
@@ -42,6 +46,8 @@ const VULNS = [
     name: 'Directory Listing Leak',
     difficulty: 'Easy',
     hint: 'The file browser lists everything in public-files, including files that were never meant to be seen.',
+    hints: ["The directory listing is hand-rolled. What files does it expose?", "The listing shows secret.txt. Directory listings leak files nobody linked.", "Open the listing and download secret.txt."],
+    tools: "B",
     how: 'Open /misconfig/files/ and read secret.txt.',
     link: '/misconfig/files/',
   },
@@ -50,6 +56,8 @@ const VULNS = [
     name: 'Exposed .git Directory',
     difficulty: 'Medium',
     hint: 'The repository metadata is served over HTTP. Start at /.git/HEAD, follow the ref, then walk the object store to the commit.',
+    hints: ["There's a .git directory over HTTP. What does that give you?", "HEAD, refs, and objects are all fetchable. The commit object has the secret.", "Fetch /.git/HEAD, then the ref, then the commit object. Read the diff."],
+    tools: "C",
     how: 'Read .git/HEAD, resolve refs/heads/main, then fetch the commit object and read the leaked secret.',
     link: '/misconfig/.git/HEAD',
   },
@@ -58,6 +66,8 @@ const VULNS = [
     name: 'Vim Swap File Leak',
     difficulty: 'Easy',
     hint: 'Editors leave backup artifacts next to the files they edit. The running app is app.js; what would its swap file be called?',
+    hints: ["Vim swap files end in .swp. Is there one in the web root?", "The .swp file has the source with secrets. It's a backup the editor left behind.", "Fetch /misconfig/.index.php.swp (or similar) and read it."],
+    tools: "C",
     how: 'Download /misconfig/app.js.swp and read the recovered source for secrets.',
     link: '/misconfig/app.js.swp',
   },
@@ -66,6 +76,8 @@ const VULNS = [
     name: 'HTTP TRACE Enabled (XST)',
     difficulty: 'Easy',
     hint: 'TRACE echoes the request back to the sender. Browsers cannot send it, but curl can: curl -X TRACE.',
+    hints: ["The TRACE method echoes your request. Why is that dangerous?", "TRACE reflects headers, enabling XST (cross-site tracing) to steal HttpOnly cookies via XSS.", "Send TRACE /misconfig/ and watch your headers come back."],
+    tools: "C",
     how: 'Send a TRACE request to /misconfig/trace and read the reflected request.',
     link: '/misconfig/trace',
   },
@@ -74,22 +86,18 @@ const VULNS = [
     name: 'Exposed .env File',
     difficulty: 'Medium',
     hint: 'Twelve-factor apps keep secrets in environment files. One of them ended up web-accessible.',
+    hints: ["Is there a .env file in the web root?", ".env has production secrets (DB passwords, API keys). It's served as plain text.", "Fetch /misconfig/.env and read the secrets."],
+    tools: "C",
     how: 'Download /misconfig/.env and read the secrets inside.',
     link: '/misconfig/.env',
-  },
-  {
-    id: 'debug-param',
-    name: 'Debug Mode via Query Param',
-    difficulty: 'Easy',
-    hint: 'The info page has a hidden debug switch. The parameter name is the obvious one.',
-    how: 'Request /misconfig/info?debug=1 to render a stack trace with config.',
-    link: '/misconfig/info',
   },
   {
     id: 'manager',
     name: 'Default Credentials',
     difficulty: 'Easy',
     hint: 'The manager panel uses HTTP Basic auth and the vendor default was never changed. Try the most common pair there is.',
+    hints: ["The manager panel uses HTTP Basic auth. What are the vendor defaults?", "admin:admin. Nobody changed it.", "Login with admin:admin."],
+    tools: "B",
     how: 'Log in to /misconfig/manager with admin:admin.',
     link: '/misconfig/manager',
   },
@@ -98,6 +106,8 @@ const VULNS = [
     name: 'Robots.txt Disclosure',
     difficulty: 'Easy',
     hint: 'robots.txt tells crawlers what not to fetch. Attackers read it as a treasure map.',
+    hints: ["robots.txt tells crawlers what not to index. What does it advertise?", "It lists backup.zip. That's a roadmap for attackers.", "Read /misconfig/robots.txt, then download the backup.zip it mentions."],
+    tools: "B, C",
     how: 'Read /misconfig/robots.txt, then download the disallowed backup.zip.',
     link: '/misconfig/robots.txt',
   },
@@ -106,6 +116,8 @@ const VULNS = [
     name: 'Unauthenticated HTTP PUT',
     difficulty: 'Medium',
     hint: 'The file endpoint accepts PUT with no authentication at all. Upload a file with a raw content type (curl -H "Content-Type: text/plain" --data-binary), then fetch it back with GET to prove the write.',
+    hints: ["The server allows PUT. Can you write a file into the web root?", "Unauthenticated PUT to /misconfig/uploads/evil.txt writes a file you can then read.", "PUT your file to /misconfig/uploads/pwn.txt, then GET it back."],
+    tools: "C",
     how: 'PUT a file to /misconfig/files/<name> with Content-Type: text/plain, then read it back via GET.',
     link: '/misconfig/files/',
   },
@@ -133,7 +145,7 @@ router.get('/', (req, res) => {
         <b>TRACE method</b>, a public <b>.env</b>, a debug query switch, <b>default
         credentials</b>, a chatty <b>robots.txt</b>, and an unauthenticated <b>PUT</b>
         upload. Eleven flags, one lesson: <span class="dim">harden every environment like it is production.</span>`
-      ) +
+      ) + trackBanner(module.exports) +
         `<table class="tbl"><tr><th>Vulnerability</th><th>Difficulty</th><th>Hint</th><th></th></tr>${rows}</table>`
     )
   );
@@ -162,7 +174,7 @@ router.get('/debug', (req, res) => {
 --- app config (debug build) ---
 env: staging
 node: v22.9.0
-config: { dbPassword: 'Sup3rS3cretDb!', debugToken: '${flag}', apiKey: 'pk_live_9f2c41aa77' }
+config: { dbPassword: 'Sup3rS3cretDb!', debugToken: 'dbg_live_token_9f2c41', apiKey: 'pk_live_9f2c41aa77' }
 sessionSecret: 'keyboard-cat-do-not-use-in-prod'`;
     res.send(
       page(
@@ -170,7 +182,7 @@ sessionSecret: 'keyboard-cat-do-not-use-in-prod'`;
         `<h2>Debug output</h2>
         <p class="dim">Something broke and the app told you everything. Never ship this.</p>
         <pre>${esc(stack)}</pre>
-        ${flagBox(flag)}`
+        ${flagBox(flag)}${fixPanel('misconfig', 'debug')}`
       )
     );
     return;
@@ -357,7 +369,7 @@ router.trace('/trace', (req, res) => {
       <p class="dim">The server reflected your exact request. Note the
       <code>Cookie</code> header coming straight back: that is what XST steals.</p>
       <pre>TRACE /misconfig/trace HTTP/1.1\n${esc(head)}</pre>
-      ${flagBox(flag)}`
+      ${flagBox(flag)}${fixPanel('misconfig', 'trace')}`
     )
   );
 });
@@ -373,41 +385,6 @@ router.get('/.env', (req, res) => {
     `STRIPE_SECRET_KEY=sk_live_9f2c41aa77\n` +
     `SESSION_SECRET=keyboard-cat-do-not-use-in-prod\n` +
     `ADMIN_API_TOKEN=${flag}\n`
-  );
-});
-
-// ---------- v8: debug mode via query parameter ----------
-router.get('/info', (req, res) => {
-  if (req.query.debug === '1') {
-    // VULN: a query parameter flips on verbose debug output, stack trace and secrets included
-    const flag = award(req, 'misconfig', 'debug-param');
-    const trace =
-`Error: connect ECONNREFUSED 10.0.4.12:5432
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
-    at Pool.acquire (/app/db/pool.js:88:11)
-    at App.boot (/app/server.js:64:19)
-
---- app config (debug=1) ---
-env: production
-node: v22.9.0
-config: { dbPassword: 'Sup3rS3cretDb!', debugToken: '${flag}', apiKey: 'pk_live_9f2c41aa77' }`;
-    return res.send(
-      page(
-        'App info (debug)',
-        `<h2>Debug info</h2>
-        <p class="dim">Debug mode was enabled by the query string. Never ship this.</p>
-        <pre>${esc(trace)}</pre>
-        ${flagBox(flag)}`
-      )
-    );
-  }
-  res.send(
-    page(
-      'App info',
-      `<h2>Application info</h2>
-      <p>PenTrix VulnLab build 4.2.0. All systems nominal.</p>
-      ${hintBox('The info page behaves differently when the debug query parameter is set. The parameter name is the obvious one.')}`
-    )
   );
 });
 
@@ -437,7 +414,7 @@ router.get('/manager', (req, res) => {
       `<h2>Manager panel</h2>
       <p>Welcome, admin. Server status: <b>running</b>. Deploys today: 3.</p>
       <p class="dim">Default credentials still in place. Change them.</p>
-      ${flagBox(flag)}`
+      ${flagBox(flag)}${fixPanel('misconfig', 'manager')}`
     )
   );
 });
@@ -552,6 +529,8 @@ module.exports = {
   description:
     'The vulnerability is not in the code logic but in how the app is deployed: verbose error pages, backups left under the web root, directory listings that expose internal files, an exposed .git directory, swap files, TRACE, .env leaks, default credentials, robots.txt disclosure, and unauthenticated PUT uploads. Eleven flags for the sharp-eyed.',
   difficulty: 'Beginner',
+  track: 'Foundations',
+  prerequisites: [],
   vulns: VULNS.map((v) => ({ id: v.id, name: v.name, difficulty: v.difficulty, hint: v.hint, how: v.how })),
   router,
 };

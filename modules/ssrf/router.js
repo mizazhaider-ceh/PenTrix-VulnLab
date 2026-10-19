@@ -6,7 +6,7 @@ const express = require('express');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 const router = express.Router();
@@ -63,6 +63,7 @@ function resultPage(title, req, url, body, err, modId, vulnId, opts = {}) {
         const usedBlockedHost = url.includes('127.0.0.1') || url.includes('localhost');
         if (!usedBlockedHost) {
           html += flagBox(award(req, modId, vulnId));
+          html += fixPanel(modId, vulnId);
         } else {
           html += `<p class="dim">Marker found, but the URL used a blocked host string, so this does not count as a bypass.</p>`;
         }
@@ -70,6 +71,7 @@ function resultPage(title, req, url, body, err, modId, vulnId, opts = {}) {
         html += `<p class="dim">Marker found, but no redirect was followed, so the redirect technique was not demonstrated.</p>`;
       } else {
         html += flagBox(award(req, modId, vulnId));
+        html += fixPanel(modId, vulnId);
       }
     }
   }
@@ -185,7 +187,7 @@ function fetchBodyFollow(targetUrl, maxRedirects = 5) {
 // attacker-controlled, including internal hosts.
 router.get('/jump', (req, res) => {
   const to = String(req.query.to || '/ssrf/internal/status');
-  // VULN: open redirect — any destination is allowed.
+  // VULN: open redirect , any destination is allowed.
   res.redirect(302, to);
 });
 
@@ -252,7 +254,7 @@ async function guardedFetch(req, res, cfg) {
 const rawHostBlock = (url) =>
   BLOCKED.some((s) => url.includes(s)) ? 'Blocked: URL contains a forbidden host.' : null;
 
-// VULN (hex/octal/single-int): the blocklist is a naive substring test on
+// VULN (hex/octal): the blocklist is a naive substring test on
 // the raw URL string. The WHATWG URL parser normalizes alternate loopback
 // spellings (0x7f.0.0.1, 0177.0.0.1, 2130706433) to 127.0.0.1, so they slip
 // past the string check while the request still goes to loopback.
@@ -262,10 +264,6 @@ router.get('/hex-ip', (req, res) => guardedFetch(req, res, {
 
 router.get('/octal-ip', (req, res) => guardedFetch(req, res, {
   title: 'SSRF Octal IP', vulnId: 'ssrf-octal-ip', check: rawHostBlock, fetch: fetchBody,
-}));
-
-router.get('/single-int', (req, res) => guardedFetch(req, res, {
-  title: 'SSRF Integer IP', vulnId: 'ssrf-single-int', check: rawHostBlock, fetch: fetchBody,
 }));
 
 router.get('/zero-ip', (req, res) => guardedFetch(req, res, {
@@ -343,6 +341,7 @@ router.get('/fetch-file', async (req, res) => {
     html += `<h3>Response body</h3><pre class="resp">${esc(body)}</pre>`;
     if (body.includes('root:')) {
       html += flagBox(award(req, 'ssrf', 'ssrf-file'));
+      html += fixPanel('ssrf', 'ssrf-file');
     } else {
       html += `<p class="dim">No local file content detected yet. Try <code>file:///etc/passwd</code>.</p>`;
     }
@@ -365,7 +364,6 @@ router.get('/', (req, res) => {
   const hexVia = `http://0x7f.0.0.1:${p}/ssrf/internal/secret`;
   const octalVia = `http://0177.0.0.1:${p}/ssrf/internal/secret`;
   const zeroVia = `http://0.0.0.0:${p}/ssrf/internal/secret`;
-  const singleVia = `http://2130706433:${p}/ssrf/internal/secret`;
   const metaVia = `http://169.254.169.254/latest/meta-data/iam/security-credentials/`;
   const body = `
   ${brief('Server-Side Request Forgery', `
@@ -374,6 +372,7 @@ router.get('/', (req, res) => {
     (<code>/ssrf/internal/status</code> and <code>/ssrf/internal/secret</code>)
     that are meant for the server itself, not for you. Your goal is to trick the
     fetcher into reaching them and leaking the secret marker.`)}
+    ${trackBanner(module.exports)}
   <h2>Vulnerabilities</h2>
   <table class="vulns">
     <tr><th>ID</th><th>Name</th><th>Difficulty</th><th>What to do</th><th>Hint</th></tr>
@@ -411,11 +410,6 @@ router.get('/', (req, res) => {
       <td><code>ssrf-zero-ip</code></td><td>0.0.0.0 bypass</td><td>Easy</td>
       <td>Reach the internal secret through <code>/ssrf/zero-ip</code> using <code>0.0.0.0</code> as the host.</td>
       <td>${hintBox('The blocklist never mentions <code>0.0.0.0</code>, and this fetcher treats it as "this host". Try <code>http://0.0.0.0:' + p + '/ssrf/internal/secret</code>.')}</td>
-    </tr>
-    <tr>
-      <td><code>ssrf-single-int</code></td><td>Integer IP bypass</td><td>Medium</td>
-      <td>Reach the internal secret through <code>/ssrf/single-int</code> using the single-decimal-integer form of 127.0.0.1.</td>
-      <td>${hintBox('127.0.0.1 is 2130706433 as one decimal number. Try <code>http://2130706433:' + p + '/ssrf/internal/secret</code>.')}</td>
     </tr>
     <tr>
       <td><code>ssrf-metadata</code></td><td>Cloud metadata SSRF</td><td>Medium</td>
@@ -473,12 +467,6 @@ router.get('/', (req, res) => {
     <input id="url4d" name="url" size="60" placeholder="http://0.0.0.0:PORT/ssrf/internal/secret">
     <button type="submit">Fetch</button>
   </form>
-  <form action="/ssrf/single-int" method="get">
-    <label for="url4e">Integer IP fetcher:</label>
-    <input id="url4e" name="url" size="60" placeholder="http://2130706433:PORT/ssrf/internal/secret">
-    <button type="submit">Fetch</button>
-  </form>
-
   <h2>Challenge 5: cloud metadata</h2>
   <p class="dim">This lab simulates a cloud instance metadata service at the link-local address. Ask for its credentials.</p>
   <form action="/ssrf/fetch-meta" method="get">
@@ -506,7 +494,6 @@ router.get('/', (req, res) => {
     <li><a href="/ssrf/hex-ip?url=${encodeURIComponent(hexVia)}">Hex IP bypass</a></li>
     <li><a href="/ssrf/octal-ip?url=${encodeURIComponent(octalVia)}">Octal IP bypass</a></li>
     <li><a href="/ssrf/zero-ip?url=${encodeURIComponent(zeroVia)}">0.0.0.0 bypass</a></li>
-    <li><a href="/ssrf/single-int?url=${encodeURIComponent(singleVia)}">Integer IP bypass</a></li>
     <li><a href="/ssrf/fetch-meta?url=${encodeURIComponent(metaVia)}">Cloud metadata credentials</a></li>
     <li><a href="/ssrf/fetch-file?url=${encodeURIComponent('file:///etc/passwd')}">file:///etc/passwd</a></li>
   </ul>`;
@@ -518,13 +505,17 @@ module.exports = {
   name: 'Server-Side Request Forgery',
   tagline: 'Make the server fetch URLs for you, then turn it against its own internals.',
   description: 'The app fetches user-supplied URLs server-side. Pivot through it to reach internal-only endpoints and bypass a naive blocklist.',
-  difficulty: 'Intermediate',
+  difficulty: 'Advanced',
+  track: 'Advanced',
+  prerequisites: ['Injection track'],
   vulns: [
     {
       id: 'basic',
       name: 'Basic SSRF',
       difficulty: 'Medium',
       hint: 'The server fetches whatever URL you give it. What does 127.0.0.1 mean from the server\'s point of view?',
+      hints: ["The app fetches a URL you provide and shows you the result. What can the server reach that you can't?", "The server is inside the network. Give it an internal URL (127.0.0.1) and it will fetch it for you.", "Submit http://127.0.0.1:PORT/ssrf/internal/secret as the URL. The server-side fetch returns the internal marker."],
+      tools: "B, C",
       how: 'Point the fetcher at http://127.0.0.1:PORT/ssrf/internal/secret.',
     },
     {
@@ -532,6 +523,8 @@ module.exports = {
       name: 'Blocklist bypass',
       difficulty: 'Hard',
       hint: 'The blocklist is a naive substring check. Loopback has more than one spelling.',
+      hints: ["The fetcher blocks '127.0.0.1' as a substring. But an IP address is just a number. How else can you write 127.0.0.1?", "The blocklist is a naive string check. The URL parser normalizes 2130706433 (decimal), 0x7f.0.0.1 (hex), or 0177.0.0.1 (octal) to 127.0.0.1.", "Fetch http://2130706433:PORT/ssrf/internal/secret. The string check misses it, but the request still goes to loopback."],
+      tools: "C",
       how: 'Fetch the internal secret via /ssrf/fetch2 using http://2130706433:PORT/... or http://0.0.0.0:PORT/....',
     },
     {
@@ -539,6 +532,8 @@ module.exports = {
       name: 'Open-redirect SSRF',
       difficulty: 'Medium',
       hint: 'The blocklist only sees the first URL; the fetcher follows 302 redirects without re-checking.',
+      hints: ["The blocklist checks the URL you submit. But what happens after the server follows a redirect?", "The check runs on the initial URL only. Point the fetcher at a URL that 302-redirects to the internal target.", "Submit the /ssrf/jump endpoint with ?to=<internal-url>. The fetcher follows the 302 without re-checking."],
+      tools: "C",
       how: 'Fetch http://localhost:PORT/ssrf/jump?to=<internal secret URL> via /ssrf/fetch3 so the redirect lands on the blocked host.',
     },
     {
@@ -546,6 +541,8 @@ module.exports = {
       name: 'Userinfo bypass',
       difficulty: 'Easy',
       hint: 'The allowlist looks for the trusted string anywhere in the URL. What comes before @ is userinfo, not the host.',
+      hints: ["URLs can have a userinfo part: http://user@host/. How does a naive blocklist read http://pentrix.lab@127.0.0.1/?", "The blocklist sees 'pentrix.lab' and allows it, but the URL parser treats everything before @ as credentials and connects to 127.0.0.1.", "Fetch http://pentrix.lab@127.0.0.1:PORT/ssrf/internal/secret."],
+      tools: "C",
       how: 'Fetch http://pentrix.lab@127.0.0.1:PORT/ssrf/internal/secret via /ssrf/userinfo.',
     },
     {
@@ -553,6 +550,8 @@ module.exports = {
       name: 'Hex IP bypass',
       difficulty: 'Medium',
       hint: 'The blocklist compares raw strings, but the URL parser normalizes hex IP parts.',
+      hints: ["The blocklist looks for '127.0.0.1' as text. But IP addresses have hex spellings too.", "0x7f.0.0.1 is 127.0.0.1 in hex. The string check doesn't recognize it, but the URL parser does.", "Fetch http://0x7f.0.0.1:PORT/ssrf/internal/secret."],
+      tools: "C",
       how: 'Fetch http://0x7f.0.0.1:PORT/ssrf/internal/secret via /ssrf/hex-ip.',
     },
     {
@@ -560,6 +559,8 @@ module.exports = {
       name: 'Octal IP bypass',
       difficulty: 'Medium',
       hint: 'Leading zeros mean octal to the URL parser, and the blocklist only knows dotted decimal.',
+      hints: ["Leading zeros change how an IP is parsed. What is 0177 in octal?", "0177.0.0.1 is 127.0.0.1 in octal. The substring blocklist misses it.", "Fetch http://0177.0.0.1:PORT/ssrf/internal/secret."],
+      tools: "C",
       how: 'Fetch http://0177.0.0.1:PORT/ssrf/internal/secret via /ssrf/octal-ip.',
     },
     {
@@ -567,20 +568,17 @@ module.exports = {
       name: '0.0.0.0 bypass',
       difficulty: 'Easy',
       hint: 'The blocklist never mentions 0.0.0.0, and this fetcher treats it as "this host".',
+      hints: ["The blocklist never mentions 0.0.0.0. What does this fetcher do with it?", "Many HTTP stacks treat 0.0.0.0 as 'this host'. The blocklist doesn't list it.", "Fetch http://0.0.0.0:PORT/ssrf/internal/secret."],
+      tools: "C",
       how: 'Fetch http://0.0.0.0:PORT/ssrf/internal/secret via /ssrf/zero-ip.',
-    },
-    {
-      id: 'ssrf-single-int',
-      name: 'Integer IP bypass',
-      difficulty: 'Medium',
-      hint: 'An IPv4 address is just a 32-bit number. 127.0.0.1 written as one decimal integer slips past the string check.',
-      how: 'Fetch http://2130706433:PORT/ssrf/internal/secret via /ssrf/single-int.',
     },
     {
       id: 'ssrf-metadata',
       name: 'Cloud metadata SSRF',
       difficulty: 'Medium',
       hint: 'Cloud VMs expose instance credentials at a link-local address the fetcher does not block.',
+      hints: ["Cloud VMs have a metadata service at a special IP. What is it, and what does it serve?", "169.254.169.254 is the link-local metadata address. It serves IAM credentials to the instance.", "Fetch http://169.254.169.254/latest/meta-data/iam/security-credentials/."],
+      tools: "C",
       how: 'Fetch http://169.254.169.254/latest/meta-data/iam/security-credentials/ via /ssrf/fetch-meta.',
     },
     {
@@ -588,6 +586,8 @@ module.exports = {
       name: 'file:// scheme SSRF',
       difficulty: 'Medium',
       hint: 'This fetcher allows an extra URL scheme that reads from the local disk.',
+      hints: ["The fetcher accepts URLs. Are http(s) the only schemes that fetch data?", "The file:// scheme turns the fetcher into a local file reader. Try file:///etc/passwd.", "Submit file:///etc/passwd as the URL. Look for 'root:' in the response."],
+      tools: "C",
       how: 'Fetch file:///etc/passwd via /ssrf/fetch-file.',
     },
   ],

@@ -6,7 +6,7 @@ const express = require('express');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -119,7 +119,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -153,6 +154,7 @@ router.get('/none', (req, res) => {
     ${tokenForm('/jwt/none', `
       <p class="note">An unsigned token looks like this (header, payload, empty
       signature): <code>${esc(sample)}</code>. Try changing the role.</p>`)}
+    ${trackBanner(module.exports)}
     <p><a href="/jwt">Back to the JWT module</a></p>
   `));
 });
@@ -166,6 +168,7 @@ router.post('/none', (req, res) => {
       <h2>Welcome, admin</h2>
       <p>An unsigned token with <code>role: "admin"</code> was accepted.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'none-admin')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'Token rejected. It must be a well-formed unsigned (alg=none) token with role "admin".'));
@@ -196,6 +199,7 @@ router.post('/weak', (req, res) => {
       <h2>Welcome, admin</h2>
       <p>Your forged token verified against the real signing secret.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'weak-secret')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'Signature invalid or role is not admin.'));
@@ -236,6 +240,7 @@ router.post('/kid', (req, res) => {
       <p>Your token verified with a key you smuggled in through the
       <code>kid</code> header.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'kid-sqli')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'No key found for that kid, signature invalid, or role is not admin.'));
@@ -327,6 +332,7 @@ router.post('/jku', async (req, res) => {
       <p>The server fetched your <code>jku</code> URL and verified your token
       with the key you published.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'jku')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'jku fetch failed, key not found, signature invalid, or role is not admin.'));
@@ -379,6 +385,7 @@ router.post('/confusion', (req, res) => {
       <h2>Welcome, admin</h2>
       <p>Your <code>HS256</code> token verified: the public key worked as an HMAC secret.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'alg-confusion')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'Signature invalid or role is not admin.'));
@@ -412,6 +419,7 @@ router.post('/noexpiry', (req, res) => {
       <h2>Welcome, admin</h2>
       <p>The expired token was accepted. Expiry is not enforced here.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'no-expiry')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'Signature invalid or role is not admin.'));
@@ -465,6 +473,7 @@ router.post('/aud/login', (req, res) => {
       <p>Token accepted even though its audience is
       <code>${esc(claims.aud || '(none)')}</code>, not this service.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'aud-bypass')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'Signature invalid or role is not admin.'));
@@ -509,6 +518,7 @@ router.post('/kiddefault', (req, res) => {
       <h2>Welcome, admin</h2>
       <p>Your kid-less token verified with the default key.</p>
       ${flagBox(flag)}
+      ${fixPanel('jwt', 'kid-default')}
       <p><a href="/jwt">Back to the JWT module</a></p>`));
   }
   res.status(403).send(denied('Admin panel', 'Unknown kid, signature invalid, or role is not admin.'));
@@ -519,13 +529,17 @@ module.exports = {
   name: 'JWT Attacks',
   tagline: 'Break token verification: none-alg, weak secrets, kid tricks, jku, and alg confusion.',
   description: 'Eight ways JSON Web Token verification fails in the real world. Each challenge hands you a legitimate token and a flawed verifier; forge an admin token and take the flag.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Auth and Sessions',
+  prerequisites: ['auth'],
   vulns: [
     {
       id: 'none-admin',
       name: 'alg=none Accepted',
       difficulty: 'Easy',
       hint: 'The verifier trusts tokens with "alg": "none" and never checks a signature. What stops you from writing your own claims?',
+      hints: ["The JWT verifier accepts alg:none. What does that mean for signatures?", "None means no signature. Mint your own token with any claims.", "Create a JWT with header {\"alg\":\"none\"} and payload {\"role\":\"admin\"}, no signature. Present it."],
+      tools: "B, N",
       how: 'Craft an unsigned token (header, payload, empty signature) with role "admin" and submit it.',
     },
     {
@@ -533,6 +547,8 @@ module.exports = {
       name: 'Weak HMAC Secret',
       difficulty: 'Medium',
       hint: 'HS256 security is only as strong as the secret. This one is a classic default. Guess it, then sign your own token offline.',
+      hints: ["The HMAC secret is a classic default. What are the usual suspects?", "'secret', 'password', '123456'. Try them offline to sign a forged token.", "Use node/jwt tool to sign {\"role\":\"admin\"} with the guessed secret."],
+      tools: "N, W",
       how: 'Recover the weak secret, mint an admin token with jsonwebtoken locally, and submit it.',
     },
     {
@@ -540,6 +556,8 @@ module.exports = {
       name: 'SQL Injection in kid Lookup',
       difficulty: 'Medium',
       hint: 'The kid header goes straight into a SQL query that picks the verifying key. Make the query return a key you control.',
+      hints: ["The kid header goes into a SQL query. What happens if the kid has a quote?", "SQL injection in the key lookup. The kid is interpolated into SELECT.", "Set kid to ' UNION SELECT 'attacker-key' --  to make the lookup return your key."],
+      tools: "N, C",
       how: 'Inject SQL through the kid header so the lookup returns your own key, then sign an admin token with it.',
     },
     {
@@ -547,6 +565,8 @@ module.exports = {
       name: 'Untrusted jku Key Server',
       difficulty: 'Hard',
       hint: 'The server fetches whatever URL the jku header names and trusts the keys it finds. You run a key server in this lab.',
+      hints: ["The jku header is a URL. Who controls that URL?", "You do. Host your own JWKS with your public key, point jku at it.", "Generate a keypair, serve the JWKS, sign {\"role\":\"admin\"} with your private key, set jku to your URL."],
+      tools: "N, C",
       how: 'Publish your own key on the in-lab attacker key server, point a token\'s jku header at it, sign as admin.',
     },
     {
@@ -554,6 +574,8 @@ module.exports = {
       name: 'RS256 / HS256 Algorithm Confusion',
       difficulty: 'Hard',
       hint: 'The server verifies RS256 but also accepts HS256. For HS256 it needs a shared secret. Which "secret" does it use, and who else can read it?',
+      hints: ["The server has an RSA public key. What if you use it as an HMAC secret?", "RS256 public key -> HS256 secret. Sign with HS256 using the public key bytes.", "Get the public key, sign {\"role\":\"admin\"} with HS256 and the public key as secret."],
+      tools: "N",
       how: 'Take the published RSA public key, use it as the HMAC secret to sign an HS256 admin token, and submit it.',
     },
     {
@@ -561,6 +583,8 @@ module.exports = {
       name: 'Expiry Never Checked',
       difficulty: 'Easy',
       hint: 'The leaked admin token expired an hour ago. The verifier never looks at the exp claim. Replay it.',
+      hints: ["The token has an exp claim. Does the server check it?", "No. An expired admin token still works. Replay it.", "Present the expired admin token. It's accepted."],
+      tools: "B",
       how: 'Copy the expired admin token from the challenge page and submit it as-is.',
     },
     {
@@ -568,6 +592,8 @@ module.exports = {
       name: 'Audience Not Validated',
       difficulty: 'Medium',
       hint: 'A token minted for billing-service is still a validly signed token. This service never checks who the token was minted for.',
+      hints: ["The token has an aud claim for 'billing-service'. Does this app check aud?", "No. A token for another service works here.", "Present the billing-service token at this app's endpoint."],
+      tools: "B, C",
       how: 'Submit the partner token (aud "billing-service", admin role) to this service\'s login.',
     },
     {
@@ -575,6 +601,8 @@ module.exports = {
       name: 'Default Key for Missing kid',
       difficulty: 'Medium',
       hint: 'Tokens without a kid header fall back to a hardcoded default key. Developers pick very predictable defaults.',
+      hints: ["No kid header? The server falls back to a default key. What might it be?", "'default', 'secret', 'key'. Guessable.", "Send a token with no kid, signed with the guessed default key."],
+      tools: "N",
       how: 'Guess the default key, sign a kid-less admin token with it, and submit it.',
     },
   ],

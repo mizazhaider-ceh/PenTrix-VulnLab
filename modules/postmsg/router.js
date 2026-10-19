@@ -8,7 +8,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner, claimBox } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -38,6 +38,13 @@ function pmNonce(req, v) {
 // the deleted account). The three prefix-match labs additionally require the
 // page-bound token.
 // ---------------------------------------------------------------------------
+// Claim-status for the live widget.
+router.get('/claim-status', (req, res) => {
+  const v = (req.query.v || '').toString();
+  if (!VULN_IDS.includes(v)) return res.status(400).json({ error: 'unknown vuln' });
+  res.json({ captured: captured(req, 'postmsg', v) });
+});
+
 router.get('/beacon', (req, res) => {
   const v = String(req.query.v || '');
   const d = String(req.query.d || '');
@@ -334,7 +341,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
         <p><a href="/postmsg/${PATHS[v.id]}/attacker">Attacker page</a></p>
       </div>`;
@@ -351,6 +359,7 @@ router.get('/', (req, res) => {
       message handler and an <b>attacker page</b> that drives it. When the flaw triggers, the
       victim page itself calls <code>/postmsg/beacon?v=&lt;lab&gt;&amp;d=...</code>, which awards
       the flag. Open each attacker page in your browser and fire the payload from there.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -361,13 +370,17 @@ module.exports = {
   name: 'postMessage Flaws',
   tagline: 'Missing origin checks turn postMessage into a remote control.',
   description: 'Five labs on the postMessage API: a handler with no origin check, a secret leaked via wildcard targetOrigin, unsanitized message data rendered as HTML, a naive substring origin check, and a privileged action driven by forged messages. Each lab pairs a victim page with an in-lab attacker page.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Advanced',
+  prerequisites: ['xss', 'cors'],
   vulns: [
     {
       id: 'no-check',
       name: 'No Origin Check on Message Handler',
       difficulty: 'Medium',
       hint: 'The widget renders every message it receives as HTML and never looks at event.origin. Any page can talk to it.',
+      hints: ["The victim page listens for postMessage. Does it check event.origin?", "No. Any site can send messages to it.", "From the attacker page, postMessage the command to the victim iframe."],
+      tools: "B, DT",
       how: 'Open the attacker page and post an HTML payload into the victim iframe.',
     },
     {
@@ -375,6 +388,8 @@ module.exports = {
       name: 'Secret Leaked via Wildcard targetOrigin',
       difficulty: 'Easy',
       hint: 'The widget posts its secret token to parent with targetOrigin "*". Embed it in the attacker page and just listen.',
+      hints: ["The victim broadcasts the secret with targetOrigin '*'. Who can receive it?", "Anyone who embeds the victim. The '*' means no restriction.", "Embed the victim in your attacker page and listen for the message. The secret arrives."],
+      tools: "B, DT",
       how: 'Open the attacker page; it captures the token the widget broadcasts and beacons it.',
     },
     {
@@ -382,6 +397,8 @@ module.exports = {
       name: 'Unsanitized Message Data Rendered as HTML',
       difficulty: 'Medium',
       hint: 'The preview pane drops event.data.html straight into innerHTML. The message can be an object, not just a string.',
+      hints: ["The victim renders event.data as HTML. What if data is a script?", "Unsanitized data -> HTML injection. Send an <img onerror>.", "postMessage '<img src=x onerror=...>' to the victim. The beacon fires."],
+      tools: "B, DT",
       how: 'Post {html: "<img src=x onerror=...>"} from the attacker page.',
     },
     {
@@ -389,6 +406,8 @@ module.exports = {
       name: 'Substring Origin Check Bypass',
       difficulty: 'Medium',
       hint: 'The check is origin.includes("pentrix.lab"), not an exact match. Which attacker domain contains that string?',
+      hints: ["The origin check is a substring match. What origins contain 'pentrix.lab'?", "https://pentrix.lab.evil.com. The check passes but it's your domain.", "Serve the attacker from pentrix.lab.evil.com (or simulate) and postMessage."],
+      tools: "B, DT",
       how: 'Serve the attack from https://pentrix.lab.evil.com (simulated in the lab) and post the payload.',
     },
     {
@@ -396,6 +415,8 @@ module.exports = {
       name: 'Privileged Action via Forged Message',
       difficulty: 'Medium',
       hint: 'Any message shaped like {action:"delete-account"} triggers the account deletion, with no origin check.',
+      hints: ["A forged postMessage can trigger actions in the victim. Which action?", "The delete action. Send the right message shape.", "postMessage the delete command. The server-side state changes."],
+      tools: "B, DT",
       how: 'Post that message from the attacker page into the victim iframe.',
     },
   ],

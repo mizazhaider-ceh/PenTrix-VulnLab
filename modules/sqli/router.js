@@ -3,7 +3,7 @@
 // SQL Injection module: four classic SQLi challenges against a better-sqlite3 DB.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -60,6 +60,8 @@ const VULNS = [
     name: 'Login Bypass',
     difficulty: 'Easy',
     hint: 'The login query is built by string interpolation. Make the WHERE clause always true and comment out the password check.',
+    hints: ["The login form asks for a username and password. What does the database query look like, and where does your input end up in it?", "The query is built by gluing your input into a SQL string. If your username contains a quote, you can break out of the string and rewrite the WHERE clause.", "Make the WHERE clause always true and comment out the password check: try ' OR '1'='1' --  as the username."],
+    tools: "B, C",
     how: "Log in as admin with the classic ' OR '1'='1 payload.",
     link: '/sqli/login',
   },
@@ -68,6 +70,8 @@ const VULNS = [
     name: 'UNION-based Injection',
     difficulty: 'Medium',
     hint: 'The product search interpolates your query into a LIKE clause returning 4 columns. Balance the quotes, then UNION in a second SELECT against the users table.',
+    hints: ["The search shows products in a table with 4 columns. A UNION SELECT needs the same number of columns. How many does your injected query return?", "Use UNION SELECT to append a second query. Match the 4 columns, then point the SELECT at the users table to pull usernames, passwords, and secrets.", "Balance the quotes, then inject: ' UNION SELECT id, username, password, secret FROM users --  (adjust column count until it renders)."],
+    tools: "B, C",
     how: "Use UNION SELECT to dump the users table (id, username, password, secret) through the product search and recover the admin secret.",
     link: '/sqli/products',
   },
@@ -76,15 +80,19 @@ const VULNS = [
     name: 'Boolean Blind Injection',
     difficulty: 'Medium',
     hint: 'The product page only tells you whether a row exists. Extract the admin secret one character at a time with true/false conditions, then submit it.',
+    hints: ["The product page only tells you if a row exists or not. That's one bit of information. How can one bit leak a whole secret?", "Build a boolean oracle: inject a condition that is true only when your guess about the secret is right (e.g. the first character is 'P'). The page's yes/no answer tells you if you guessed right.", "Extract the admin secret one character at a time with conditions like ' AND (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' -- , then submit the full secret."],
+    tools: "B, C",
     how: "Extract the admin secret via boolean conditions, then submit it in the form on the product page.",
     link: '/sqli/product',
   },
   {
     id: 'error',
     name: 'Error-based Injection',
-    difficulty: 'Hard',
-    hint: 'The detail page interpolates your id straight into the query and leaks raw database errors. Break out of the query and make SQLite complain.',
-    how: "Trigger a visible SQLite syntax error (e.g. a stray quote) through the id parameter.",
+    difficulty: 'Easy',
+    hint: 'The detail page interpolates your id straight into the query and leaks raw database errors. A stray quote breaks the syntax; a bad function call or malformed JSON breaks it at runtime. Both are error oracles.',
+    hints: ["The detail page shows raw database errors. Errors are information. What can you learn from making the query fail?", "A stray quote breaks the SQL syntax and the error message confirms your input reaches the query. Runtime errors (bad function calls, malformed JSON) leak even more.", "Trigger a visible error: try id=1' for a syntax error, or id=1 UNION SELECT json('bad') for a runtime error. The error text proves injection."],
+    tools: "B, C",
+    how: "Trigger a visible SQLite error through the id parameter: a syntax error (stray quote) or a runtime error (bad function call, malformed JSON).",
     link: '/sqli/detail',
   },
   {
@@ -92,6 +100,8 @@ const VULNS = [
     name: 'ORDER BY Injection',
     difficulty: 'Medium',
     hint: 'The sort parameter goes straight into ORDER BY. ORDER BY accepts full expressions, including CASE WHEN with a subquery against the users table. Watch the row order flip as your condition changes.',
+    hints: ["The sort parameter changes the order of products. ORDER BY doesn't just take column names. What else can go there?", "ORDER BY accepts full SQL expressions, including CASE WHEN with a subquery. If the CASE condition is true, sort one way; if false, sort another way. The row order becomes your oracle.", "Inject: sort=CASE WHEN (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' THEN name ELSE price END --  and watch the order flip as your guess changes."],
+    tools: "B, C",
     how: 'Run a CASE WHEN boolean oracle inside ORDER BY against the users table and observe the sorting change.',
     link: '/sqli/sort',
   },
@@ -100,15 +110,19 @@ const VULNS = [
     name: 'Second-Order SQL Injection',
     difficulty: 'Hard',
     hint: 'Registration stores your display name safely, but the profile page interpolates that stored value into a brand-new query later. A payload that is harmless at rest becomes SQL when it is reused.',
+    hints: ["Registration stores your display name safely. But where does that stored value get used later?", "The profile page takes your stored display name and puts it into a NEW query without protection. A payload that is harmless when stored becomes SQL when it is reused.", "Register with display name: ' UNION SELECT ... --  (or a quote-breakout), then view your profile to trigger the stored injection."],
+    tools: "B",
     how: 'Register with a display name containing a quote-breakout, then view your profile to trigger the stored injection and land on the admin account.',
     link: '/sqli/register',
   },
   {
     id: 'like-wildcard',
-    name: 'LIKE Wildcard Injection',
+    name: 'LIKE Wildcard Exfiltration',
     difficulty: 'Medium',
-    hint: 'Your search term is dropped into a LIKE pattern and the % and _ characters are never escaped. Those are wildcards, not plain characters.',
-    how: 'Use % or _ wildcards in the search to dump rows the search was never meant to return.',
+    hint: 'The page only tells you how many products match. Your search term is dropped into a LIKE pattern with no escaping, inside a string-interpolated query. A quote breakout plus a subquery against the users table turns the match count into a true/false oracle for each character of the admin secret.',
+    hints: ["The stock checker only tells you how many products match. Your search goes into a LIKE pattern. What characters are special in LIKE?", "The % and _ wildcards are never escaped, and the query is string-interpolated. A quote breakout lets you add a subquery: make every product match only when your guess about the secret is right.", "Inject: ' OR (SELECT secret FROM users WHERE username='admin') LIKE 'P%' --  (URL-encoded). If all products match, the secret starts with P. Extract it character by character, then submit."],
+    tools: "B, C",
+    how: 'Build a boolean oracle with LIKE and a subquery (e.g. make every product match only when the secret starts with your guess), extract the admin secret character by character, then submit it.',
     link: '/sqli/wildcard',
   },
   {
@@ -116,6 +130,8 @@ const VULNS = [
     name: 'LIMIT/OFFSET Injection',
     difficulty: 'Easy',
     hint: 'The page shows only 2 products by default, but the limit parameter is interpolated raw into the LIMIT clause. LIMIT accepts more than a plain number.',
+    hints: ["The page shows only 2 products, controlled by a limit parameter. LIMIT is part of the SQL query. What else can LIMIT do?", "The limit value is interpolated raw into the query. LIMIT accepts negative numbers and comma offsets (LIMIT 0,100), which dump rows beyond the intended page.", "Try limit=-1 or limit=0,100 to pull rows the pagination was hiding."],
+    tools: "B",
     how: 'Inject LIMIT syntax (negative numbers, comma offsets) to dump rows beyond the default page.',
     link: '/sqli/paged',
   },
@@ -124,6 +140,8 @@ const VULNS = [
     name: 'GROUP BY Injection',
     difficulty: 'Medium',
     hint: 'The stats page groups sales by an expression you control and prints the grouping key back. GROUP BY accepts any expression, including a subquery.',
+    hints: ["The stats page groups sales and prints the grouping key. You control the GROUP BY expression. What can an expression be?", "GROUP BY accepts any SQL expression, including a subquery. If the grouping key is (SELECT secret FROM users...), the secret comes back as the group label.", "Set the group parameter to: (SELECT secret FROM users WHERE username='admin') and read the secret from the grouped output."],
+    tools: "B, C",
     how: 'Point the GROUP BY expression at the users table so the admin secret comes back as the grouping key.',
     link: '/sqli/stats',
   },
@@ -132,6 +150,8 @@ const VULNS = [
     name: 'UNION Filter Bypass',
     difficulty: 'Medium',
     hint: 'This shop strips the lowercase word "union" from your search. The filter is case-sensitive and knows nothing about SQL comments or mixed case.',
+    hints: ["The shop strips the word 'union' from your search. But filters are code, and code has assumptions. What assumptions is this one making?", "The filter is case-sensitive and only strips the exact lowercase word. Try uppercase (UNION), mixed case (UnIoN), or SQL comments (/**/ ) to smuggle the keyword past it.", "Inject with UN/**/ION SELECT or ' UnIoN SELECT id, username, password, secret FROM users --  to bypass the naive blacklist."],
+    tools: "B, C",
     how: 'Bypass the naive blacklist (uppercase, mixed case, or /**/ comments) and UNION out the admin secret.',
     link: '/sqli/shop',
   },
@@ -140,16 +160,10 @@ const VULNS = [
     name: 'INSERT Injection',
     difficulty: 'Medium',
     hint: 'The feedback form builds its INSERT with string interpolation. You cannot stack queries here, but VALUES() happily accepts a subquery.',
+    hints: ["The feedback form builds an INSERT query by gluing your input into the VALUES list. You can't stack queries, but VALUES accepts more than plain text.", "A subquery inside VALUES() runs as part of the insert. Break out of the value string, then use (SELECT secret FROM users WHERE username='admin') as one of the values.", "Submit feedback with name: ', (SELECT secret FROM users WHERE username='admin'), ' --  to write the secret into your row, then read it back."],
+    tools: "B, C",
     how: 'Break out of the VALUES list with a subquery that writes the admin secret into your feedback row.',
     link: '/sqli/feedback',
-  },
-  {
-    id: 'error-cast',
-    name: 'Error-based Injection (Runtime Errors)',
-    difficulty: 'Easy',
-    hint: 'This detail page leaks raw database errors like the other one, but a plain syntax error will not earn the flag here. Make SQLite fail at runtime instead: a bad function call or malformed JSON.',
-    how: 'Trigger a runtime SQLite error (not a syntax error) through the id parameter.',
-    link: '/sqli/cast',
   },
 ];
 
@@ -160,7 +174,8 @@ router.get('/', (req, res) => {
       <h3><a href="${v.link}">${esc(v.name)}</a></h3>
       <p><strong>Difficulty:</strong> ${esc(v.difficulty)}</p>
       <p>${esc(v.how)}</p>
-      ${hintBox(v.hint)}
+      ${hintLadder(v)}
+      ${toolsPill(v)}
       ${captured(req, 'sqli', v.id) ? '<p><strong>Flag captured.</strong></p>' : ''}
     </div>`).join('\n');
   res.send(page('SQL Injection', `
@@ -168,7 +183,7 @@ router.get('/', (req, res) => {
     <h2>Challenges</h2>
     ${cards}
   `));
-});
+})
 
 // ---------- v1: login bypass ----------
 router.get('/login', (req, res) => {
@@ -200,6 +215,7 @@ router.post('/login', (req, res) => {
     return res.send(page('Login Bypass', `
       <p>Logged in as <strong>${esc(row.username)}</strong> (role: ${esc(row.role)}).</p>
       ${flagBox(flag)}
+      ${fixPanel('sqli', 'login-bypass')}
     `));
   }
   res.send(page('Login Bypass', `
@@ -240,7 +256,7 @@ router.get('/products', (req, res) => {
   const target = adminSecret();
   if (target && html.includes(target)) {
     const flag = award(req, 'sqli', 'union');
-    html = page('Product Search', body + flagBox(flag));
+    html = page('Product Search', body + flagBox(flag) + fixPanel('sqli', 'union'));
   }
   res.send(html);
 });
@@ -287,6 +303,7 @@ router.post('/blind-submit', (req, res) => {
     return res.send(page('Blind Submission', `
       <p><strong>Correct.</strong> You extracted the admin secret via boolean blind injection.</p>
       ${flagBox(flag)}
+      ${fixPanel('sqli', 'blind')}
       <p><a href="/sqli/product">Back</a></p>
     `));
   }
@@ -318,10 +335,12 @@ router.get('/detail', (req, res) => {
     } catch (e) {
       body += `<p><strong>SQL error:</strong> ${e.message}</p>`; // VULN: raw error reflected
       // SQLite reports a stray quote as "unrecognized token" and other bad
-      // input as "syntax error"; both prove error-based injection works.
-      if (/syntax error|unrecognized token/i.test(e.message)) {
+      // input as "syntax error" (parse-time oracle). Bad function calls,
+      // malformed JSON, or missing columns fail at runtime instead
+      // (runtime oracle). Both prove error-based injection works.
+      if (/syntax error|unrecognized token|malformed JSON|wrong number of arguments|no such column|datatype mismatch/i.test(e.message)) {
         const flag = award(req, 'sqli', 'error');
-        return res.send(page('Product Detail', body + flagBox(flag)));
+        return res.send(page('Product Detail', body + flagBox(flag) + fixPanel('sqli', 'error')));
       }
     }
   }
@@ -360,6 +379,7 @@ router.get('/sort', (req, res) => {
   // executed inside ORDER BY without error: the row order is the oracle.
   if (!error && /case\s+when/i.test(sort) && /\busers\b/i.test(sort)) {
     flagHtml = flagBox(award(req, 'sqli', 'order-by'));
+    flagHtml += fixPanel('sqli', 'order-by');
   }
   res.send(page('Sortable Catalog (ORDER BY Injection)', body + flagHtml + `<p><a href="/sqli">Back</a></p>`));
 });
@@ -442,6 +462,7 @@ router.get('/profile', (req, res) => {
       // admin account for a member who is not admin.
       if (account.username === 'admin' && member.username !== 'admin') {
         flagHtml = flagBox(award(req, 'sqli', 'second-order'));
+        flagHtml += fixPanel('sqli', 'second-order');
       }
     } else {
       body += '<p>No user account matches this display name.</p>';
@@ -450,11 +471,17 @@ router.get('/profile', (req, res) => {
   res.send(page('Member Profile (Second-Order SQLi)', body + flagHtml + `<p><a href="/sqli">Back</a></p>`));
 });
 
-// ---------- v7: LIKE wildcard injection ----------
+// ---------- v7: LIKE wildcard exfiltration ----------
+// Reworked (M7): the old lab awarded the flag for a single "%" that dumped the
+// catalog. Now the page only reports how many products match, and the admin
+// secret is the target. LIKE patterns are never escaped and the query is plain
+// string interpolation, so a quote breakout turns the search into a boolean
+// oracle against any table: extract the secret character by character.
 router.get('/wildcard', (req, res) => {
   const q = req.query.q !== undefined ? String(req.query.q) : '';
   const db = getDb();
-  // VULN: q interpolated into LIKE; % and _ wildcards are never escaped.
+  // VULN: q interpolated into LIKE; % and _ are never escaped, and a quote
+  // breakout turns the pattern into a full boolean expression.
   const sql = `SELECT id, name, price FROM products WHERE name LIKE '%${q}%'`;
   let rows = [];
   let error = null;
@@ -464,28 +491,47 @@ router.get('/wildcard', (req, res) => {
     error = e.message;
   }
   const total = db.prepare('SELECT COUNT(*) AS c FROM products').get().c;
-  const table = rows.map((r) => `
-    <tr><td>${esc(String(r.id))}</td><td>${esc(r.name)}</td><td>${esc(String(r.price))}</td></tr>`
-  ).join('\n');
   let body = `
-    ${brief('Wildcard Search', 'Search the catalog by name. Your term is placed inside a <code>LIKE</code> pattern, and nobody escapes the pattern characters.')}
+    ${brief('Stock Checker', 'Check how many products in the catalog match a name search. The warehouse team uses the match count to plan shelf space.')}
     <form method="GET" action="/sqli/wildcard">
       <input name="q" value="${esc(q)}" placeholder="search products" />
-      <button type="submit">Search</button>
+      <button type="submit">Check stock</button>
     </form>
   `;
   if (req.query.q !== undefined) {
     body += error
       ? `<p><strong>Database error:</strong> ${esc(error)}</p>`
-      : `<p>${rows.length} result(s).</p><table><tr><th>ID</th><th>Name</th><th>Price</th></tr>${table}</table>`;
+      : `<p><b>${rows.length}</b> of ${total} products match.</p>
+        <p class="note">The count is the only signal you get. The search term is
+        dropped into a <code>LIKE</code> pattern with no escaping, inside a
+        string-interpolated query. The admin secret is not in this catalog, but
+        the query can reach the <code>users</code> table. Build a boolean oracle
+        with <code>LIKE</code> and a subquery, extract the secret character by
+        character, then submit it below.</p>
+        <form method="POST" action="/sqli/wildcard/submit">
+          <label>Admin secret: <input name="secret" size="50" placeholder="PENTRIX{...}" /></label>
+          <button type="submit">Submit secret</button>
+        </form>`;
   }
-  let flagHtml = '';
-  // Wildcards genuinely used when the pattern contains % or _ and the query
-  // dumps the whole catalog in one shot.
-  if (!error && /[%_]/.test(q) && rows.length >= total && total > 0) {
-    flagHtml = flagBox(award(req, 'sqli', 'like-wildcard'));
+  res.send(page('Stock Checker (LIKE Injection)', body + `<p><a href="/sqli">Back</a></p>`));
+});
+
+router.post('/wildcard/submit', (req, res) => {
+  const guess = ((req.body && req.body.secret) || '').toString().trim();
+  const target = adminSecret();
+  if (target && guess === target) {
+    const flag = award(req, 'sqli', 'like-wildcard');
+    return res.send(page('Stock Checker', `
+      <p>The submitted secret matches the admin secret.</p>
+      ${flagBox(flag)}
+      ${fixPanel('sqli', 'like-wildcard')}
+      <p><a href="/sqli">Back</a></p>
+    `));
   }
-  res.send(page('Wildcard Search (LIKE Injection)', body + flagHtml + `<p><a href="/sqli">Back</a></p>`));
+  res.send(page('Stock Checker', `
+    <p><strong>Wrong secret.</strong> Keep extracting with the LIKE oracle.</p>
+    <p><a href="/sqli/wildcard">Back to the checker</a></p>
+  `));
 });
 
 // ---------- v8: LIMIT injection ----------
@@ -518,6 +564,7 @@ router.get('/paged', (req, res) => {
   // Genuine LIMIT-syntax injection: non-numeric LIMIT content that still runs.
   if (!error && /[^0-9]/.test(limit) && rows.length > 0) {
     flagHtml = flagBox(award(req, 'sqli', 'limit-offset'));
+    flagHtml += fixPanel('sqli', 'limit-offset');
   }
   res.send(page('Paged Catalog (LIMIT Injection)', body + flagHtml + `<p><a href="/sqli">Back</a></p>`));
 });
@@ -554,6 +601,7 @@ router.get('/stats', (req, res) => {
   // The injected GROUP BY expression genuinely returned the admin secret.
   if (!error && secret && rows.some((r) => String(r.grp).includes(secret))) {
     flagHtml = flagBox(award(req, 'sqli', 'groupby-having'));
+    flagHtml += fixPanel('sqli', 'groupby-having');
   }
   res.send(page('Sales Stats (GROUP BY Injection)', body + flagHtml + `<p><a href="/sqli">Back</a></p>`));
 });
@@ -594,7 +642,7 @@ router.get('/shop', (req, res) => {
   // from being UNIONed into the output.
   if (!error && secret && html.includes(secret)) {
     const flag = award(req, 'sqli', 'union-filter-bypass');
-    html = page('Filtered Shop (UNION Filter Bypass)', body + flagBox(flag));
+    html = page('Filtered Shop (UNION Filter Bypass)', body + flagBox(flag) + fixPanel('sqli', 'union-filter-bypass'));
   }
   res.send(html);
 });
@@ -611,6 +659,7 @@ router.get('/feedback', (req, res) => {
   // The injected subquery genuinely wrote the admin secret into the table.
   if (secret && rows.some((r) => r.message.includes(secret))) {
     flagHtml = flagBox(award(req, 'sqli', 'insert-inject'));
+    flagHtml += fixPanel('sqli', 'insert-inject');
   }
   res.send(page('Feedback (INSERT Injection)', `
     ${brief('Feedback', 'Leave feedback. Your input is interpolated straight into an <code>INSERT</code> statement. No stacked queries allowed, but who needs them?')}
@@ -643,44 +692,14 @@ router.post('/feedback', (req, res) => {
   res.redirect('/sqli/feedback');
 });
 
-// ---------- v12: error-based via runtime errors (not syntax errors) ----------
-router.get('/cast', (req, res) => {
-  const id = req.query.id !== undefined ? String(req.query.id) : '';
-  let body = `
-    ${brief('Product Detail (Runtime Errors)', 'View a product by id. Database errors are shown raw on this page, but this time a plain syntax error will not earn the flag.')}
-    <form method="GET" action="/sqli/cast">
-      <label>Product id: <input name="id" /></label>
-      <button type="submit">View</button>
-    </form>
-  `;
-  if (id !== '') {
-    const db = getDb();
-    // VULN: id interpolated raw into the query; raw sqlite errors leak to the page.
-    const sql = `SELECT * FROM products WHERE id=${id}`;
-    try {
-      const row = db.prepare(sql).get();
-      body += row
-        ? `<h3>${esc(row.name)}</h3><p>Price: ${esc(String(row.price))}</p><p>${esc(row.description)}</p>`
-        : '<p>Not found.</p>';
-    } catch (e) {
-      body += `<p><strong>SQL error:</strong> ${esc(e.message)}</p>`; // VULN: raw error reflected
-      // A *runtime* error (bad function call, malformed JSON, missing column)
-      // proves a different oracle than the syntax-error lab next door.
-      if (/malformed JSON|wrong number of arguments|no such column|datatype mismatch/i.test(e.message)) {
-        const flag = award(req, 'sqli', 'error-cast');
-        return res.send(page('Product Detail (Runtime Errors)', body + flagBox(flag) + `<p><a href="/sqli">Back</a></p>`));
-      }
-    }
-  }
-  res.send(page('Product Detail (Runtime Errors)', body + `<p><a href="/sqli">Back</a></p>`));
-});
-
 module.exports = {
   id: 'sqli',
   name: 'SQL Injection',
   tagline: 'From login bypass to error-based extraction: four classic SQLi challenges.',
   description: 'An intentionally vulnerable product catalog and login backed by SQLite. Break string-interpolated queries, chain UNION SELECTs, build a boolean oracle, and provoke verbose database errors to capture the admin secret.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['Foundations track'],
   vulns: VULNS.map(({ id, name, difficulty, hint, how }) => ({ id, name, difficulty, hint, how })),
   router,
 };

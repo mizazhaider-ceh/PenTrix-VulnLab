@@ -7,7 +7,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner, claimBox } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -70,6 +70,13 @@ function cstiConsumeNonce(req, v, n) {
 // manually after achieving code execution). Every beacon must also echo the
 // page-bound token.
 // ---------------------------------------------------------------------------
+// Claim-status for the live widget. Returns whether the flag is captured.
+router.get('/claim-status', (req, res) => {
+  const v = (req.query.v || '').toString();
+  if (!VULN_IDS.includes(v)) return res.status(400).json({ error: 'unknown vuln' });
+  res.json({ captured: captured(req, 'csti', v) });
+});
+
 router.get('/beacon', (req, res) => {
   const v = String(req.query.v || '');
   const d = String(req.query.d || '');
@@ -345,7 +352,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -362,6 +370,7 @@ router.get('/', (req, res) => {
       to every expression. The server only <i>stores</i> your template; the browser does the
       evaluating. Each lab page beacons <code>/csti/beacon</code> once your expression really
       evaluates.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -372,13 +381,17 @@ module.exports = {
   name: 'Client-Side Template Injection',
   tagline: 'Your template engine runs whatever the user types.',
   description: 'A deliberately naive client-side {{ expression }} interpolator built on Function. Five labs: basic evaluation, a blacklist bypass through an alternative delimiter, breaking out to code execution via constructor.constructor, CSTI inside an HTML attribute, and a stored template evaluated on every view.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['xss', 'ssti'],
   vulns: [
     {
       id: 'basic',
       name: 'Basic Template Evaluation',
       difficulty: 'Easy',
       hint: 'The preview renders {{ expression }} as live JavaScript. What expression evaluates to 49?',
+      hints: ["The page evaluates {{ }} client-side. Try {{7*7}}.", "The Function constructor runs it. 49 proves execution.", "Submit {{7*7}} and the beacon fires with the token."],
+      tools: "B",
       how: 'Save a greeting containing {{7*7}} and watch the preview render 49.',
     },
     {
@@ -386,6 +399,8 @@ module.exports = {
       name: 'Filter Bypass via Alternative Delimiter',
       difficulty: 'Medium',
       hint: 'The server rejects {{ and }}. But the client engine understands a second delimiter syntax, which the filter never heard of.',
+      hints: ["The filter blocks {{ }}. But the engine has another delimiter.", "[[ ]] works too. The blacklist only knows {{ }}.", "Try [[7*7]]."],
+      tools: "B",
       how: 'Use the [[ expression ]] syntax to evaluate 7*7 without touching {{ }}.',
     },
     {
@@ -393,6 +408,8 @@ module.exports = {
       name: 'Constructor Breakout to Code Execution',
       difficulty: 'Medium',
       hint: 'Expressions can see constructor (which is Object), and Object.constructor is Function. Compile a string that beacons the flag.',
+      hints: ["You need code execution. What's the path from a string to a function?", "constructor.constructor is the Function constructor. Build it from a string.", "Use 'constructor'['constructor']('...')() to execute and beacon."],
+      tools: "B, DT",
       how: 'Submit {{constructor.constructor("fetch(...)")()}} with a fetch to /csti/beacon?v=constructor that echoes the page token CSTI_NONCE.',
     },
     {
@@ -400,6 +417,8 @@ module.exports = {
       name: 'CSTI Inside an HTML Attribute',
       difficulty: 'Medium',
       hint: 'The server entity-encodes your text into the value attribute, but the browser decodes it with getAttribute before the engine evaluates it. Encoding does not stop client-side evaluation.',
+      hints: ["The template is inside an HTML attribute. When is it evaluated?", "After HTML decoding. The attribute value becomes template code.", "Inject into the attribute so the decoded value is {{7*7}}."],
+      tools: "B, DT",
       how: 'Save {{7*7}} as the badge text; the attribute decodes and the engine renders 49.',
     },
     {
@@ -407,6 +426,8 @@ module.exports = {
       name: 'Stored Template in Profile Name',
       difficulty: 'Easy',
       hint: 'Display names are stored and every view evaluates them as templates. Your payload persists and fires for every visitor.',
+      hints: ["Your display name is stored and evaluated as a template on view.", "Stored CSTI: save {{7*7}} as your name, then view the page.", "Set the name to the payload and reload."],
+      tools: "B",
       how: 'Save {{7*7}} as your display name and reload the member list.',
     },
   ],

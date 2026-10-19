@@ -5,7 +5,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -103,7 +103,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -124,6 +125,7 @@ router.get('/', (req, res) => {
       <code>/jsonp/beacon-xss</code> - that beacon is what captures the flag, and it
       only fires when your payload really executed. Merely sending a suspicious
       callback earns nothing.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -306,13 +308,17 @@ module.exports = {
   name: 'JSONP Injection',
   tagline: 'Callback reflection, cross-origin theft, and MIME trickery.',
   description: 'Five flaws in the JSONP pattern: unvalidated callback reflection, sensitive data readable cross-origin via script tags, a naive "alert" blocklist, the historic Array-constructor hijack against a legacy endpoint, and JSONP served with a text/html MIME type.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Advanced',
+  prerequisites: ['xss', 'cors'],
   vulns: [
     {
       id: 'callback-xss',
       name: 'Callback XSS',
       difficulty: 'Easy',
       hint: 'The callback parameter is dropped straight into executable JavaScript. It does not have to stay a function name. The response data carries a per-session token your payload must echo back to /jsonp/beacon-xss.',
+      hints: ["The callback parameter is reflected into JavaScript. What if it's not a function name?", "Break out: callback=x);alert(1);// turns the response into your code.", "The injected script must echo the per-session token to the beacon."],
+      tools: "B",
       how: 'Load /jsonp/user?callback=... as a script with a breakout payload that reads the token from the data object and beacons it, e.g. callback=(d=>fetch(\'/jsonp/beacon-xss?v=callback-xss&n=\'+d.token)).',
     },
     {
@@ -320,6 +326,8 @@ module.exports = {
       name: 'JSONP Data Theft',
       difficulty: 'Medium',
       hint: 'Classic script tags ignore the Same-Origin Policy. Open the attacker page and watch it steal the feed.',
+      hints: ["JSONP is cross-origin by design. The feed has a per-session secret.", "Include the feed via <script> on your attacker page. The callback gets the secret.", "Beacon the secret to prove the cross-origin read."],
+      tools: "B, DT",
       how: 'Visit /jsonp/attacker so its script tag pulls /jsonp/data and beacons the secret to /jsonp/beacon.',
     },
     {
@@ -327,6 +335,8 @@ module.exports = {
       name: 'Callback Filter Bypass',
       difficulty: 'Medium',
       hint: 'Only the literal word "alert" is blocked. JavaScript can build strings at runtime. Your payload must also echo the per-session token from the response data back to /jsonp/beacon-xss.',
+      hints: ["The filter blocks 'alert'. But strings can be concatenated.", "'al'+'ert' is alert without typing it.", "Use the concatenation in the callback to beat the filter and echo the token."],
+      tools: "B",
       how: 'Beat the filter with concatenation and beacon the token, e.g. callback=(d=>top[\'fe\'+\'tch\'](\'/jsonp/beacon-xss?v=filter-bypass&n=\'+d.token))// loaded as a script.',
     },
     {
@@ -334,6 +344,8 @@ module.exports = {
       name: 'Array Constructor Hijack',
       difficulty: 'Hard',
       hint: 'The legacy endpoint emits new Array(...). Override the global Array constructor before the JSONP loads.',
+      hints: ["The feed is a JavaScript array. What if Array is redefined?", "Redefine Array before loading the feed. The constructor captures the elements.", "Hijack Array, load the feed, beacon the captured items including the token."],
+      tools: "B, DT",
       how: 'Visit /jsonp/array-attacker: it redefines Array, loads the feed, and beacons the captured elements.',
     },
     {
@@ -341,6 +353,8 @@ module.exports = {
       name: 'JSONP MIME Sniffing',
       difficulty: 'Easy',
       hint: 'The response is served as text/html, so the browser parses it as a document, not just script. Your injected markup must read the per-session token from the response text and beacon it to /jsonp/beacon-xss.',
+      hints: ["The JSONP is served as text/html. What does the browser do with it?", "It parses as a document. Your callback becomes HTML/JS.", "Request with an HTML-shaped callback and echo the token."],
+      tools: "B",
       how: 'Put an HTML tag in the callback and open the URL directly, e.g. <img src=x onerror="fetch(\'/jsonp/beacon-xss?v=mimetype&n=\'+document.body.innerHTML.match(/\\"token\\":\\"([a-f0-9]+)\\"/)[1])">.',
     },
   ],

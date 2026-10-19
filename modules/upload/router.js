@@ -4,7 +4,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 const router = express.Router();
@@ -19,7 +19,6 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const rawUpload = express.raw({ type: '*/*', limit: '2mb' });
 
-const BLACKLIST = ['.php', '.exe', '.sh'];
 
 // Safe filename handling (lab hygiene, not part of the vulns): strip directories,
 // allow only a safe character set, reject anything else.
@@ -38,23 +37,13 @@ function storedFiles() {
   } catch { return []; }
 }
 
-// Shared storage logic. If applyBlacklist is true, v2 rules apply.
-function handleUpload(req, res, applyBlacklist) {
+// Shared storage logic for the plain upload endpoint.
+function handleUpload(req, res) {
   const clean = cleanFilename(req.query.filename);
   if (!clean) {
     return res.status(400).send(page('Upload failed', `<h2>Upload failed</h2><p class="dim">Missing or invalid <code>?filename=</code> query parameter. Allowed characters: <code>a-z A-Z 0-9 . _ -</code></p><p><a class="btn" href="/upload">Back</a></p>`));
   }
   const ext = path.extname(clean).toLowerCase();
-
-  if (applyBlacklist) {
-    // VULN: the blacklist only rejects an EXACT extension match on the lowercased
-    // extension. A name like shell.php.jpg has extname ".jpg" and passes, while a
-    // name like evil.phtml is not in the list at all — yet both keep a dangerous
-    // extension inside the filename.
-    if (BLACKLIST.includes(ext)) {
-      return res.status(400).send(page('Blocked', `<h2>Blocked</h2><p>The extension <code>${esc(ext)}</code> is blacklisted. Try a different name.</p><p><a class="btn" href="/upload">Back</a></p>`));
-    }
-  }
 
   if (!req.body || !Buffer.isBuffer(req.body) || req.body.length === 0) {
     return res.status(400).send(page('Upload failed', `<h2>Empty file</h2><p class="dim">No request body received. Upload the file bytes as the raw request body.</p><p><a class="btn" href="/upload">Back</a></p>`));
@@ -65,31 +54,22 @@ function handleUpload(req, res, applyBlacklist) {
 
   let flagHtml = '';
   // v1: .html/.svg stored as-is and served inline -> stored XSS when visited
-  if ((ext === '.html' || ext === '.svg') && !applyBlacklist) {
+  if (ext === '.html' || ext === '.svg') {
     // VULN: uploaded HTML/SVG is never sanitized, and /uploads serves it inline,
     // so visiting the stored file executes the attacker's script (stored XSS).
     const flag = award(req, 'upload', 'stored-xss');
-    flagHtml = flagBox(flag) + `<p class="dim">Stored XSS captured: your file is served inline at <a href="${url}">${url}</a> — open it to see the payload run.</p>`;
-  }
-  // v2: blacklisted extension survived inside the filename anyway
-  if (applyBlacklist && /(php|phtml|phar|exe|sh)/i.test(clean)) {
-    // VULN: the exact-extname blacklist was bypassed (double extension or an
-    // unlisted dangerous extension such as .phtml), so a dangerous file was stored.
-    const flag = award(req, 'upload', 'blacklist-bypass');
-    flagHtml = flagBox(flag) + `<p class="dim">Blacklist bypassed: <code>${esc(clean)}</code> was stored even though it contains a dangerous extension.</p>`;
+    flagHtml = flagBox(flag) + `<p class="dim">Stored XSS captured: your file is served inline at <a href="${url}">${url}</a> , open it to see the payload run.</p>`;
   }
 
   res.send(page('Uploaded', `<h2>File stored</h2>
-    <p>Saved as <code>${esc(clean)}</code> — served at <a href="${url}">${url}</a></p>
+    <p>Saved as <code>${esc(clean)}</code> , served at <a href="${url}">${url}</a></p>
     ${flagHtml}
     <p><a class="btn" href="/upload">Back to module</a></p>`));
 }
 
 // ---- routes ----
 // v1: plain upload, no content validation
-router.post('/', rawUpload, (req, res) => handleUpload(req, res, false));
-// v2: naive exact-extension blacklist
-router.post('/blacklist', rawUpload, (req, res) => handleUpload(req, res, true));
+router.post('/', rawUpload, (req, res) => handleUpload(req, res));
 
 // Friendly 413 page when the 2 MB body limit is exceeded (router-scoped only).
 router.use((err, req, res, next) => {
@@ -122,17 +102,17 @@ router.post('/ext-blacklist', rawUpload, (req, res) => {
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   let flagHtml = '';
   if (['.svg', '.html', '.htm'].includes(ext.toLowerCase())) {
-    // VULN: case-sensitive blacklist bypassed — ".SVG" is still SVG.
-    flagHtml += flagBox(award(req, 'upload', 'upload-case')) + `<p class="dim">Case bypass: <code>${esc(clean)}</code> was stored and is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    // VULN: case-sensitive blacklist bypassed , ".SVG" is still SVG.
+    flagHtml += flagBox(award(req, 'upload', 'upload-case')) + fixPanel('upload', 'upload-case') + `<p class="dim">Case bypass: <code>${esc(clean)}</code> was stored and is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
   }
   if (/\.(svg|html?)\./i.test(clean)) {
-    // VULN: double extension — the final ".jpg" passed, but the file is
+    // VULN: double extension , the final ".jpg" passed, but the file is
     // served as SVG/HTML because of the earlier extension.
-    flagHtml += flagBox(award(req, 'upload', 'upload-double-ext')) + `<p class="dim">Double extension bypass: <code>${esc(clean)}</code> passed as <code>${esc(ext)}</code> but is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    flagHtml += flagBox(award(req, 'upload', 'upload-double-ext')) + fixPanel('upload', 'upload-double-ext') + `<p class="dim">Double extension bypass: <code>${esc(clean)}</code> passed as <code>${esc(ext)}</code> but is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
   }
   if (!flagHtml) flagHtml = `<p class="dim">Stored. Neither a case variant nor a double extension was used, so nothing was bypassed.</p>`;
   res.send(page('Uploaded', `<h2>File stored</h2>
-    <p>Saved as <code>${esc(clean)}</code> — view it at <a href="${viewUrl}">${viewUrl}</a></p>
+    <p>Saved as <code>${esc(clean)}</code> , view it at <a href="${viewUrl}">${viewUrl}</a></p>
     ${flagHtml}
     <p><a class="btn" href="/upload">Back to module</a></p>`));
 });
@@ -146,7 +126,7 @@ router.get('/view/:name', (req, res) => {
     return res.status(404).send(page('Not found', `<h2>Not found</h2><p class="dim">No such stored file.</p><p><a class="btn" href="/upload">Back</a></p>`));
   }
   const lower = name.toLowerCase();
-  // VULN: substring-based type detection — "shell.svg.jpg" contains ".svg"
+  // VULN: substring-based type detection , "shell.svg.jpg" contains ".svg"
   // and is served as SVG, turning the blacklist bypass into stored XSS.
   if (lower.includes('.svg')) res.type('image/svg+xml');
   else if (lower.includes('.html') || lower.includes('.htm')) res.type('text/html');
@@ -176,42 +156,12 @@ router.post('/mime-check', rawUpload, (req, res) => {
   if (['.html', '.htm', '.svg'].includes(ext)) {
     // VULN: the header claimed image/*, so an HTML/SVG file was accepted and
     // stored; it is served back as active content.
-    flagHtml = flagBox(award(req, 'upload', 'upload-ctype')) + `<p class="dim">Header spoofed: <code>${esc(clean)}</code> was accepted as <code>${esc(ctype)}</code> and is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    flagHtml = flagBox(award(req, 'upload', 'upload-ctype')) + fixPanel('upload', 'upload-ctype') + `<p class="dim">Header spoofed: <code>${esc(clean)}</code> was accepted as <code>${esc(ctype)}</code> and is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
   } else {
     flagHtml = `<p class="dim">Stored as an image. To beat this check, the filename must still end in <code>.html</code> or <code>.svg</code>.</p>`;
   }
   res.send(page('Uploaded', `<h2>File stored</h2>
     <p>Saved as <code>${esc(clean)}</code> with Content-Type <code>${esc(ctype)}</code>.</p>
-    ${flagHtml}
-    <p><a class="btn" href="/upload">Back to module</a></p>`));
-});
-
-// ---- v5: SVG avatars without event-handler sanitization ----
-router.post('/svg-avatar', rawUpload, (req, res) => {
-  const clean = cleanFilename(req.query.filename);
-  if (!clean) {
-    return res.status(400).send(page('Upload failed', `<h2>Upload failed</h2><p class="dim">Missing or invalid <code>?filename=</code> query parameter.</p><p><a class="btn" href="/upload">Back</a></p>`));
-  }
-  if (path.extname(clean).toLowerCase() !== '.svg') {
-    return res.status(400).send(page('Blocked', `<h2>Blocked</h2><p>Avatars must be <code>.svg</code> files.</p><p><a class="btn" href="/upload">Back</a></p>`));
-  }
-  if (!req.body || !Buffer.isBuffer(req.body) || req.body.length === 0) {
-    return res.status(400).send(page('Upload failed', `<h2>Empty file</h2><p class="dim">No request body received.</p><p><a class="btn" href="/upload">Back</a></p>`));
-  }
-  fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
-  const url = '/uploads/' + encodeURIComponent(clean);
-  const text = req.body.toString('utf8');
-  let flagHtml = '';
-  // VULN: SVG uploads are allowed without stripping event-handler
-  // attributes, so an onload handler survives and runs when the file is
-  // opened directly (served inline as image/svg+xml).
-  if (/onload\s*=/i.test(text)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-svg-onload')) + `<p class="dim">Event handler survived: open <a href="${url}" target="_blank" rel="noopener">${url}</a> directly and the <code>onload</code> script runs.</p>`;
-  } else {
-    flagHtml = `<p class="dim">Stored, but no event handler was found in the SVG. The lab wants an <code>onload</code> handler.</p>`;
-  }
-  res.send(page('Uploaded', `<h2>Avatar stored</h2>
-    <p>Saved as <code>${esc(clean)}</code> — served at <a href="${url}" target="_blank" rel="noopener">${url}</a></p>
     ${flagHtml}
     <p><a class="btn" href="/upload">Back to module</a></p>`));
 });
@@ -238,12 +188,12 @@ router.post('/filter', rawUpload, (req, res) => {
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   let flagHtml = '';
   if (['.svg', '.html', '.htm'].includes(ext)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-strip-once')) + `<p class="dim">Filter bypassed once: stored as <code>${esc(clean)}</code>, served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    flagHtml = flagBox(award(req, 'upload', 'upload-strip-once')) + fixPanel('upload', 'upload-strip-once') + `<p class="dim">Filter bypassed once: stored as <code>${esc(clean)}</code>, served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
   } else {
     flagHtml = `<p class="dim">Stored as <code>${esc(clean)}</code>. The filter stripped the dangerous extension, so nothing was bypassed.</p>`;
   }
   res.send(page('Uploaded', `<h2>File stored</h2>
-    <p>Saved as <code>${esc(clean)}</code> — view it at <a href="${viewUrl}">${viewUrl}</a></p>
+    <p>Saved as <code>${esc(clean)}</code> , view it at <a href="${viewUrl}">${viewUrl}</a></p>
     ${flagHtml}
     <p><a class="btn" href="/upload">Back to module</a></p>`));
 });
@@ -265,7 +215,7 @@ router.post('/traverse', rawUpload, (req, res) => {
   const outside = !target.startsWith(UPLOADS_DIR + path.sep);
   let flagHtml = '';
   if (outside && fs.existsSync(target)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-traversal')) + `<p class="dim">Escaped the uploads dir: retrieve it at <a href="/upload/traversed?f=${encodeURIComponent(raw)}">/upload/traversed?f=${encodeURIComponent(raw)}</a>.</p>`;
+    flagHtml = flagBox(award(req, 'upload', 'upload-traversal')) + fixPanel('upload', 'upload-traversal') + `<p class="dim">Escaped the uploads dir: retrieve it at <a href="/upload/traversed?f=${encodeURIComponent(raw)}">/upload/traversed?f=${encodeURIComponent(raw)}</a>.</p>`;
   } else {
     flagHtml = `<p class="dim">Stored inside the uploads dir. To escape it, the filename must resolve outside of it.</p>`;
   }
@@ -312,7 +262,7 @@ router.post('/avatar', rawUpload, (req, res) => {
   fs.writeFileSync(avatarPath(user), req.body);
   let flagHtml = '';
   if (user === AVATAR_VICTIM && !fs.readFileSync(avatarPath(user)).equals(AVATAR_ORIGINAL)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-overwrite')) + `<p class="dim">Bob's avatar now serves your bytes: <a href="/upload/avatar/bob">/upload/avatar/bob</a>.</p>`;
+    flagHtml = flagBox(award(req, 'upload', 'upload-overwrite')) + fixPanel('upload', 'upload-overwrite') + `<p class="dim">Bob's avatar now serves your bytes: <a href="/upload/avatar/bob">/upload/avatar/bob</a>.</p>`;
   } else {
     flagHtml = `<p class="dim">Stored. The victim's avatar is <a href="/upload/avatar/bob">/upload/avatar/bob</a> (user <code>bob</code>).</p>`;
   }
@@ -352,12 +302,12 @@ router.post('/polyglot', rawUpload, (req, res) => {
   const polyUrl = '/upload/poly/' + encodeURIComponent(clean);
   let flagHtml = '';
   if (/<script[\s>]|on\w+\s*=/i.test(text)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-polyglot')) + `<p class="dim">Magic bytes passed, scriptable HTML survived: rendered at <a href="${polyUrl}" target="_blank" rel="noopener">${polyUrl}</a>.</p>`;
+    flagHtml = flagBox(award(req, 'upload', 'upload-polyglot')) + fixPanel('upload', 'upload-polyglot') + `<p class="dim">Magic bytes passed, scriptable HTML survived: rendered at <a href="${polyUrl}" target="_blank" rel="noopener">${polyUrl}</a>.</p>`;
   } else {
     flagHtml = `<p class="dim">Stored, but no scriptable HTML was found. The lab wants a GIF header plus real HTML/JS after it.</p>`;
   }
   res.send(page('Uploaded', `<h2>File stored</h2>
-    <p>Saved as <code>${esc(clean)}</code> — rendered at <a href="${polyUrl}" target="_blank" rel="noopener">${polyUrl}</a></p>
+    <p>Saved as <code>${esc(clean)}</code> , rendered at <a href="${polyUrl}" target="_blank" rel="noopener">${polyUrl}</a></p>
     ${flagHtml}
     <p><a class="btn" href="/upload">Back to module</a></p>`));
 });
@@ -405,30 +355,26 @@ router.get('/', (req, res) => {
       <td><span class="pill">${esc(v.difficulty)}</span></td>
       <td class="dim">${esc(v.how)}</td>
     </tr>
-    <tr><td colspan="3">${hintBox(v.hint)}</td></tr>`).join('');
+    <tr><td colspan="3">${hintLadder(v)}
+      ${toolsPill(v)}</td></tr>`).join('');
 
   res.send(page('Unrestricted File Upload', uploadScript + brief('Unrestricted File Upload', `
       <p>An avatar-upload feature that never asks <i>what</i> the file actually is.
       Store a file, get a public link under <code>/uploads/</code>, and see what happens
-      when the server serves it back to a browser untouched.</p>`) + `
+      when the server serves it back to a browser untouched.</p>`) + trackBanner(module.exports) + `
     <h2>Challenges</h2>
     <table class="tbl"><tr><th>Vulnerability</th><th>Difficulty</th><th>Goal</th></tr>${vulnRows}</table>
 
     <h2>Upload endpoints</h2>
     <div class="grid2">
       <div class="card">
-        <h3>v1 — plain upload <span class="pill">POST /upload?filename=</span></h3>
+        <h3>v1 , plain upload <span class="pill">POST /upload?filename=</span></h3>
         <p class="dim">No content checks at all. Files are served inline, so HTML/SVG files render in the browser.</p>
         <p><input type="file" id="file1"> <button class="btn" onclick="sendFile('f1','file1','/upload','out1')">Upload to v1</button></p>
         <div id="out1"></div>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @evil.html "http://localhost:3000/upload?filename=evil.html"</pre>
       </div>
-      <div class="card">
-        <h3>v2 — blacklisted upload <span class="pill">POST /upload/blacklist?filename=</span></h3>
-        <p class="dim">Blocks the exact extensions <code>.php</code>, <code>.exe</code>, <code>.sh</code> (lowercased). Nothing else.</p>
-        <p><input type="file" id="file2"> <button class="btn" onclick="sendFile('f2','file2','/upload/blacklist','out2')">Upload to v2</button></p>
-        <div id="out2"></div>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @shell.php.jpg "http://localhost:3000/upload/blacklist?filename=shell.php.jpg"</pre>
       </div>
@@ -437,43 +383,37 @@ router.get('/', (req, res) => {
     <h2>More upload endpoints</h2>
     <div class="grid2">
       <div class="card">
-        <h3>v3 — SVG/HTML blacklist <span class="pill">POST /upload/ext-blacklist?filename=</span></h3>
+        <h3>v3 , SVG/HTML blacklist <span class="pill">POST /upload/ext-blacklist?filename=</span></h3>
         <p class="dim">Blocks <code>.svg</code>, <code>.html</code>, <code>.htm</code> by exact, case-sensitive final extension. Served back via <code>/upload/view/:name</code>, which guesses the content type from the filename.</p>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @evil.svg.jpg "http://localhost:3000/upload/ext-blacklist?filename=evil.svg.jpg"</pre>
       </div>
       <div class="card">
-        <h3>v4 — Content-Type check <span class="pill">POST /upload/mime-check?filename=</span></h3>
-        <p class="dim">"Only images allowed" — but the check reads only the <code>Content-Type</code> request header, never the bytes.</p>
+        <h3>v4 , Content-Type check <span class="pill">POST /upload/mime-check?filename=</span></h3>
+        <p class="dim">"Only images allowed" , but the check reads only the <code>Content-Type</code> request header, never the bytes.</p>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @evil.html -H "Content-Type: image/png" "http://localhost:3000/upload/mime-check?filename=evil.html"</pre>
       </div>
       <div class="card">
-        <h3>v5 — SVG avatars <span class="pill">POST /upload/svg-avatar?filename=</span></h3>
-        <p class="dim">Only <code>.svg</code> accepted, served inline. Event-handler attributes are never stripped.</p>
-        <p class="dim">curl version:</p>
-        <pre>curl --data-binary @xss.svg "http://localhost:3000/upload/svg-avatar?filename=xss.svg"</pre>
-      </div>
-      <div class="card">
-        <h3>v6 — strip-once filter <span class="pill">POST /upload/filter?filename=</span></h3>
+        <h3>v6 , strip-once filter <span class="pill">POST /upload/filter?filename=</span></h3>
         <p class="dim">Strips <code>.svg</code>/<code>.html</code>/<code>.htm</code> from the filename exactly once, then stores whatever is left.</p>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @evil.svg "http://localhost:3000/upload/filter?filename=evil.s.svgvg"</pre>
       </div>
       <div class="card">
-        <h3>v7 — traversal upload <span class="pill">POST /upload/traverse?filename=</span></h3>
+        <h3>v7 , traversal upload <span class="pill">POST /upload/traverse?filename=</span></h3>
         <p class="dim">No basename, no containment check: <code>../</code> in the filename escapes the uploads directory. Read escaped files at <code>/upload/traversed?f=</code>.</p>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @pwn.txt "http://localhost:3000/upload/traverse?filename=../pwn.txt"</pre>
       </div>
       <div class="card">
-        <h3>v8 — user avatars <span class="pill">POST /upload/avatar?user=</span></h3>
+        <h3>v8 , user avatars <span class="pill">POST /upload/avatar?user=</span></h3>
         <p class="dim">Avatars live at predictable paths (<code>avatar-&lt;user&gt;.png</code>) and anyone can write any user's file. Victim <code>bob</code> already has one: <a href="/upload/avatar/bob">/upload/avatar/bob</a>.</p>
         <p class="dim">curl version:</p>
         <pre>curl --data-binary @evil.png "http://localhost:3000/upload/avatar?user=bob"</pre>
       </div>
       <div class="card">
-        <h3>v9 — GIF magic-byte check <span class="pill">POST /upload/polyglot?filename=</span></h3>
+        <h3>v9 , GIF magic-byte check <span class="pill">POST /upload/polyglot?filename=</span></h3>
         <p class="dim">"Image validation" checks only the 6 GIF magic bytes. The file is later served as <code>text/html</code> at <code>/upload/poly/:name</code>.</p>
         <p class="dim">curl version:</p>
         <pre>printf 'GIF89a&lt;script&gt;alert(1)&lt;/script&gt;' | curl --data-binary @- "http://localhost:3000/upload/polyglot?filename=x.gif"</pre>
@@ -489,34 +429,35 @@ module.exports = {
   name: 'Unrestricted File Upload',
   tagline: 'Upload a file, get a link. What could go wrong?',
   description: 'The uploader stores whatever you send and serves it back inline under /uploads/. Poison the stored file and bypass the naive extension blacklist.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['xss'],
   vulns: [
     {
       id: 'stored-xss',
       name: 'Stored XSS via file upload',
       difficulty: 'Easy',
       hint: 'The server accepts .html and .svg files and serves them inline, unchanged. What happens when a browser renders a file you control?',
+      hints: ["You can upload HTML files and they are served back. With what Content-Type?", "Uploaded HTML/SVG is served inline (not as a download). Your script runs when the file is opened.", "Upload an HTML file with <script>alert(1)</script>, then open its /uploads/ link."],
+      tools: "B, C",
       how: 'Upload an .html or .svg file containing JavaScript to POST /upload?filename=..., then open its /uploads/ link.'
     },
     {
-      id: 'blacklist-bypass',
+      id: 'upload-double-ext',
       name: 'Extension blacklist bypass',
       difficulty: 'Medium',
-      hint: 'v2 blocks only the exact extensions .php, .exe and .sh. Check what path.extname("shell.php.jpg") returns — and notice .phtml is not on the list at all.',
-      how: 'Upload shell.php.jpg or evil.phtml to POST /upload/blacklist?filename=... so a dangerous extension survives the check.'
-    },
-    {
-      id: 'upload-double-ext',
-      name: 'Double extension bypass',
-      difficulty: 'Medium',
-      hint: 'v3 blocks .svg/.html by exact final extension only, and the viewer guesses the content type from the filename. What does path.extname("shell.svg.jpg") return?',
-      how: 'Upload shell.svg.jpg to POST /upload/ext-blacklist?filename=..., then open its /upload/view/ link to see it served as SVG.'
+      hint: 'The filter blocks .svg/.html by exact final extension only, and the viewer guesses the content type from the filename. What does path.extname("shell.svg.jpg") return? The same idea beats any exact-match blacklist: smuggle the dangerous extension inside the name (shell.php.jpg) or use an unlisted one (.phtml).',
+      hints: ["The filter blocks .svg by exact final extension. What does path.extname('shell.svg.jpg') return?", "The check sees '.jpg' and allows it, but the viewer guesses the content type from the full name and serves it as SVG.", "Upload shell.svg.jpg containing SVG+script to /upload/ext-blacklist, then open its /upload/view/ link."],
+      tools: "C",
+      how: 'Upload shell.svg.jpg to POST /upload/ext-blacklist?filename=..., then open its /upload/view/ link to see it served as SVG. The same bypass shape defeats exact-match extension blacklists generally.'
     },
     {
       id: 'upload-case',
       name: 'Case-sensitive blacklist bypass',
       difficulty: 'Easy',
       hint: 'The v3 blacklist compares the extension exactly as written. Filesystems and browsers do not care about case.',
+      hints: ["The blacklist has '.svg' but the check is case-sensitive. What about '.SVG'?", "Path.extname returns the case as-is. '.SVG' !== '.svg', so it passes, but the file is still served as SVG.", "Upload evil.SVG to /upload/ext-blacklist."],
+      tools: "C",
       how: 'Upload evil.SVG (uppercase) to POST /upload/ext-blacklist?filename=... so the ".svg" entry misses it.'
     },
     {
@@ -524,6 +465,8 @@ module.exports = {
       name: 'Content-Type header spoofing',
       difficulty: 'Easy',
       hint: 'v4 decides "is this an image" from the Content-Type request header alone. Headers are attacker-controlled.',
+      hints: ["The uploader checks the Content-Type header. Who sets that header?", "You do. It's just a request header. Send an HTML file with Content-Type: image/png.", "Upload evil.html with -H 'Content-Type: image/png' to /upload/mime-check."],
+      tools: "C",
       how: 'Upload an .html file to POST /upload/mime-check?filename=... with -H "Content-Type: image/png".'
     },
     {
@@ -531,27 +474,26 @@ module.exports = {
       name: 'Path traversal on write',
       difficulty: 'Medium',
       hint: 'v7 joins your filename to the uploads dir with no basename or containment check. Where does "../pwn.txt" resolve?',
+      hints: ["The filename is joined to the uploads directory. Is there a basename check?", "No. A filename like ../pwn.txt escapes the uploads dir and writes elsewhere.", "Upload to /upload/traverse?filename=../pwn.txt, then read it via /upload/traversed?f=../pwn.txt."],
+      tools: "C",
       how: 'Upload to POST /upload/traverse?filename=../pwn.txt so the file lands outside the uploads dir, then read it back via /upload/traversed?f=../pwn.txt.'
-    },
-    {
-      id: 'upload-svg-onload',
-      name: 'SVG onload stored XSS',
-      difficulty: 'Easy',
-      hint: 'v5 accepts .svg avatars and serves them inline without stripping event handlers. SVG is XML: any element can carry onload.',
-      how: 'Upload an .svg containing an onload handler (e.g. <svg onload="alert(1)">) to POST /upload/svg-avatar?filename=..., then open its /uploads/ link directly.'
     },
     {
       id: 'upload-strip-once',
       name: 'Strip-once filter bypass',
       difficulty: 'Medium',
       hint: 'v6 removes each dangerous extension exactly once with a non-global replace. Nest the extension inside itself so one removal rebuilds it.',
-      how: 'Upload to POST /upload/filter?filename=evil.s.svgvg — after the single strip the stored name is evil.svg.'
+      hints: ["The filter removes '.svg' from the filename once. What happens to 'evil.s.svgvg' after one removal?", "Single-strip: 'evil.s.svgvg' becomes 'evil.svg' after removing the inner '.svg'. The filter doesn't re-scan.", "Upload with filename=evil.s.svgvg to /upload/filter."],
+      tools: "C",
+      how: 'Upload to POST /upload/filter?filename=evil.s.svgvg , after the single strip the stored name is evil.svg.'
     },
     {
       id: 'upload-overwrite',
       name: 'Avatar overwrite',
       difficulty: 'Medium',
       hint: 'Avatar paths are predictable (avatar-<user>.png) and the endpoint never checks that you own the target user. Bob already has an avatar.',
+      hints: ["Avatars are stored at a predictable path per user. Can you write to someone else's path?", "The avatar path is derived from the username with no ownership check. Upload with the victim's name.", "Upload an avatar with filename=bob.svg (or the victim's name) to overwrite their avatar."],
+      tools: "C",
       how: 'POST your bytes to /upload/avatar?user=bob so the victim avatar URL /upload/avatar/bob serves attacker content.'
     },
     {
@@ -559,6 +501,8 @@ module.exports = {
       name: 'GIF/HTML polyglot',
       difficulty: 'Hard',
       hint: 'v9 validates only the 6 GIF magic bytes, then serves the file as text/html. A file can be a valid GIF header and valid HTML at once.',
+      hints: ["The uploader checks magic bytes. What are the first 6 bytes of a GIF?", "GIF89a. A file starting with GIF89a but containing HTML is a polyglot: it passes the sniffing but renders as HTML.", "Craft a file starting with GIF89a followed by <script>, upload it, and get it served as HTML."],
+      tools: "C",
       how: 'Upload bytes starting with GIF89a followed by HTML/JS (e.g. GIF89a<script>alert(1)</script>) to POST /upload/polyglot?filename=..., then open its /upload/poly/ link.'
     }
   ],

@@ -5,7 +5,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured, flagFor } = require('../../lib/flags');
 
 const router = express.Router();
@@ -89,7 +89,7 @@ function readTarget(file) {
 
 function showCaptured(req, vulnId) {
   return captured(req, 'lfi', vulnId)
-    ? flagBox(flagFor('lfi', vulnId))
+    ? flagBox(flagFor('lfi', vulnId)) + fixPanel('lfi', vulnId)
     : '';
 }
 
@@ -110,13 +110,13 @@ router.get('/view', (req, res) => {
       // Real success only: the secret is displayed through a traversal payload.
       if (r.data.includes(SECRET_MARKER) && (file.includes('..') || path.isAbsolute(file))) {
         const flag = award(req, 'lfi', 'traversal');
-        body += flagBox(flag);
+        body += flagBox(flag) + fixPanel('lfi', 'traversal');
       }
       // Log-poison chain: the marker only reaches lfi_access.log via a crafted
       // User-Agent on /lfi/log-demo, so seeing it here proves injection + LFI.
       if (r.data.includes(LOG_MARKER) && file.includes('..')) {
         const flag = award(req, 'lfi', 'log-poison');
-        body += flagBox(flag);
+        body += flagBox(flag) + fixPanel('lfi', 'log-poison');
       }
     } else {
       body += `<h2>Error reading <code>${esc(file)}</code></h2><pre>${esc(r.error)}</pre>`;
@@ -145,7 +145,7 @@ router.get('/download', (req, res) => {
       // Real success only: the secret shows while the raw param carried "..".
       if (r.data.includes(SECRET_MARKER) && raw.includes('..')) {
         const flag = award(req, 'lfi', 'filter-bypass');
-        body += flagBox(flag);
+        body += flagBox(flag) + fixPanel('lfi', 'filter-bypass');
       }
     } else {
       body += `<h2>Error reading <code>${esc(file)}</code></h2><pre>${esc(r.error)}</pre>`;
@@ -174,7 +174,7 @@ router.get('/abs', (req, res) => {
     // Real success only: a real system file was read via an absolute path.
     if (path.isAbsolute(p) && data.includes('root:')) {
       const flag = award(req, 'lfi', 'absolute');
-      body += flagBox(flag);
+      body += flagBox(flag) + fixPanel('lfi', 'absolute');
     }
   } catch (e) {
     body += `<h2>Error reading <code>${esc(p)}</code></h2><pre>${esc(e.message)}</pre>`;
@@ -205,7 +205,7 @@ router.get('/double', (req, res) => {
         body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
         if (r.data.includes(SECRET_MARKER)) {
           const flag = award(req, 'lfi', 'double-encode');
-          body += flagBox(flag);
+          body += flagBox(flag) + fixPanel('lfi', 'double-encode');
         }
       } else {
         body += `<h2>Error reading <code>${esc(file)}</code></h2><pre>${esc(r.error)}</pre>`;
@@ -233,7 +233,7 @@ router.get('/nested', (req, res) => {
       body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
       if (r.data.includes(SECRET_MARKER) && raw.includes('..')) {
         const flag = award(req, 'lfi', 'nested-deep');
-        body += flagBox(flag);
+        body += flagBox(flag) + fixPanel('lfi', 'nested-deep');
       }
     } else {
       body += `<h2>Error reading <code>${esc(file)}</code></h2><pre>${esc(r.error)}</pre>`;
@@ -262,7 +262,7 @@ router.get('/lang', (req, res) => {
     // Real success only: the secret was reached through the lang parameter.
     if (data.includes(SECRET_MARKER) && lang.includes('..')) {
       const flag = award(req, 'lfi', 'lang');
-      body += flagBox(flag);
+      body += flagBox(flag) + fixPanel('lfi', 'lang');
     }
   } catch (e) {
     body += `<h2>Error reading language <code>${esc(lang)}</code></h2><pre>${esc(e.message)}</pre>`;
@@ -320,44 +320,12 @@ router.get('/procinfo', (req, res) => {
     // Real success only: the actual process environment was read.
     if (data.includes(PROC_TELL)) {
       const flag = award(req, 'lfi', 'proc-self');
-      body += flagBox(flag);
+      body += flagBox(flag) + fixPanel('lfi', 'proc-self');
     }
   } catch (e) {
     body += `<h2>Error reading <code>/proc/self/${esc(f)}</code></h2><pre>${esc(e.message)}</pre>`;
   }
   res.send(page('LFI - Process Info', body));
-});
-
-// ---- v9: encoded-separator bypass (filter checks before decoding) ----
-router.get('/enc', (req, res) => {
-  const raw = rawParam(req, 'page');
-  let body = `
-    <h1>Encoded Filter Viewer</h1>
-    <p>Inputs containing <code>..</code> or <code>/</code> are rejected outright.
-       Encoded input should be harmless.</p>
-    ${docLinks('/lfi/enc')}
-    ${showCaptured(req, 'enc-slash')}
-  `;
-  if (raw) {
-    if (raw.includes('..') || raw.includes('/')) {
-      body += `<p><b>Blocked:</b> dots and slashes are not allowed.</p>`;
-    } else {
-      // VULN: the check runs on the still-encoded value; decoding happens after
-      // it, so %2e%2e%2f becomes ../ too late for the filter.
-      const file = safeDecode(raw);
-      const r = readTarget(file);
-      if (r.ok) {
-        body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
-        if (r.data.includes(SECRET_MARKER)) {
-          const flag = award(req, 'lfi', 'enc-slash');
-          body += flagBox(flag);
-        }
-      } else {
-        body += `<h2>Error reading <code>${esc(file)}</code></h2><pre>${esc(r.error)}</pre>`;
-      }
-    }
-  }
-  res.send(page('LFI - Encoded Separator', body));
 });
 
 // ---- v10: planted secret config ----
@@ -377,7 +345,7 @@ router.get('/config', (req, res) => {
       // Real success only: the planted config was reached via traversal.
       if (r.data.includes(CONFIG_MARKER) && file.includes('..')) {
         const flag = award(req, 'lfi', 'config-read');
-        body += flagBox(flag);
+        body += flagBox(flag) + fixPanel('lfi', 'config-read');
       }
     } else {
       body += `<h2>Error reading <code>${esc(file)}</code></h2><pre>${esc(r.error)}</pre>`;
@@ -392,53 +360,68 @@ router.get('/', (req, res) => {
     {
       id: 'traversal', name: 'Basic Path Traversal', difficulty: 'Easy',
       hint: 'The viewer joins your input to the docs path with no checks at all. What happens if you ask for a file in the parent directory, like <code>..%2F..%2Fsecret.txt</code>? Adjust the depth until you find it.',
+      hints: ["The docs viewer takes a filename. What if the filename contains ../?", "../ escapes the docs directory. The secret marker proves the read.", "Try ?page=../../secret.txt (adjust depth) and look for the marker."],
+      tools: "B, C",
       how: 'Use ../ sequences to escape docs/ and read secret.txt.',
       link: '/lfi/view?file=readme.txt',
     },
     {
       id: 'filter-bypass', name: 'Naive Filter Bypass', difficulty: 'Medium',
       hint: 'The download endpoint strips <code>../</code> only once. Craft an input where removing the inner <code>../</code> leaves a fresh traversal sequence behind, e.g. <code>....//</code> collapses to <code>../</code> after one strip.',
+      hints: ["The filter strips ../ once. What happens to ....// after one removal?", "Single-strip: '....//' becomes '../' after removing the inner '../'. The filter doesn't re-scan.", "Try ?page=....//....//secret.txt."],
+      tools: "B, C",
       how: 'Bypass the single-pass filter with ....//....//secret.txt.',
       link: '/lfi/download?file=about.txt',
     },
     {
       id: 'absolute', name: 'Absolute Path Read', difficulty: 'Easy',
       hint: 'The page reader uses absolute paths verbatim instead of confining reads to the docs folder. No <code>../</code> needed: just name the file, e.g. <code>?page=/etc/passwd</code>.',
+      hints: ["The viewer uses your input as a path. Does it have to be relative?", "Absolute paths are used verbatim. /etc/passwd is a classic.", "Try ?page=/etc/passwd and look for 'root:' in the output."],
+      tools: "B, C",
       how: 'Read /etc/passwd with an absolute path via /lfi/abs.',
       link: '/lfi/abs',
     },
     {
-      id: 'double-encode', name: 'Double-Encoding Bypass', difficulty: 'Medium',
-      hint: 'The filter decodes your input once and rejects it if it sees <code>..</code>. But the value is decoded a second time after the check. Encode the dots and slashes twice, e.g. <code>%252e%252e%252f</code>.',
+      id: 'double-encode', name: 'Encoding Bypass', difficulty: 'Medium',
+      hint: 'The filter decodes your input once and rejects it if it sees <code>..</code>. But the value is decoded a second time after the check. Encode the dots and slashes twice, e.g. <code>%252e%252e%252f</code>. The same idea works when a filter checks before decoding at all: then single-encoding (<code>%2e%2e%2f</code>) slips through.',
+      hints: ["The filter decodes once and checks for ... But the value is decoded again on use.", "Double-encode: %252e becomes %2e after one decode, then . after the second. The check sees no dots.", "Try ?page=%252e%252e%252fsecret.txt."],
+      tools: "C",
       how: 'Slip %252e%252e%252f past the one-decode filter on /lfi/double.',
       link: '/lfi/double',
     },
     {
       id: 'nested-deep', name: 'Deep Nesting Bypass', difficulty: 'Easy',
       hint: 'This filter strips every <code>../</code> in one pass, but it never looks at the result again. Nest your dots so stripping creates a fresh traversal, e.g. <code>....///</code> collapses toward <code>../</code>.',
+      hints: ["The filter does a one-pass global strip of ../. What about nested dots?", "A single pass over '....//' removes the inner pair and leaves '../'. Nested patterns survive one pass.", "Try ?page=....//secret.txt with nested dots."],
+      tools: "B, C",
       how: 'Beat the one-pass global strip on /lfi/nested with nested dots.',
       link: '/lfi/nested',
     },
     {
       id: 'lang', name: 'Language Parameter Traversal', difficulty: 'Easy',
       hint: 'The <code>lang</code> parameter picks a file from <code>docs/lang/</code> with no validation. It is just another filename: <code>?lang=../secret</code>.',
+      hints: ["The language parameter picks a file. Is it validated?", "The lang parameter is another file path. Traversal works there too.", "Try ?lang=../../secret.txt. Parameter discovery is part of the skill."],
+      tools: "B, C",
       how: 'Traverse out of docs/lang/ via the lang parameter on /lfi/lang.',
       link: '/lfi/lang?lang=en',
     },
     {
       id: 'log-poison', name: 'Log Poisoning Chain', difficulty: 'Hard',
       hint: 'Two steps: first, visit <code>/lfi/log-demo</code> with the marker string in your User-Agent header so it lands in the access log. Then read that log back through the document viewer with <code>?file=../lfi_access.log</code>.',
+      hints: ["You need to read a file you can write to. What files does the app write that you influence?", "The access log records your User-Agent. Poison it with PHP/JS, then include the log via traversal.", "Set User-Agent to your payload, then ?page=../../logs/access.log to trigger it."],
+      tools: "C",
       how: 'Poison the access log via User-Agent, then read it through /lfi/view.',
       link: '/lfi/log-demo',
     },
     {
       id: 'proc-self', name: 'Process Environ Leak', difficulty: 'Medium',
       hint: 'The process-info page appends your filename to <code>/proc/self/</code> with no checks. Most files there are boring, but one of them holds the whole environment, secrets included. Its entries are NUL-separated.',
+      hints: ["Linux exposes process info via /proc. What does /proc/self/environ contain?", "The environ file has the process environment, including secrets. Read it via the filename parameter.", "Try ?page=/proc/self/environ and look for the marker."],
+      tools: "B, C",
       how: 'Read /proc/self/environ through /lfi/procinfo.',
       link: '/lfi/procinfo',
     },
     {
-      id: 'enc-slash', name: 'Encoded Separator Bypass', difficulty: 'Medium',
       hint: 'The filter rejects any input containing literal <code>..</code> or <code>/</code>, but it checks before decoding. Percent-encode the dots and the slash, e.g. <code>%2e%2e%2f</code>.',
       how: 'Slip %2e%2e%2f past the pre-decode filter on /lfi/enc.',
       link: '/lfi/enc',
@@ -446,6 +429,8 @@ router.get('/', (req, res) => {
     {
       id: 'config-read', name: 'Secret Config Read', difficulty: 'Easy',
       hint: 'A config file with secrets sits one directory above the docs folder, and the config viewer filters nothing. <code>?file=../lfi_secret.conf</code>.',
+      hints: ["A config file sits one directory above docs/. No filter blocks it.", "The planted lfi_secret.conf is at ../lfi_secret.conf. Just traverse to it.", "Try ?file=../lfi_secret.conf on /lfi/config."],
+      tools: "B",
       how: 'Read the planted lfi_secret.conf via /lfi/config.',
       link: '/lfi/config',
     },
@@ -456,7 +441,8 @@ router.get('/', (req, res) => {
       <h3><a href="${esc(v.link)}">${esc(v.name)}</a>
         <span class="badge">${esc(v.difficulty)}</span></h3>
       <p><b>Goal:</b> ${esc(v.how)}</p>
-      ${hintBox(v.hint)}
+      ${hintLadder(v)}
+      ${toolsPill(v)}
     </section>`).join('');
 
   res.send(page('Path Traversal / LFI', `
@@ -465,6 +451,7 @@ router.get('/', (req, res) => {
        One endpoint filters nothing at all; the other one filters once and
        hopes for the best. Find <code>${esc('secret.txt')}</code> and read its
        contents to capture the flags.`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -475,7 +462,9 @@ module.exports = {
   name: 'Path Traversal / LFI',
   tagline: 'Break out of the docs folder and read the secret file.',
   description: 'A document viewer and downloader that hand your filename straight to the filesystem. One endpoint has no filtering at all, the other strips "../" exactly once. Reach the hidden secret.txt to capture both flags. Eight more labs deepen the craft: absolute paths, double-encoding, nested filters, log poisoning, /proc leaks, and a planted secret config.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['sqli'],
   vulns: [
     { id: 'traversal', name: 'Basic Path Traversal', difficulty: 'Easy',
       hint: 'No filtering is applied; ../ sequences escape the docs directory.',
@@ -501,9 +490,6 @@ module.exports = {
     { id: 'proc-self', name: 'Process Environ Leak', difficulty: 'Medium',
       hint: '/proc/self/ filenames are not validated; environ leaks process secrets.',
       how: 'Read /proc/self/environ through /lfi/procinfo.' },
-    { id: 'enc-slash', name: 'Encoded Separator Bypass', difficulty: 'Medium',
-      hint: 'The filter checks for .. and / before decoding the input.',
-      how: 'Slip %2e%2e%2f past the pre-decode filter on /lfi/enc.' },
     { id: 'config-read', name: 'Secret Config Read', difficulty: 'Easy',
       hint: 'A secret config file sits one directory above docs/ with no filter in the way.',
       how: 'Read the planted lfi_secret.conf via ?file=../lfi_secret.conf on /lfi/config.' },

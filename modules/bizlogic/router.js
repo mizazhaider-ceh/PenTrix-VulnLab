@@ -7,7 +7,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -70,48 +70,64 @@ const VULNS = [
     id: 'biz-negative-qty', name: 'Negative Quantity Credit', difficulty: 'Easy',
     path: 'negative-qty',
     hint: 'The quantity field is never validated. What does "buying" -1 hoodies do to the total?',
+    hints: ["The cart lets you set quantity. What if it's negative?", "Negative qty * price = negative total. The balance is credited.", "Set qty=-1 on an item and checkout. Balance increases."],
+    tools: "B",
     how: 'Order a negative quantity at /bizlogic/negative-qty so the shop credits your balance instead of charging it.',
   },
   {
     id: 'biz-price-tamper', name: 'Client-Side Price Tampering', difficulty: 'Easy',
     path: 'price-tamper',
     hint: 'View the page source: the price travels to the server in a hidden form field. The server never re-checks it against the catalog.',
+    hints: ["The price is in a hidden form field. Who controls hidden fields?", "You do. The server honors the submitted price as-is.", "Change the hidden price to 0.01 and checkout. Total < real price."],
+    tools: "BZ, B",
     how: 'Change the hidden price field at /bizlogic/price-tamper and buy the $50 hoodie for less.',
   },
   {
     id: 'biz-coupon-stack', name: 'Coupon Stacking Past 100%', difficulty: 'Medium',
     path: 'coupon-stack',
     hint: 'Each coupon claims "one per order", but the discount math just adds every valid code together. 50 + 40 + 30 = ?',
+    hints: ["Coupons give % off. Can you use more than one?", "Percentages stack with no cap. 60% + 50% = 110% off (negative total).", "Apply two coupons. Total <= 0."],
+    tools: "B",
     how: 'Apply SAVE50, SAVE40 and SAVE30 together at /bizlogic/coupon-stack so the discount exceeds 100%.',
   },
   {
     id: 'biz-otp-client', name: 'OTP Verified by JavaScript', difficulty: 'Medium',
     path: 'otp',
     hint: 'The page JavaScript checks the OTP and sets a hidden otp_ok flag. The server trusts that flag. What if you set it yourself?',
+    hints: ["The OTP check happens client-side. What does the server trust?", "The server trusts a client-side 'otp_ok' flag. Set it to true.", "Intercept the verify request and set otp_ok=1 with a wrong OTP."],
+    tools: "BZ, C",
     how: 'POST to /bizlogic/otp/verify with otp_ok=1 and a wrong OTP, skipping the client-side check entirely.',
   },
   {
     id: 'biz-workflow-skip', name: 'Checkout Step Skipped', difficulty: 'Medium',
     path: 'workflow',
     hint: 'Checkout is cart, then payment, then confirm. The confirm endpoint never verifies that payment actually happened.',
+    hints: ["Checkout has steps: pay, then confirm. Does confirm check that pay ran?", "No. The confirm endpoint never verifies payment.", "Skip the pay step and POST directly to /bizlogic/confirm. Order confirmed unpaid."],
+    tools: "BZ, C",
     how: 'Add an item to the cart, then POST /bizlogic/workflow/confirm directly without paying.',
   },
   {
     id: 'biz-currency', name: 'Currency Confusion', difficulty: 'Easy',
     path: 'currency',
     hint: 'The $50 total is denominated in USD, but the server accepts any currency label for that number. 50 JPY is not 50 USD.',
+    hints: ["The currency parameter changes the unit. What is 50 USD in JPY?", "The server converts wrong: 50 JPY is ~$0.34 but it's charged as $50 worth. Or vice versa.", "Set currency=JPY and pay. You pay ~$0.34 for a $50 item."],
+    tools: "BZ, B",
     how: 'Pay at /bizlogic/currency with currency=JPY so a $50 order settles for about $0.34.',
   },
   {
     id: 'biz-email-noreauth', name: 'Email Change Without Re-Authentication', difficulty: 'Medium',
     path: 'account',
     hint: 'You can change the account email with no password confirmation. Then "forgot password" sends the reset to the new address: yours.',
+    hints: ["Change your email without re-entering your password. Then request a password reset.", "The reset link goes to the new email. No re-auth means account takeover.", "Change email to attacker@evil.com, then request a reset. The link works."],
+    tools: "B",
     how: 'Change the email at /bizlogic/account, trigger forgot-password, and use the reset link to take over the account.',
   },
   {
     id: 'biz-refund', name: 'Tampered Refund Amount', difficulty: 'Medium',
     path: 'refund',
     hint: 'The refund form carries the amount in a hidden field. The server refunds whatever number you submit, even more than you paid.',
+    hints: ["The refund amount is in a hidden field. Is it clamped?", "No. Request a refund larger than the order total.", "Set refund_amount=9999 on a $50 order. Refund > total."],
+    tools: "BZ, B",
     how: 'Buy the $50 hoodie, then request a refund at /bizlogic/refund with an amount larger than $50.',
   },
 ];
@@ -125,7 +141,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -138,7 +155,7 @@ router.get('/', (req, res) => {
     <p><a class="btn ghost" href="/bizlogic/reset">Reset shop</a>
     <span class="dim">Restores your $100 balance, cart, orders and account.</span></p>
   `));
-});
+})
 
 router.get('/reset', (req, res) => {
   req.session.biz = freshShop();
@@ -181,6 +198,7 @@ router.post('/negative-qty', (req, res) => {
   let flagHtml = '';
   if (s.balance > START_BALANCE && !captured(req, 'bizlogic', 'biz-negative-qty')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-negative-qty'));
+    flagHtml += fixPanel('bizlogic', 'biz-negative-qty');
   }
   res.send(page('Checkout', `
     <h2>Order total: ${money(total)}</h2>
@@ -223,6 +241,7 @@ router.post('/price-tamper/buy', (req, res) => {
   let flagHtml = '';
   if (total < p.price && !captured(req, 'bizlogic', 'biz-price-tamper')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-price-tamper'));
+    flagHtml += fixPanel('bizlogic', 'biz-price-tamper');
   }
   res.send(page('Order placed', `
     <h2>Order placed: ${esc(p.name)}</h2>
@@ -270,6 +289,7 @@ router.post('/coupon-stack', (req, res) => {
   let flagHtml = '';
   if (total <= 0 && applied.length > 0 && !captured(req, 'bizlogic', 'biz-coupon-stack')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-coupon-stack'));
+    flagHtml += fixPanel('bizlogic', 'biz-coupon-stack');
   }
   res.send(page('Order placed', `
     <h2>Coupons applied: ${applied.length ? esc(applied.join(', ')) : 'none'}</h2>
@@ -321,6 +341,7 @@ router.post('/otp/verify', (req, res) => {
     let flagHtml = '';
     if (otp !== REAL_OTP && !captured(req, 'bizlogic', 'biz-otp-client')) {
       flagHtml = flagBox(award(req, 'bizlogic', 'biz-otp-client'));
+      flagHtml += fixPanel('bizlogic', 'biz-otp-client');
     }
     return res.send(page('Order confirmed', `
       <h2>OTP accepted, order confirmed</h2>
@@ -413,6 +434,7 @@ router.post('/workflow/confirm', (req, res) => {
   let flagHtml = '';
   if (!wasPaid && !captured(req, 'bizlogic', 'biz-workflow-skip')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-workflow-skip'));
+    flagHtml += fixPanel('bizlogic', 'biz-workflow-skip');
   }
   res.send(page('Order confirmed', `
     <h2>Order confirmed: ${esc(items)} (${money(total)})</h2>
@@ -465,6 +487,7 @@ router.post('/currency/pay', (req, res) => {
   let flagHtml = '';
   if (currency === 'JPY' && !captured(req, 'bizlogic', 'biz-currency')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-currency'));
+    flagHtml += fixPanel('bizlogic', 'biz-currency');
   }
   res.send(page('Payment done', `
     <h2>Paid ${esc(String(amount))} ${esc(currency)}</h2>
@@ -569,6 +592,7 @@ router.post('/account/reset', (req, res) => {
   let flagHtml = '';
   if (s.email !== s.originalEmail && !captured(req, 'bizlogic', 'biz-email-noreauth')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-email-noreauth'));
+    flagHtml += fixPanel('bizlogic', 'biz-email-noreauth');
   }
   res.send(page('Password reset', `
     <h2>Password changed for ${esc(s.email)}</h2>
@@ -636,6 +660,7 @@ router.post('/refund', (req, res) => {
   let flagHtml = '';
   if (amount > order.total && !captured(req, 'bizlogic', 'biz-refund')) {
     flagHtml = flagBox(award(req, 'bizlogic', 'biz-refund'));
+    flagHtml += fixPanel('bizlogic', 'biz-refund');
   }
   res.send(page('Refund processed', `
     <h2>Refunded ${money(amount)} on order #${order.id}</h2>
@@ -651,7 +676,9 @@ module.exports = {
   name: 'Business Logic Flaws',
   tagline: 'No injection needed: break the shop by breaking its own rules.',
   description: 'An in-module shop whose application logic is wrong on purpose: negative quantities that credit your balance, prices taken from hidden form fields, coupons stacking past 100%, an OTP "verified" by JavaScript, a checkout step you can skip, confused currencies, email changes with no re-authentication, and refund amounts you choose yourself.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Advanced',
+  prerequisites: ['Foundations track'],
   vulns: VULNS.map(({ id, name, difficulty, hint, how }) => ({ id, name, difficulty, hint, how })),
   router,
 };

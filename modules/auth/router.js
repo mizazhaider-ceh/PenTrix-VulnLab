@@ -1,13 +1,13 @@
 // Broken Authentication module for the PenTrix VulnLab.
-// Three intentionally real, exploitable auth flaws:
-//   v1 brute-force: login with no rate limiting and a weak password
-//   v2 jwt-none:    verification that accepts unsigned (alg=none) JWTs
-//   v3 reset:       predictable password-reset tokens displayed on screen
+// Eight intentionally real, exploitable auth flaws: brute-force with no rate
+// limiting, predictable and deterministic password-reset tokens, username
+// enumeration, OTP brute-forcing, security questions with public answers,
+// password change without re-authentication, and support-ticket impersonation.
 const express = require('express');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured, flagFor } = require('../../lib/flags');
 
 // VULN: the JWT signing secret is hardcoded in the source; anyone who can
@@ -15,7 +15,7 @@ const { award, captured, flagFor } = require('../../lib/flags');
 const JWT_SECRET = 'pentrix-dev-secret';
 const MOD = 'auth';
 
-// ---- VULN (v3): the reset token is just base64(username) — fully predictable
+// ---- VULN (v3): the reset token is just base64(username) , fully predictable
 // and handed out without any email verification.
 function resetTokenFor(username) {
   return Buffer.from(username, 'utf8').toString('base64');
@@ -32,7 +32,7 @@ router.get('/', (req, res) => {
   const rows = module.exports.vulns
     .map((v) => {
       const flag = captured(req, MOD, v.id)
-        ? flagBox(flagFor(MOD, v.id))
+        ? flagBox(flagFor(MOD, v.id)) + fixPanel('auth', v.id)
         : '';
       return `<article class="card">
   <h3>${esc(v.name)} <span class="badge">${esc(v.difficulty)}</span></h3>
@@ -52,7 +52,7 @@ router.get('/', (req, res) => {
         `Weak credentials, no lockouts, unsigned JWTs, and password resets that leak
          their own tokens. This module is intentionally broken so you can break it.
          Each challenge page has a form you can attack directly.`
-      ) + `<div class="grid">${rows}</div>
+      ) + trackBanner(module.exports) + `<div class="grid">${rows}</div>
 <p><a href="/">Back to all modules</a></p>`
     )
   );
@@ -91,7 +91,7 @@ router.post('/login', (req, res) => {
     // reports how many failed attempts preceded a success.
     let extra = '';
     if (username === 'alice' && attempts >= 5) {
-      extra = flagBox(award(req, MOD, 'brute-force'));
+      extra = flagBox(award(req, MOD, 'brute-force')) + fixPanel('auth', 'brute-force');
     }
     req.session.authAttempts = 0; // counter resets on success
     req.session.authUser = username; // login identity used by the newer auth labs
@@ -116,137 +116,6 @@ ${extra}
 <b>${req.session.authAttempts}</b></p>
 <p class="dim">Keep trying, there is nothing stopping you.</p>
 <p><a href="/auth/login">Try again</a> · <a href="/auth">Module index</a></p>`
-    )
-  );
-});
-
-// ---------------------------------------------------------------- v2 jwt-none
-router.get('/jwt-login', (req, res) => {
-  res.send(
-    page(
-      'JWT login',
-      brief(
-        'JWT admin panel',
-        `Log in to receive a signed JWT (<code>HS256</code>), then try to reach
-         the <a href="/auth/jwt-admin">admin page</a> as an admin.
-         The verifier on the admin page is not picky about algorithms...`
-      ) +
-        `<form method="POST" action="/auth/jwt-login">
-  <label>Username<br><input name="username" value="bob" required></label><br><br>
-  <label>Password<br><input name="password" type="password" required></label><br><br>
-  <button type="submit">Get JWT</button>
-</form>` +
-        hintBox(esc(module.exports.vulns[1].hint))
-    )
-  );
-});
-
-router.post('/jwt-login', (req, res) => {
-  const username = String(req.body.username || '').trim();
-  const password = String(req.body.password || '');
-  const user = findUser(username);
-
-  if (!user || user.password !== password) {
-    return res.send(
-      page(
-        'JWT login failed',
-        `<h2>Login failed</h2><p>Bad credentials.</p>
-<p><a href="/auth/jwt-login">Try again</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  const token = jwt.sign({ user: user.username, role: user.role }, JWT_SECRET, {
-    algorithm: 'HS256',
-    expiresIn: '1h',
-  });
-
-  res.send(
-    page(
-      'Your JWT',
-      `<h2>Your JWT</h2>
-<p>Logged in as <b>${esc(user.username)}</b> (role <b>${esc(user.role)}</b>).</p>
-<p>Paste it into an <code>Authorization: Bearer &lt;token&gt;</code> header when
-visiting the <a href="/auth/jwt-admin">admin page</a>:</p>
-<pre class="token">${esc(token)}</pre>
-<p class="dim">Tip: you can decode the payload at the dots; the server re-verifies it.</p>
-<p><a href="/auth/jwt-admin">Go to the admin page</a> · <a href="/auth">Module index</a></p>`
-    )
-  );
-});
-
-function tokenFromRequest(req) {
-  const h = req.headers.authorization || '';
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1].trim() : req.query.token || '';
-}
-
-router.get('/jwt-admin', (req, res) => {
-  const token = tokenFromRequest(req);
-  if (!token) {
-    return res.status(401).send(
-      page(
-        'Admin only',
-        `<h2>401 — Admins only</h2>
-<p>You need a JWT with <code>role: "admin"</code>. Bring one as
-<code>Authorization: Bearer &lt;token&gt;</code> or <code>?token=...</code>.</p>
-<p><a href="/auth/jwt-login">Get a token</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  let payload, header;
-  try {
-    // VULN: when the token's header declares {"alg":"none"}, the signature is
-    // skipped entirely and the payload is trusted as-is. (jsonwebtoken 9.x
-    // refuses unsigned tokens whenever a secret is passed to verify(), so the
-    // flaw is expressed as the classic branch: none-alg tokens never reach
-    // verify() at all.)
-    header = jwt.decode(token, { complete: true })?.header;
-    if (!header) throw new Error('malformed token');
-    payload =
-      header.alg === 'none'
-        ? jwt.decode(token)
-        : jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-  } catch (e) {
-    return res.status(401).send(
-      page(
-        'Bad token',
-        `<h2>401 — Invalid token</h2><p>${esc(e.message)}</p>
-<p><a href="/auth/jwt-login">Get a token</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  if (payload.role !== 'admin') {
-    return res.status(403).send(
-      page(
-        'Forbidden',
-        `<h2>403 — Admins only</h2>
-<p>Your token is valid, but its role is
-<b>${esc(String(payload.role))}</b>, not admin.</p>
-<p><a href="/auth/jwt-login">Get a token</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  // Award only when the admin page is reached with an *unsigned* alg=none token.
-  let extra = '';
-  if (header.alg === 'none' && payload.role === 'admin') {
-    extra = flagBox(award(req, MOD, 'jwt-none'));
-  }
-
-  res.send(
-    page(
-      'Admin panel',
-      `<h2>Admin panel</h2>
-<p>Welcome, administrator <b>${esc(String(payload.user))}</b>.</p>
-<p>Token algorithm seen by the verifier: <code>${esc(String(header.alg))}</code></p>
-${extra}
-<p class="dim">Seeding secret for later modules: <code>${esc(
-      findUser('admin')?.secret || ''
-    )}</code></p>
-<p><a href="/auth">Module index</a></p>`
     )
   );
 });
@@ -358,7 +227,7 @@ router.post('/reset/confirm', (req, res) => {
   // (i.e. a forged / guessed token), the classic outcome being admin's password.
   let extra = '';
   if (!wasLegit) {
-    extra = flagBox(award(req, MOD, 'reset'));
+    extra = flagBox(award(req, MOD, 'reset')) + fixPanel('auth', 'reset');
   }
 
   res.send(
@@ -465,7 +334,7 @@ router.post('/enum-submit', (req, res) => {
   const found =
     (req.session.enumFound || []).includes(username) && findUser(username);
   let extra = '';
-  if (found) extra = flagBox(award(req, MOD, 'user-enum'));
+  if (found) extra = flagBox(award(req, MOD, 'user-enum')) + fixPanel('auth', 'user-enum');
   res.send(
     page(
       'Enumeration result',
@@ -477,113 +346,6 @@ router.post('/enum-submit', (req, res) => {
       }</p>
 ${extra}
 <p><a href="/auth/enum-login">Back to the login</a> · <a href="/auth">Module index</a></p>`
-    )
-  );
-});
-
-// ---------------------------------------------------------------- v5 rememberme
-router.get('/remember-login', (req, res) => {
-  res.send(
-    page(
-      'Login with "remember me"',
-      brief(
-        'Trust the cookie',
-        `Tick "remember me" and the server drops a <code>remember_me</code> cookie
-         holding <b>base64(username)</b> and nothing else. No signature, no MAC.
-         Then visit <a href="/auth/remember">/auth/remember</a>: it logs you in
-         from the cookie alone. What happens if you edit the cookie first?`
-      ) +
-        `<form method="POST" action="/auth/remember-login">
-  <label>Username<br><input name="username" value="bob" required></label><br><br>
-  <label>Password<br><input name="password" type="password" required></label><br><br>
-  <label><input type="checkbox" name="remember" value="1" checked> Remember me</label><br><br>
-  <button type="submit">Log in</button>
-</form>` +
-        hintBox(esc(module.exports.vulns[4].hint))
-    )
-  );
-});
-
-router.post('/remember-login', (req, res) => {
-  const username = String(req.body.username || '').trim();
-  const password = String(req.body.password || '');
-  const user = findUser(username);
-
-  if (!user || user.password !== password) {
-    return res.send(
-      page(
-        'Login failed',
-        `<h2>Login failed</h2><p>Bad credentials.</p>
-<p><a href="/auth/remember-login">Try again</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  req.session.authUser = user.username;
-  let cookieNote = '';
-  if (req.body.remember) {
-    // VULN: the remember-me token is just base64(username) with no signature,
-    // so anyone can mint one for any user, including admin.
-    const raw = Buffer.from(user.username, 'utf8').toString('base64');
-    res.cookie('remember_me', raw, {
-      maxAge: 30 * 24 * 3600 * 1000,
-      httpOnly: false,
-      path: '/',
-    });
-    req.session.rememberIssuedFor = user.username;
-    cookieNote = `<p>Remember-me cookie set: <code>remember_me=${esc(raw)}</code>
-(that is just base64 of <b>${esc(user.username)}</b>).</p>`;
-  }
-
-  res.send(
-    page(
-      'Logged in',
-      `<h2>Welcome, ${esc(user.username)}</h2>${cookieNote}
-<p>Now open <a href="/auth/remember">/auth/remember</a> in a fresh session with an edited cookie.</p>
-<p><a href="/auth">Module index</a></p>`
-    )
-  );
-});
-
-router.get('/remember', (req, res) => {
-  const raw = req.cookies ? req.cookies.remember_me : '';
-  let who = null;
-  if (raw) {
-    try {
-      who = Buffer.from(String(raw), 'base64').toString('utf8');
-    } catch (e) {
-      who = null;
-    }
-  }
-  const user = who ? findUser(who) : null;
-
-  if (!user) {
-    return res.send(
-      page(
-        'Remember me',
-        `<h2>Remember me</h2>
-<p>No valid remember_me cookie. Cookie seen: <code>${esc(raw || '(none)')}</code></p>
-<p><a href="/auth/remember-login">Log in first</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  // Award only when the admin session came from a cookie this session did not
-  // legitimately earn, i.e. the cookie value was tampered with.
-  let extra = '';
-  req.session.authUser = user.username;
-  if (user.username === 'admin' && req.session.rememberIssuedFor !== 'admin') {
-    extra = flagBox(award(req, MOD, 'rememberme'));
-  }
-
-  res.send(
-    page(
-      'Remember me',
-      `<h2>Welcome back, ${esc(user.username)}!</h2>
-<p>Logged in from the remember_me cookie alone. Raw cookie value:
-<code>${esc(String(raw))}</code> decodes to <b>${esc(user.username)}</b>.</p>
-${extra}
-<p><a href="/auth">Module index</a></p>`
     )
   );
 });
@@ -665,7 +427,7 @@ router.post('/otp-reset/verify', (req, res) => {
   getDb().prepare('UPDATE users SET password = ? WHERE id = ?').run(newPassword, row.user_id);
   getDb().prepare('DELETE FROM auth_otp WHERE token = ?').run(token);
 
-  const extra = flagBox(award(req, MOD, 'otp-bruteforce'));
+  const extra = flagBox(award(req, MOD, 'otp-bruteforce')) + fixPanel('auth', 'otp-bruteforce');
   res.send(
     page(
       'Password reset',
@@ -779,7 +541,7 @@ router.post('/sha-reset/confirm', (req, res) => {
   let extra = '';
   const issued = req.session.shaIssued || [];
   if (target.username === 'admin' && !issued.includes('admin')) {
-    extra = flagBox(award(req, MOD, 'reset-predictable'));
+    extra = flagBox(award(req, MOD, 'reset-predictable')) + fixPanel('auth', 'reset-predictable');
   }
 
   res.send(
@@ -871,7 +633,7 @@ router.post('/question-reset', (req, res) => {
   }
 
   getDb().prepare('UPDATE users SET password = ? WHERE username = ?').run(newPassword, u.username);
-  const extra = flagBox(award(req, MOD, 'security-question'));
+  const extra = flagBox(award(req, MOD, 'security-question')) + fixPanel('auth', 'security-question');
   res.send(
     page(
       'Password changed',
@@ -936,7 +698,7 @@ router.post('/change-password', (req, res) => {
   // current password, so an unattended or hijacked session is enough to take
   // over the account.
   getDb().prepare('UPDATE users SET password = ? WHERE username = ?').run(newPassword, me);
-  const extra = flagBox(award(req, MOD, 'change-pass-noverify'));
+  const extra = flagBox(award(req, MOD, 'change-pass-noverify')) + fixPanel('auth', 'change-pass-noverify');
   res.send(
     page(
       'Password changed',
@@ -1017,7 +779,7 @@ router.get('/support/login', (req, res) => {
   req.session.authUser = row.username;
   let extra = '';
   if (row.role === 'admin') {
-    extra = flagBox(award(req, MOD, 'support-impersonate'));
+    extra = flagBox(award(req, MOD, 'support-impersonate')) + fixPanel('auth', 'support-impersonate');
   }
   res.send(
     page(
@@ -1031,123 +793,33 @@ ${extra}
   );
 });
 
-// ---------------------------------------------------------------- v11 apikey-leak
-function ensureAuthApiKeys() {
-  const db = getDb();
-  db.exec('CREATE TABLE IF NOT EXISTS auth_api_keys (username TEXT PRIMARY KEY, api_key TEXT NOT NULL)');
-  const seed = [
-    ['admin', 'px_admin_9f8e7d6c5b4a3f21e0d7c6b5'],
-    ['alice', 'px_alice_1a2b3c4d5e6f708192a3b4c5d6'],
-    ['bob', 'px_bob_9a8b7c6d5e4f3a2b1c0d9e8f7a6'],
-  ];
-  const ins = db.prepare('INSERT OR IGNORE INTO auth_api_keys (username, api_key) VALUES (?,?)');
-  for (const [u, k] of seed) ins.run(u, k);
-}
-ensureAuthApiKeys();
-
-function apiKeyFor(username) {
-  const r = getDb().prepare('SELECT api_key FROM auth_api_keys WHERE username = ?').get(username);
-  return r ? r.api_key : '';
-}
-
-router.get('/settings', (req, res) => {
-  const me = authSessionUser(req);
-  if (!me) {
-    return res.send(
-      page(
-        'Settings',
-        `<h2>Log in first</h2>
-<p><a href="/auth/login">Log in</a>, then open settings.</p>`
-      )
-    );
-  }
-  const mine = apiKeyFor(me);
-  // VULN: a developer left the admin API key in an HTML comment in the page
-  // source, so every logged-in user can read it with "view source".
-  const leaked = `<!-- DEBUG leftover from development: admin api key = ${apiKeyFor('admin')} (remove before prod) -->`;
-  res.send(
-    page(
-      'Settings',
-      leaked +
-        brief(
-          'API settings',
-          `Your personal API key is below. There is also an admin-only stats
-           endpoint at <code>/auth/api/admin/stats</code>... if you had the key.`
-        ) +
-        `<div class="card">
-<p>Logged in as <b>${esc(me)}</b></p>
-<p>Your API key: <code>${esc(mine)}</code></p>
-</div>` +
-        hintBox(esc(module.exports.vulns[10].hint)) +
-        `<p><a href="/auth">Module index</a></p>`
-    )
-  );
-});
-
-router.get('/api/admin/stats', (req, res) => {
-  const key = String(req.query.api_key || req.headers['x-api-key'] || '');
-  const adminKey = apiKeyFor('admin');
-
-  // VULN: the only gate in front of the admin API is a static key, and that
-  // key is leaked in an HTML comment on the settings page.
-  if (!key || key !== adminKey) {
-    return res.status(401).send(
-      page(
-        'Unauthorized',
-        `<h2>401</h2>
-<p>A valid admin API key is required (<code>?api_key=...</code> or the <code>X-API-Key</code> header).</p>
-<p><a href="/auth/settings">Settings</a> · <a href="/auth">Module index</a></p>`
-      )
-    );
-  }
-
-  const db = getDb();
-  const extra = flagBox(award(req, MOD, 'apikey-leak'));
-  res.send(
-    page(
-      'Admin API stats',
-      `<h2>Admin API</h2>
-<p>Authenticated as <b>admin</b> via API key.</p>
-<table>
-<tr><th>Metric</th><th>Value</th></tr>
-<tr><td>Total users</td><td>${db.prepare('SELECT COUNT(*) AS c FROM users').get().c}</td></tr>
-<tr><td>Total orders</td><td>${db.prepare('SELECT COUNT(*) AS c FROM orders').get().c}</td></tr>
-</table>
-${extra}
-<p><a href="/auth">Module index</a></p>`
-    )
-  );
-});
-
 module.exports = {
   id: MOD,
   name: 'Broken Authentication',
-  tagline: 'No lockouts, unsigned JWTs, and reset tokens anyone can guess.',
+  tagline: 'No lockouts, predictable resets, and OTPs anyone can brute-force.',
   description:
-    'Authentication the way it happens when nobody threat-models: a login page that lets you guess forever, a JWT verifier that trusts the word "none", and a password reset flow that hands you the keys on screen.',
-  difficulty: 'Mixed',
+    'Authentication the way it happens when nobody threat-models: a login page that lets you guess forever, password reset tokens anyone can predict, and one-time codes with no lockout.',
+  difficulty: 'Intermediate',
+  track: 'Auth and Sessions',
+  prerequisites: ['Foundations track'],
   vulns: [
     {
       id: 'brute-force',
       name: 'No Rate Limiting (Brute-Force Login)',
       difficulty: 'Medium',
       hint: 'There is no rate limiting, no lockout, and no CAPTCHA. Alice\'s password is very weak. If a few tries don\'t work, script it: the counter resets only on success, and the flag lands when you finally log in as alice after at least 5 failed attempts in the same session.',
+      hints: ["The login has no rate limit, no lockout, no CAPTCHA. What does that mean for password guessing?", "Without throttling, you can try thousands of passwords. Alice's password is weak and guessable.", "Script the login attempts (or guess manually). The flag lands when you log in as alice after 5+ failed attempts in one session."],
+      tools: "B, P",
       how: 'Brute-force / guess alice\'s weak password; the flag is awarded once you log in as alice after 5+ failed attempts in one session.',
       link: '/auth/login',
-    },
-    {
-      id: 'jwt-none',
-      name: 'JWT Algorithm Confusion (alg=none)',
-      difficulty: 'Medium',
-      hint: 'The verifier explicitly allows the "none" algorithm. Take a valid token, swap the header to {"alg":"none"}, drop the signature, set role to "admin", and visit the admin page with it.',
-      how: 'Forge an unsigned JWT with {"alg":"none"} claiming role admin and present it at /auth/jwt-admin.',
-      link: '/auth/jwt-login',
     },
     {
       id: 'reset',
       name: 'Predictable Password Reset Tokens',
       difficulty: 'Easy',
       hint: 'The reset link is displayed on screen and the token is just base64(username). Request a reset for alice to see the pattern, then mint a token for admin yourself and confirm it with a new password.',
+      hints: ["The password reset asks for a username and gives you a token. What does the token look like?", "The token is just base64(username) with no randomness. Anyone can compute it for any user.", "Request a reset for admin, decode the pattern (base64 of 'admin'), forge the token, and set a new password."],
+      tools: "B, C",
       how: 'Forge a reset token for admin (base64 of "admin") and use it at /auth/reset/confirm to change admin\'s password.',
       link: '/auth/reset',
     },
@@ -1156,22 +828,18 @@ module.exports = {
       name: 'Username Enumeration',
       difficulty: 'Easy',
       hint: 'The login says "user not found" for bad usernames but "wrong password" for real ones. Probe names like alice, bob, admin, or anything else, then submit the confirmed username on the submit page.',
+      hints: ["Try logging in with a wrong username vs a wrong password. Does the error message change?", "Different errors for 'bad username' vs 'bad password' reveal which usernames exist. That's an oracle.", "Enumerate usernames by comparing error messages, then submit a valid one."],
+      tools: "B, C",
       how: 'Enumerate a valid username through the different error messages and submit it.',
       link: '/auth/enum-login',
-    },
-    {
-      id: 'rememberme',
-      name: 'Unsigned Remember-Me Cookie',
-      difficulty: 'Easy',
-      hint: 'The remember_me cookie is just base64(username) with no signature. Log in as bob with "remember me", decode your cookie, re-encode "admin", and visit /auth/remember with the forged cookie.',
-      how: 'Forge a remember_me cookie for admin (base64 of "admin") and get an admin session at /auth/remember.',
-      link: '/auth/remember-login',
     },
     {
       id: 'otp-bruteforce',
       name: 'Brute-Forcing a 4-Digit OTP',
       difficulty: 'Medium',
       hint: 'You get a valid reset token for admin on screen, but the 4-digit code is never shown and there is no rate limiting. Script all 10,000 codes against the verify endpoint.',
+      hints: ["The OTP is 4 digits. How many possibilities is that, and is there any lockout?", "10,000 codes, no lockout, no expiry. A simple Python loop trying 0000-9999 will hit it.", "Script POSTs to the verify endpoint with codes 0000-9999 until one works."],
+      tools: "P, C",
       how: 'Brute-force the 4-digit OTP for the given admin reset token, then reset the password.',
       link: '/auth/otp-reset',
     },
@@ -1180,6 +848,8 @@ module.exports = {
       name: 'SHA-256 Predictable Reset Token',
       difficulty: 'Medium',
       hint: 'The page shows the exact recipe: sha256(username + "reset-salt"). Compute it for "admin" with node or python and confirm the forged token without ever requesting an admin reset.',
+      hints: ["The reset token is a SHA-256 hash. Hash of what? What inputs are predictable?", "The token is SHA-256(username + a public value like the date). Both are known or guessable, so you can recompute it.", "Compute SHA-256(admin + today's date) in Python, use it as the reset token."],
+      tools: "B, P",
       how: 'Forge the admin reset token with SHA-256 and use it to change admin\'s password.',
       link: '/auth/sha-reset',
     },
@@ -1188,6 +858,8 @@ module.exports = {
       name: 'Guessable Security Question',
       difficulty: 'Easy',
       hint: 'The reset asks for the mother\'s maiden name, and alice printed hers in her public bio. Read the bio, answer the question, reset her password.',
+      hints: ["The security question asks for something 'only you know'. But the user's bio is public. What does the bio say?", "The 'secret' answer is in the public bio. Security questions are just weak passwords when the answer is public.", "Read the bio, answer the question with the public info, and reset the password."],
+      tools: "B",
       how: 'Read alice\'s public bio for the maiden name, then reset her password via the security question.',
       link: '/auth/question-reset',
     },
@@ -1196,6 +868,8 @@ module.exports = {
       name: 'Password Change Without Current Password',
       difficulty: 'Easy',
       hint: 'Log in as anyone through /auth/login, then open the change-password page and notice it never asks for the current password.',
+      hints: ["You're logged in and want to change your password. Does it ask for the current one?", "The change-password endpoint only checks your session, not your current password. Anyone with session access (XSS, shared computer) can set a new password.", "While logged in, POST a new password to /auth/change-password without the old one."],
+      tools: "B",
       how: 'While logged in, change the account password without knowing the current one.',
       link: '/auth/change-password',
     },
@@ -1204,16 +878,10 @@ module.exports = {
       name: 'Support Ticket Impersonation',
       difficulty: 'Medium',
       hint: 'Tickets are sequential (try 1001 upward). One of them belongs to admin. The support endpoint never checks that you are staff.',
+      hints: ["Support tickets have sequential IDs. What happens if you open someone else's ticket?", "Ticket IDs are predictable and there's no authorization check. Enumerate to the admin's ticket to get their session.", "Fetch /auth/support/ticket/1, /ticket/2, ... until you find the admin's session token."],
+      tools: "B, C",
       how: 'Enumerate ticket numbers at /auth/support/login until you land an admin session.',
       link: '/auth/support',
-    },
-    {
-      id: 'apikey-leak',
-      name: 'API Key Leaked in HTML Comment',
-      difficulty: 'Easy',
-      hint: 'Log in, open settings, and view the page source: a developer left the admin API key in an HTML comment. Use it against /auth/api/admin/stats.',
-      how: 'Find the admin API key in the settings page source and call the admin-only API with it.',
-      link: '/auth/settings',
     },
   ],
   router,

@@ -3,7 +3,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 const router = express.Router();
@@ -12,11 +12,9 @@ router.use(express.urlencoded({ extended: false }));
 
 // Challenge page slug per vuln id (used by the index page links).
 const ROUTES = {
-  email: 'change-email', redirect: 'go', clickjacking: 'framedemo',
-  'json-csrf': 'json-email', 'login-csrf': 'attacker-login',
-  'multipart-csrf': 'password-multipart', 'referer-bypass': 'nickname',
-  'get-passwd-change': 'change-password', 'contenttype-bypass': 'theme',
-  'method-override-csrf': 'account', '2fa-disable-get': '2fa',
+  email: 'change-email', clickjacking: 'framedemo',
+  'json-csrf': 'json-email', 'referer-bypass': 'nickname',
+  'method-override-csrf': 'account',
 };
 
 function notLoggedInPage() {
@@ -33,77 +31,45 @@ const VULNS = [
     name: 'Change Email with No CSRF Token (state-changing GET)',
     difficulty: 'Easy',
     hint: 'The email change is a plain GET request with no anti-CSRF token. Any page the victim visits can trigger it - a link, an image tag, anything. Log in as alice, then visit the change-email URL with ?email= set.',
+    hints: ["The email change is a GET request with no token. What happens if someone else triggers that URL?", "A forged link or <img> tag from an attacker's page will change YOUR email while you're logged in.", "While logged in, open /csrf/change-email?email=evil@evil.com (or have the 'attacker page' do it)."],
+    tools: "B",
     how: 'Log in, then open /csrf/change-email?email=evil@attacker.com - the email changes with no token or confirmation.',
-  },
-  {
-    id: 'redirect',
-    name: 'Unvalidated Open Redirect',
-    difficulty: 'Easy',
-    hint: 'The "to" parameter is passed straight to res.redirect() with no allow-list check. Attackers use trusted domains like this to make phishing links look safe.',
-    how: 'Open /csrf/go?to=https://evil.example.com - the app redirects to an external site. The flag is captured before the redirect happens.',
   },
   {
     id: 'clickjacking',
     name: 'Clickjacking (missing X-Frame-Options)',
     difficulty: 'Easy',
     hint: 'The VIP action page sends no X-Frame-Options header, so any site can embed it in an invisible iframe and trick clicks into landing on its buttons. Open /csrf/framedemo and click the decoy prize button: your click lands on the hidden "Delete my account" button, and the framed form submission captures the flag.',
+    hints: ["The VIP action page has no X-Frame-Options. Can it be framed?", "An attacker's invisible iframe can host the page. Your click on their decoy button lands on the hidden real button.", "Open /csrf/framedemo and click the decoy. The framed form submits with the one-time token."],
+    tools: "B",
     how: 'Open /csrf/framedemo and click the decoy button layered over the nearly-invisible framed page. The click submits the framed form, which carries the one-time framing token.',
   },
   {
     id: 'json-csrf',
     name: 'JSON API CSRF via text/plain (simple request)',
     difficulty: 'Medium',
-    hint: 'The endpoint accepts text/plain bodies and extracts JSON from them. A cross-site form with enctype="text/plain" is a CORS simple request: no preflight, cookies attached. Make the form body contain {"email":"..."}.',
+    hint: 'The endpoint accepts text/plain bodies and extracts JSON from them. A cross-site form with enctype="text/plain" is a CORS simple request: no preflight, cookies attached. Make the form body contain {"email":"..."}. The same confusion applies whenever the server fills req.body from more than one content type: a plain HTML form can drive a "JSON-only" API.',
+    hints: ["The API wants JSON, but it also accepts text/plain. Why does that matter for CSRF?", "text/plain POSTs are CORS 'simple requests': no preflight, cookies attached. A plain HTML form can send JSON.", "Build a form with enctype='text/plain' whose body is {\"email\":\"evil@evil.com\"} and submit it to /csrf/api/email."],
+    tools: "BZ, C",
     how: 'Submit the text/plain form so its body carries a JSON email change to /csrf/api/email.',
-  },
-  {
-    id: 'login-csrf',
-    name: 'Login CSRF (forged session switch)',
-    difficulty: 'Medium',
-    hint: 'The login endpoint sets the session user with no CSRF token. An attacker page can auto-submit a login as "mallory", silently switching the victim into the attacker-controlled account.',
-    how: 'While logged in as alice, visit /csrf/attacker-login; it auto-submits a login as mallory and your session switches.',
-  },
-  {
-    id: 'multipart-csrf',
-    name: 'Password Change via multipart/form-data (no token)',
-    difficulty: 'Easy',
-    hint: 'The password-change API reads multipart bodies and checks no CSRF token. A plain cross-site form with enctype="multipart/form-data" can submit it.',
-    how: 'Submit the multipart form to change the account password.',
   },
   {
     id: 'referer-bypass',
     name: 'Weak Referer Check Bypass',
     difficulty: 'Medium',
     hint: 'The check is referer.includes("pentrix.lab"). The attacker controls the referer of requests from their own page, so https://evil.com/?pentrix.lab contains the magic string.',
+    hints: ["The nickname change checks the Referer header. Who controls the Referer?", "You do. The check is referer.includes('pentrix.lab'), so https://evil.com/?pentrix.lab passes.", "POST to /csrf/api/nickname with Referer: https://evil.com/?pentrix.lab."],
+    tools: "C",
     how: 'POST the nickname change with a Referer header of https://evil.com/?pentrix.lab.',
-  },
-  {
-    id: 'get-passwd-change',
-    name: 'Password Change via GET (no token)',
-    difficulty: 'Easy',
-    hint: 'Same flaw class as the email lab, different target: the password changes through a GET parameter with no token, so a forged link or image tag does it.',
-    how: 'Open /csrf/change-password?password=... while logged in.',
-  },
-  {
-    id: 'contenttype-bypass',
-    name: 'Content-Type Confusion on a JSON API',
-    difficulty: 'Medium',
-    hint: 'The endpoint was built for JSON clients, but the urlencoded body parser also fills req.body. A plain HTML form (no fetch, no preflight) can drive this "JSON-only" API.',
-    how: 'Submit the plain HTML form to change the theme setting on the JSON endpoint.',
   },
   {
     id: 'method-override-csrf',
     name: 'HTTP Method Override Smuggling (_method=DELETE)',
     difficulty: 'Medium',
     hint: 'The app treats DELETE as the privileged method, but honors a _method=DELETE field on a plain POST. Cross-site forms can only send GET/POST, so the override smuggles the "protected" method through with no preflight.',
+    hints: ["The app honors _method=DELETE on a POST. Why is that a CSRF problem?", "Cross-site forms can only send GET/POST. The override smuggles the 'protected' DELETE through a plain POST with no preflight.", "POST the account form with _method=DELETE. The privileged path triggers."],
+    tools: "BZ, C",
     how: 'POST the account form with _method=DELETE to trigger the privileged delete path.',
-  },
-  {
-    id: '2fa-disable-get',
-    name: 'Disable 2FA via GET Link (no token)',
-    difficulty: 'Easy',
-    hint: 'Disabling two-factor auth is a GET request with no token. One click on an attacker link (or a single image load) turns the victim\'s 2FA off.',
-    how: 'Open /csrf/2fa/disable while logged in.',
   },
 ];
 
@@ -186,49 +152,13 @@ router.get('/change-email', (req, res) => {
   res.send(page('Change Email', `
     <h1>Email changed</h1>
     ${flagBox(flag)}
+    ${fixPanel('csrf', 'email')}
     <p>Your account email is now: <code>${esc(email)}</code></p>
     ${hintBox('That request carried no token and did not even need a form submit - this is exactly what an attacker\'s forged link or image tag would have done from another site.')}
     <p><a href="/csrf">Back to the CSRF module</a></p>
   `));
 });
 
-// ---------------------------------------------------------------------------
-// v2: open redirect.
-// VULN: the "to" parameter is passed to res.redirect() with no validation or
-// allow-list, so any external URL is accepted.
-// ---------------------------------------------------------------------------
-router.get('/go', (req, res) => {
-  const to = req.query.to === undefined ? null : String(req.query.to);
-
-  if (to === null) {
-    return res.send(page('Redirect Service', `
-      <h1>Redirect Service</h1>
-      ${brief('Challenge', `
-        This helper redirects you wherever the <code>to</code> parameter says,
-        with <b>no validation</b>. Attackers love this pattern: a phishing link
-        like <code>https://pentrix.lab/csrf/go?to=https://evil.example.com</code>
-        looks trustworthy because it starts with the real domain.
-      `)}
-      <form method="get" action="/csrf/go">
-        <label>Destination: <input name="to" size="50" value="https://evil.example.com" /></label>
-        <button type="submit">Go</button>
-      </form>
-      <p class="dim">Try: <a href="/csrf/go?to=https://evil.example.com">/csrf/go?to=https://evil.example.com</a></p>
-      ${hintBox('A safe redirector would check the destination against an allow-list or at least reject external URLs.')}
-      <p><a href="/csrf">Back to the CSRF module</a></p>
-    `));
-  }
-
-  const isExternal = to.startsWith('http') && !to.includes('localhost') && !to.includes('127.0.0.1');
-  if (isExternal) {
-    // VULN: external redirect target accepted blindly - award before redirecting.
-    award(req, 'csrf', 'redirect');
-  }
-  // VULN: unvalidated user input flows straight into res.redirect().
-  res.redirect(to);
-});
-
-// ---------------------------------------------------------------------------
 // v3: clickjacking target. The "dangerous" button is deliberately harmless -
 // the vulnerability under test is the missing framing protection.
 //
@@ -280,6 +210,7 @@ router.post('/vip-action', (req, res) => {
       just made landed on this framed button through the attacker's overlay -
       that is a successful clickjacking.</p>
       ${flagBox(flag)}
+      ${fixPanel('csrf', 'clickjacking')}
     `, null));
   }
   res.send(vipPage(`
@@ -387,124 +318,12 @@ router.post('/api/email', express.text({ type: 'text/plain' }), (req, res) => {
   res.send(page('JSON Email', `
     <h1>Email changed</h1>
     ${flagBox(flag)}
+    ${fixPanel('csrf', 'json-csrf')}
     <p>Your account email is now: <code>${esc(String(email))}</code></p>
     <p><a href="/csrf">Back to the CSRF module</a></p>
   `));
 });
 
-// ---------------------------------------------------------------------------
-// v5: login CSRF. The demo login sets the session user with no token, so an
-// attacker page can auto-submit a login as "mallory" and silently switch the
-// victim into the attacker's account (classic session-fixation setup).
-// ---------------------------------------------------------------------------
-router.get('/login', (req, res) => {
-  res.send(page('Demo Login', `
-    <h1>Demo Login</h1>
-    <p>This demo login sets your session user. There is <b>no CSRF token</b> on it.</p>
-    <form method="POST" action="/csrf/login">
-      <label>Username: <input name="username" value="mallory" /></label>
-      <button type="submit">Log in</button>
-    </form>
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-router.post('/login', (req, res) => {
-  const username = String(req.body.username || '').trim().slice(0, 40) || 'anonymous';
-  // VULN: login performs a state-changing session switch with no CSRF token.
-  req.session.user = { id: 9000, username, role: 'user' };
-  let flagHtml = '';
-  if (username.toLowerCase() === 'mallory') {
-    // Award only when the forged login genuinely switched the session to mallory.
-    flagHtml = flagBox(award(req, 'csrf', 'login-csrf'));
-  }
-  res.send(page('Demo Login', `
-    <h1>Logged in</h1>
-    ${flagHtml}
-    <p>Your session user is now: <b>${esc(username)}</b>.</p>
-    <p class="dim">If you arrived here from the attacker demo page, that page just
-    switched your identity without you clicking anything.</p>
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-router.get('/attacker-login', (req, res) => {
-  const user = currentUser(req);
-  res.send(page('Free Security Ebook', `
-    <h1>Free security ebook (totally legit site)</h1>
-    <p>While you read this, a hidden form is submitting a login as
-    <b>mallory</b> against the lab...</p>
-    ${user
-      ? `<p>You arrived here as <b>${esc(user.username)}</b>. Watch your session switch.</p>`
-      : '<p>You are not logged in yet. <a href="/csrf/login/alice">Log in as alice first</a>, then come back here.</p>'}
-    <form id="evil" method="POST" action="/csrf/login">
-      <input type="hidden" name="username" value="mallory" />
-    </form>
-    <script>document.getElementById('evil').submit();</script>
-    ${hintBox('Login CSRF lets the attacker choose which account the victim ends up in. Combined with a password the attacker knows, every subsequent login the victim performs can be observed.')}
-    <p><a href="/csrf">Back to the CSRF module</a> (check who you are logged in as)</p>
-  `));
-});
-
-// ---------------------------------------------------------------------------
-// v6: password change over multipart/form-data, no token.
-// VULN: the endpoint parses multipart bodies and checks no CSRF token, so a
-// plain cross-site form with enctype="multipart/form-data" can submit it.
-// ---------------------------------------------------------------------------
-function parseMultipartField(buf, contentType, fieldName) {
-  const m = /boundary=([^;]+)/i.exec(contentType || '');
-  if (!m) return null;
-  const boundary = '--' + m[1].trim().replace(/^"|"$/g, '');
-  const parts = String(buf).split(boundary);
-  for (const part of parts) {
-    if (part.includes(`name="${fieldName}"`)) {
-      const idx = part.indexOf('\r\n\r\n');
-      if (idx === -1) continue;
-      return part.slice(idx + 4).replace(/\r\n$/, '').trim();
-    }
-  }
-  return null;
-}
-
-router.get('/password-multipart', (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.send(notLoggedInPage());
-  res.send(page('Change Password (multipart)', `
-    <h1>Change Password</h1>
-    ${brief('Challenge', `
-      This password-change API reads <code>multipart/form-data</code> bodies and
-      checks <b>no CSRF token</b>. Developers sometimes assume multipart means
-      "file upload form on our site", but any cross-site page can send a
-      multipart form too - no preflight, cookies attached.
-    `)}
-    <form method="POST" action="/csrf/api/password-multipart" enctype="multipart/form-data">
-      <label>New password: <input type="password" name="password" value="hacked123" /></label>
-      <button type="submit">Change password</button>
-    </form>
-    ${hintBox('The enctype does not protect anything: it is just a body format, and the attacker can use the same format from their own page.')}
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-router.post('/api/password-multipart', express.raw({ type: 'multipart/form-data', limit: '1mb' }), (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.status(401).send(notLoggedInPage());
-  const pw = parseMultipartField(req.body, req.get('content-type'), 'password');
-  if (!pw) {
-    return res.status(400).send(page('Password', '<p>No password field found in the multipart body.</p><p><a href="/csrf/password-multipart">Back</a></p>'));
-  }
-  // VULN: password change via multipart with no CSRF token.
-  getDb().prepare('UPDATE users SET password = ? WHERE id = ?').run(pw, user.id);
-  const flag = award(req, 'csrf', 'multipart-csrf');
-  res.send(page('Password', `
-    <h1>Password changed</h1>
-    ${flagBox(flag)}
-    <p>The account password was changed through a multipart request carrying no token.</p>
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-// ---------------------------------------------------------------------------
 // v7: weak referer check. The app is meant to be served at pentrix.lab, and
 // the check is referer.includes('pentrix.lab'). The attacker controls the
 // referer sent from their own page, so https://evil.com/?pentrix.lab passes.
@@ -550,7 +369,7 @@ router.post('/api/nickname', (req, res) => {
   // Award only when the change came through a forged (non-same-origin) referer.
   const host = req.get('host') || '';
   const sameOrigin = ref.startsWith('http://' + host) || ref.startsWith('https://' + host);
-  const flagHtml = sameOrigin ? '' : flagBox(award(req, 'csrf', 'referer-bypass'));
+  const flagHtml = sameOrigin ? '' : flagBox(award(req, 'csrf', 'referer-bypass')) + fixPanel('csrf', 'referer-bypass');
   res.send(page('Nickname', `
     <h1>Nickname changed</h1>
     ${flagHtml}
@@ -559,111 +378,6 @@ router.post('/api/nickname', (req, res) => {
   `));
 });
 
-// ---------------------------------------------------------------------------
-// v8: password change via GET, no token. Same flaw class as the email lab, a
-// different target: a forged link or image tag changes the victim's password.
-// VULN: state-changing action accepts GET, and no anti-CSRF token is checked.
-// ---------------------------------------------------------------------------
-router.get('/change-password', (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.send(notLoggedInPage());
-
-  const password = req.query.password === undefined ? null : String(req.query.password);
-
-  if (password === null) {
-    return res.send(page('Change Password', `
-      <h1>Change Password</h1>
-      ${brief('Challenge', `
-        This settings page changes the logged-in account's password with a
-        <b>plain GET request</b> and <b>no CSRF token</b>. Any site the victim
-        visits can change their password for them, e.g. with a hidden
-        <code>&lt;img src="/csrf/change-password?password=hacked123"&gt;</code>
-        tag. The attacker then logs in with the known password.
-      `)}
-      <form method="get" action="/csrf/change-password">
-        <label>New password: <input name="password" value="hacked123" /></label>
-        <button type="submit">Change password</button>
-      </form>
-      <p class="dim">Simulated attacker link:
-        <a href="/csrf/change-password?password=hacked123">/csrf/change-password?password=hacked123</a>
-      </p>
-      ${hintBox('GET requests are meant to be safe and repeatable. Browsers prefetch them, proxies cache them, and any third-party page can trigger them.')}
-      <p><a href="/csrf">Back to the CSRF module</a></p>
-    `));
-  }
-
-  if (password.trim() === '') {
-    return res.send(page('Change Password', `
-      <h1>Change Password</h1>
-      <p>Password was empty - nothing changed.</p>
-      <p><a href="/csrf/change-password">Try again</a> | <a href="/csrf">Back</a></p>
-    `));
-  }
-
-  // VULN: password change performed over GET with no CSRF token.
-  getDb().prepare('UPDATE users SET password = ? WHERE id = ?').run(password, user.id);
-  const flag = award(req, 'csrf', 'get-passwd-change');
-  res.send(page('Change Password', `
-    <h1>Password changed</h1>
-    ${flagBox(flag)}
-    <p>The account password was changed through a GET request carrying no token.</p>
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-// ---------------------------------------------------------------------------
-// v9: content-type confusion. The endpoint was built for JSON clients, but the
-// urlencoded parser also populates req.body, so a plain cross-site HTML form
-// (no fetch, no preflight) drives this "JSON-only" API.
-// ---------------------------------------------------------------------------
-router.get('/theme', (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.send(notLoggedInPage());
-  const theme = req.session.theme || 'light';
-  res.send(page('Theme Setting', `
-    <h1>Theme Setting (JSON API)</h1>
-    ${brief('Challenge', `
-      <code>POST /csrf/api/theme</code> was built for the app's JavaScript
-      client, which sends <code>Content-Type: application/json</code>. The
-      developers skipped the CSRF token because "only JSON clients call it, and
-      forms cannot send JSON". Wrong: the urlencoded body parser also fills
-      <code>req.body</code>, so a plain cross-site HTML form drives the endpoint
-      just fine. No preflight, cookies attached.
-    `)}
-    <p>Current theme: <b>${esc(theme)}</b></p>
-    <h2>Attack form (plain HTML, no JavaScript)</h2>
-    <form method="POST" action="/csrf/api/theme">
-      <label>Theme: <input name="theme" value="dark" /></label>
-      <button type="submit">Set theme</button>
-    </form>
-    <p class="dim">Intended client:
-    <code>curl -X POST -H 'Content-Type: application/json' -d '{"theme":"dark"}' /csrf/api/theme</code>
-    (works, but earns no flag)</p>
-    ${hintBox('If the server fills req.body from more than one content type, the "JSON-only" assumption is fiction.')}
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-router.post('/api/theme', express.json(), (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.status(401).send(notLoggedInPage());
-  const theme = String((req.body && req.body.theme) || '').slice(0, 20);
-  if (!theme) {
-    return res.status(400).send(page('Theme', '<p>Theme is required.</p><p><a href="/csrf/theme">Back</a></p>'));
-  }
-  // VULN: no CSRF token; urlencoded parser fills req.body so plain forms work on this "JSON" API.
-  req.session.theme = theme;
-  // The flag is for the bypass: a non-JSON content type driving the endpoint.
-  const flagHtml = req.is('application/json') ? '' : flagBox(award(req, 'csrf', 'contenttype-bypass'));
-  res.send(page('Theme', `
-    <h1>Theme updated</h1>
-    ${flagHtml}
-    <p>Theme is now: <b>${esc(theme)}</b></p>
-    <p><a href="/csrf/theme">Back</a></p>
-  `));
-});
-
-// ---------------------------------------------------------------------------
 // v10: HTTP method override smuggling. DELETE is treated as the privileged
 // method (cross-site DELETE needs a CORS preflight), but the app honors a
 // _method=DELETE field on a plain POST, which needs no preflight at all.
@@ -704,6 +418,7 @@ router.post('/account', (req, res) => {
     return res.send(page('Account', `
       <h1>Account deleted</h1>
       ${flagBox(flag)}
+      ${fixPanel('csrf', 'method-override-csrf')}
       <p>The <code>_method=DELETE</code> override on a plain POST triggered the delete path.</p>
       <p><a href="/csrf/account">Back</a></p>
     `));
@@ -726,41 +441,6 @@ router.delete('/account', (req, res) => {
   `));
 });
 
-// ---------------------------------------------------------------------------
-// v11: disabling 2FA via a GET link, no token. One click (or one image load)
-// on an attacker page silently strips the victim's second factor.
-// VULN: security-sensitive state change over GET with no CSRF token.
-// ---------------------------------------------------------------------------
-router.get('/2fa', (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.send(notLoggedInPage());
-  const on = req.session.twofa !== false;
-  res.send(page('Two-Factor Auth', `
-    <h1>Two-Factor Authentication</h1>
-    <p>Status: <b>${on ? 'ENABLED' : 'DISABLED'}</b></p>
-    ${on
-      ? '<p><a href="/csrf/2fa/disable">Disable 2FA</a> (this link is the vulnerability)</p>'
-      : '<p class="dim">2FA is off. It resets when your session resets.</p>'}
-    ${hintBox('Disabling 2FA is a GET request with no token: an attacker link or image tag turns it off silently.')}
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-router.get('/2fa/disable', (req, res) => {
-  const user = currentUser(req);
-  if (!user) return res.send(notLoggedInPage());
-  // VULN: security-sensitive state change performed over GET with no CSRF token.
-  req.session.twofa = false;
-  const flag = award(req, 'csrf', '2fa-disable-get');
-  res.send(page('Two-Factor Auth', `
-    <h1>2FA disabled</h1>
-    ${flagBox(flag)}
-    <p>Two-factor authentication is now off for your account.</p>
-    <p><a href="/csrf">Back to the CSRF module</a></p>
-  `));
-});
-
-// ---------------------------------------------------------------------------
 // Module index page
 // ---------------------------------------------------------------------------
 router.get('/', (req, res) => {
@@ -787,14 +467,12 @@ router.get('/', (req, res) => {
       an attacker can forge that request from their own page - a link, an
       <code>&lt;img&gt;</code> tag, a hidden auto-submitting form - and your
       browser will happily execute it while you are logged in.
-      <br><br><b>Open redirects</b> are the social-engineering cousin: the app
-      redirects to an unvalidated URL, so phishing links can wear a trusted
-      domain as a disguise.
       <br><br><b>Clickjacking</b> layers the attack visually: a page that sends
       no <code>X-Frame-Options</code> header can be embedded in an invisible
       <code>&lt;iframe&gt;</code> on an attacker's site, so your clicks land on
       buttons you never saw.
     `)}
+    ${trackBanner(module.exports)}
     ${loginHtml}
     <h2>Challenges</h2>
     <table>
@@ -806,10 +484,12 @@ router.get('/', (req, res) => {
 
 module.exports = {
   id: 'csrf',
-  name: 'CSRF & Open Redirect',
-  tagline: 'Forge cross-site requests, redirect anywhere, and frame the unframeable.',
-  description: 'Learn how state-changing GET requests with no CSRF token let attackers act as you, how unvalidated redirects launder phishing links, and how a missing X-Frame-Options header enables clickjacking.',
+  name: 'CSRF & Clickjacking',
+  tagline: 'Forge cross-site requests and frame the unframeable.',
+  description: 'Learn how state-changing requests with no CSRF token let attackers act as you, how content-type confusion smuggles simple requests into JSON APIs, and how a missing X-Frame-Options header enables clickjacking.',
   difficulty: 'Beginner',
+  track: 'Foundations',
+  prerequisites: ['xss'],
   vulns: VULNS,
   router,
 };

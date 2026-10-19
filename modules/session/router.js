@@ -7,7 +7,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -92,7 +92,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -113,7 +114,7 @@ router.get('/', (req, res) => {
     <h2>Challenges</h2>
     ${rows}
   `));
-});
+})
 
 // ------------------------------------------------------- v1: session fixation
 router.get('/fixation', (req, res) => {
@@ -155,7 +156,7 @@ router.post('/fixation/login', (req, res) => {
       session id chosen before login (<code>${esc(preset)}</code>), and the server
       kept it after you authenticated as admin. An attacker who set that cookie in
       your browser now shares your session.</p></div>
-      ${flagBox(flag)}`;
+      ${flagBox(flag)}${fixPanel('session', 'fixation')}`;
   } else if (!preset) {
     body += `<p class="note">You logged in without a pre-set session id, so a fresh
     one was issued. Fix the session id first (step 1), then log in again.</p>`;
@@ -226,6 +227,7 @@ router.get('/logoutdemo/secret', (req, res) => {
     <div class="warn"><p><b>Logout bypass confirmed.</b> You logged out, but the
     server kept your session alive, and the old cookie still opens the admin page.</p></div>
     ${flagBox(flag)}
+    ${fixPanel('session', 'logout')}
     <p><a href="/session">Back to the Session module</a></p>`));
 });
 
@@ -271,6 +273,7 @@ router.get('/predictable/admin', (req, res) => {
     <h2>Welcome, admin</h2>
     <p>You guessed the admin's sequential session id and hijacked the session.</p>
     ${flagBox(flag)}
+    ${fixPanel('session', 'predictable')}
     <p><a href="/session">Back to the Session module</a></p>`));
 });
 
@@ -316,7 +319,7 @@ router.get('/urldemo/home', (req, res) => {
     body += `
       <div class="warn"><p><b>Session stolen from the proxy log.</b> The admin's
       sid leaked through a logged URL, and you replayed it.</p></div>
-      ${flagBox(flag)}`;
+      ${flagBox(flag)}${fixPanel('session', 'url')}`;
   }
   body += `<p><a href="/session">Back to the Session module</a></p>`;
   res.send(page('Home (sid in URL)', body));
@@ -373,6 +376,7 @@ router.get('/legacy-admin', (req, res) => {
       <p>Session age: about <b>${Math.floor(ageMs / (365 * 24 * 3600 * 1000))} years</b>.
       Still accepted, because sessions live for 10 years.</p>
       ${flagBox(flag)}
+      ${fixPanel('session', 'never-expires')}
       <p><a href="/session">Back to the Session module</a></p>`));
   }
   res.status(403).send(denied('Session expired.'));
@@ -412,6 +416,7 @@ router.get('/leak-admin', (req, res) => {
     <h2>Welcome, admin</h2>
     <p>You lifted the admin's session id out of the debug log and replayed it.</p>
     ${flagBox(flag)}
+    ${fixPanel('session', 'log-leak')}
     <p><a href="/session">Back to the Session module</a></p>`));
 });
 
@@ -420,13 +425,17 @@ module.exports = {
   name: 'Session Management',
   tagline: 'Fixate, predict, steal, and replay sessions: six ways login state breaks.',
   description: 'Authentication does not end at the login form. These six labs attack the session layer itself: fixation, broken logout, predictable ids, ids in URLs and logs, and sessions that never die.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Auth and Sessions',
+  prerequisites: ['auth'],
   vulns: [
     {
       id: 'fixation',
       name: 'Session Fixation',
       difficulty: 'Medium',
       hint: 'The server keeps whatever session id you arrived with, even across login. Set the victim\'s cookie to a value you chose, then let them log in.',
+      hints: ["Log in, then check your session id. Did it change from before login?", "The pre-login sid is kept after login. Fixate a victim's sid, wait for their login, then use it.", "Get a sid, don't log in. Have the 'victim' (or yourself in another browser) log in with that sid. The sid is now authed."],
+      tools: "B, DT",
       how: 'Fix the lab_sid cookie to a known value, log in as admin, and confirm the sid did not change.',
     },
     {
@@ -434,6 +443,8 @@ module.exports = {
       name: 'Logout Does Not Destroy the Session',
       difficulty: 'Easy',
       hint: 'Logging out should kill the server-side session. Here it only shows you a goodbye page. Replay the old cookie.',
+      hints: ["Log out, then try your old cookie on the admin page. What happens?", "Logout flips a flag but the old cookie still works. The session isn't invalidated server-side.", "Login, save the cookie, logout, then replay the old cookie."],
+      tools: "B, DT",
       how: 'Log in as admin, visit the logout link, then revisit the secret admin page with the same cookie.',
     },
     {
@@ -441,6 +452,8 @@ module.exports = {
       name: 'Predictable Session IDs',
       difficulty: 'Medium',
       hint: 'Session ids are sequential integers. The demo page shows your id and the admin\'s id right next to each other. Do the math.',
+      hints: ["Session ids are sequential. If you're user 5, what is the admin's sid?", "Predictable ids: read the pattern, compute the admin's sid, replay it.", "Observe your sid, guess the admin's (e.g. sid-1), and present it."],
+      tools: "B, DT",
       how: 'Read the admin\'s session id off the demo page, set it as your lab_sid cookie, and open the admin panel.',
     },
     {
@@ -448,6 +461,8 @@ module.exports = {
       name: 'Session ID in the URL',
       difficulty: 'Easy',
       hint: 'Session ids in URLs get logged, bookmarked, and shared. The corporate proxy log records every URL, including the admin\'s.',
+      hints: ["The sid is in the URL. Where do URLs end up?", "Proxy logs, browser history, referer headers. The sid leaks.", "Find the sid in the 'proxy log' page, then replay it."],
+      tools: "B, DT",
       how: 'Find the admin\'s sid in the proxy log and open their home URL with it.',
     },
     {
@@ -455,6 +470,8 @@ module.exports = {
       name: 'Sessions Never Expire',
       difficulty: 'Easy',
       hint: 'Sessions live for 10 years here. The archive keeps a decade-old admin session, and it still works.',
+      hints: ["The session lasts 10 years. What about an old archived sid?", "A leaked old sid still works. Expiry is the only thing that kills sessions.", "Use the archived admin sid from the hints. It's still valid."],
+      tools: "B, DT",
       how: 'Copy the archived admin session id, set it as your lab_sid cookie, and open the legacy admin panel.',
     },
     {
@@ -462,6 +479,8 @@ module.exports = {
       name: 'Session ID in Debug Log',
       difficulty: 'Easy',
       hint: 'Verbose debug logs print session ids. The log viewer is one click away, and the admin\'s sid is in there.',
+      hints: ["The debug log writes session ids. Can you read the log?", "Verbose logs include the sid. Read the log, extract the admin's sid, replay it.", "Open the debug log, find the admin sid, and present it."],
+      tools: "B, DT",
       how: 'Read the admin\'s sid from the debug log, replay it as your cookie, and open the admin panel.',
     },
   ],

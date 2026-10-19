@@ -1,13 +1,12 @@
 // PenTrix VulnLab module: Open Redirect (redirect)
-// Six labs built around one idea: the server decides where the browser goes
+// Five labs built around one idea: the server decides where the browser goes
 // next, but lets the attacker choose the destination. Covers protocol-relative
 // URLs, dangerous schemes in the Location header, a naive allowlist beaten by
-// backslashes, OAuth code theft through an unvalidated redirect_uri, and
-// parameter pollution where the last ?next= value wins.
+// backslashes, and parameter pollution where the last ?next= value wins.
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -20,7 +19,6 @@ const PAGE_FOR = {
   'redirect-javascript': 'js',
   'redirect-data': 'data',
   'redirect-backslash': 'trusted',
-  'redirect-oauth-theft': 'oauth/authorize',
   'redirect-pollution': 'polluted',
 };
 
@@ -60,10 +58,7 @@ domain, but the victim lands on the attacker's page.</p>
 <p><b>How to verify in this module:</b> every lab answers with a real HTTP 302.
 Use <code>curl -i</code> and read the <code>Location</code> header. That header is
 the proof of where the browser would go. A flag is awarded only when the evil
-destination is genuinely honored.</p>
-<p><b>The OAuth lab</b> chains several steps: simulate the victim login, authorize
-with an attacker <code>redirect_uri</code>, then catch the stolen code at the
-in-lab attacker collector <code>/redirect/evil-collect</code>.</p>`;
+destination is genuinely honored.</p>`;
 
 // ---------------------------------------------------------------- index page
 router.get('/', (req, res) => {
@@ -76,7 +71,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -86,7 +82,7 @@ router.get('/', (req, res) => {
     <h2>Challenges</h2>
     ${rows}
   `));
-});
+})
 
 // ----------------------------------------------- v1: protocol-relative URL
 router.get('/go', (req, res) => {
@@ -107,7 +103,7 @@ router.get('/go', (req, res) => {
     const flag = award(req, 'redirect', 'redirect-double-slash');
     flagHtml = `<hr /><p>A protocol-relative URL was honored: the browser keeps the
       current scheme (<code>http:</code> or <code>https:</code>) but navigates to
-      the attacker's host.</p>${flagBox(flag)}`;
+      the attacker's host.</p>${flagBox(flag)}${fixPanel('redirect', 'redirect-double-slash')}`;
   }
   sendRedirect(res, target, `
     <h2>Redirecting...</h2>
@@ -138,7 +134,7 @@ router.get('/js', (req, res) => {
     flagHtml = `<hr /><p>The server honored a <code>javascript:</code> URL in the
       <code>Location</code> header. Older browsers execute it in the context of
       the trusted site; modern ones still leak it into logs, referers, and
-      link previews.</p>${flagBox(flag)}`;
+      link previews.</p>${flagBox(flag)}${fixPanel('redirect', 'redirect-javascript')}`;
   }
   sendRedirect(res, target, `
     <h2>Redirecting...</h2>
@@ -168,7 +164,7 @@ router.get('/data', (req, res) => {
     const flag = award(req, 'redirect', 'redirect-data');
     flagHtml = `<hr /><p>The server honored a <code>data:</code> URL in the
       <code>Location</code> header. A <code>data:text/html</code> URL smuggles a
-      whole attacker-controlled document through the redirect.</p>${flagBox(flag)}`;
+      whole attacker-controlled document through the redirect.</p>${flagBox(flag)}${fixPanel('redirect', 'redirect-data')}`;
   }
   sendRedirect(res, target, `
     <h2>Redirecting...</h2>
@@ -216,7 +212,7 @@ router.get('/trusted', (req, res) => {
     const flag = award(req, 'redirect', 'redirect-backslash');
     flagHtml = `<hr /><p>The naive check passed, but the parsed hostname is
       <code>${esc(host)}</code>, not <code>pentrix.lab</code>. The browser would
-      navigate to the attacker's site.</p>${flagBox(flag)}`;
+      navigate to the attacker's site.</p>${flagBox(flag)}${fixPanel('redirect', 'redirect-backslash')}`;
   }
   sendRedirect(res, target, `
     <h2>Redirecting...</h2>
@@ -226,105 +222,6 @@ router.get('/trusted', (req, res) => {
     ${flagHtml}
     <p><a href="/redirect/trusted">Try another value</a> | <a href="/redirect">Back to the module</a></p>
   `);
-});
-
-// -------------------------------------------- v5: OAuth code theft (chained)
-router.get('/oauth/authorize', (req, res) => {
-  const clientId = String(req.query.client_id || 'pentrix-app');
-  const redirectUri = String(req.query.redirect_uri || '');
-  if (!redirectUri) {
-    return res.status(400).send(page('OAuth authorize', `
-      <p>Missing <code>redirect_uri</code>.</p>
-      <p><a href="/redirect">Back to the module</a></p>
-    `));
-  }
-  if (!req.session.oauthVictim) {
-    const then = encodeURIComponent(req.originalUrl);
-    return res.send(page('OAuth authorize', `
-      <h2>Pentrix OAuth</h2>
-      <p>App <b>${esc(clientId)}</b> is requesting access, but nobody is logged in.</p>
-      <p><a href="/redirect/oauth/victim-login?then=${then}">Log in as the victim (alice) to continue the demo</a></p>
-      <p class="note">In a real attack the victim is already logged in; this button
-      only simulates their session for the lab.</p>
-      <p><a href="/redirect">Back to the module</a></p>
-    `));
-  }
-  res.send(page('OAuth authorize', `
-    <h2>Pentrix OAuth</h2>
-    <p>Logged in as victim <b>${esc(req.session.oauthVictim)}</b>.</p>
-    <p>App <b>${esc(clientId)}</b> wants read access to the victim's account.</p>
-    <p>After approval the code will be sent to:<br />
-    <code>${esc(redirectUri)}</code></p>
-    <form method="POST" action="/redirect/oauth/consent">
-      <input type="hidden" name="client_id" value="${esc(clientId)}" />
-      <input type="hidden" name="redirect_uri" value="${esc(redirectUri)}" />
-      <button type="submit">Authorize app</button>
-    </form>
-    <p class="note">Look at the <code>redirect_uri</code> above. The server never
-    checks it against the app's registered URLs. Point it at
-    <code>/redirect/evil-collect</code> and the victim's code goes to the attacker.</p>
-  `));
-});
-
-router.get('/oauth/victim-login', (req, res) => {
-  req.session.oauthVictim = 'alice';
-  const then = String(req.query.then || '/redirect/');
-  const safe = then.startsWith('/redirect/') ? then : '/redirect/';
-  res.redirect(safe);
-});
-
-router.post('/oauth/consent', (req, res) => {
-  if (!req.session.oauthVictim) {
-    return res.status(403).send(page('OAuth', '<p>Victim session expired. Start over.</p>'));
-  }
-  const clientId = String(req.body.client_id || 'pentrix-app');
-  const redirectUri = String(req.body.redirect_uri || '');
-  if (!redirectUri) {
-    return res.status(400).send(page('OAuth', '<p>Missing redirect_uri.</p>'));
-  }
-  const code = crypto.randomBytes(16).toString('hex');
-  redirectDb()
-    .prepare('INSERT INTO redirect_codes (code, client_id, victim, redirect_uri) VALUES (?,?,?,?)')
-    .run(code, clientId, req.session.oauthVictim, redirectUri);
-  // VULN: redirect_uri is never validated against the client's registered URLs,
-  // so the authorization code is delivered straight to the attacker's site.
-  const sep = redirectUri.includes('?') ? '&' : '?';
-  const target = redirectUri + sep + 'code=' + code;
-  sendRedirect(res, target, `
-    <h2>Authorized</h2>
-    <p>Code issued for <b>${esc(req.session.oauthVictim)}</b>. Returning to the app...</p>
-    <p><a href="${esc(target)}">Continue</a></p>
-  `);
-});
-
-router.get('/evil-collect', (req, res) => {
-  const code = String(req.query.code || '');
-  const row = code
-    ? redirectDb().prepare('SELECT * FROM redirect_codes WHERE code = ?').get(code)
-    : undefined;
-  if (row) {
-    const flag = award(req, 'redirect', 'redirect-oauth-theft');
-    return res.send(page('Attacker collector', `
-      <h2>Code captured</h2>
-      <p>An OAuth authorization code for victim <b>${esc(row.victim)}</b> just
-      landed on the attacker's page:</p>
-      <pre><code>${esc(code)}</code></pre>
-      <p>The attacker can now exchange it for an access token, because the code
-      was issued for <b>${esc(row.client_id)}</b> and delivered to an
-      unregistered <code>redirect_uri</code>.</p>
-      ${flagBox(flag)}
-      <p><a href="/redirect">Back to the module</a></p>
-    `));
-  }
-  res.send(page('Attacker collector', `
-    <h2>Evil collector</h2>
-    <p>This page belongs to the attacker. It awards the flag when a genuine OAuth
-    code issued by <code>/redirect/oauth/authorize</code> arrives here as
-    <code>?code=...</code>.</p>
-    <p>No code received yet. Run the authorize flow with
-    <code>redirect_uri</code> pointing at this page.</p>
-    <p><a href="/redirect">Back to the module</a></p>
-  `));
 });
 
 // ------------------------------------------------- v6: parameter pollution
@@ -350,7 +247,7 @@ router.get('/polluted', (req, res) => {
     const flag = award(req, 'redirect', 'redirect-pollution');
     flagHtml = `<hr /><p>${vals.length} values were supplied
       (<code>${vals.map((v) => esc(String(v))).join('</code>, <code>')}</code>);
-      the server honored the last one.</p>${flagBox(flag)}`;
+      the server honored the last one.</p>${flagBox(flag)}${fixPanel('redirect', 'redirect-pollution')}`;
   }
   sendRedirect(res, target, `
     <h2>Redirecting...</h2>
@@ -366,13 +263,17 @@ module.exports = {
   name: 'Open Redirect',
   tagline: 'Six open-redirect flaws: from //evil.com to a stolen OAuth code.',
   description: 'Six open-redirect labs: an unvalidated next parameter abused with protocol-relative URLs, javascript: and data: schemes, a naive string-prefix allowlist beaten by backslash separators, a full OAuth authorization-code theft chain through an unvalidated redirect_uri, and parameter pollution where the last ?next= value wins.',
-  difficulty: 'Mixed',
+  difficulty: 'Beginner',
+  track: 'Foundations',
+  prerequisites: ['misconfig'],
   vulns: [
     {
       id: 'redirect-double-slash',
       name: 'Protocol-Relative Redirect',
       difficulty: 'Easy',
       hint: 'The ?next= parameter is passed straight to the redirect with no validation. What does a URL starting with // mean to a browser?',
+      hints: ["The redirector checks if the URL starts with '/'. What about '//evil.com'?", "Protocol-relative URLs start with //. The check sees a leading slash and allows it, but the browser goes to evil.com.", "Try ?next=//evil.com. The Location header points at evil.com."],
+      tools: "B, C",
       how: 'Request /redirect/go?next=//evil.com and confirm the Location header points at evil.com.',
     },
     {
@@ -380,6 +281,8 @@ module.exports = {
       name: 'javascript: Scheme Honored',
       difficulty: 'Medium',
       hint: 'The redirect puts whatever you give it into the Location header, with no scheme allowlist. Browsers treat javascript: as code, not a page.',
+      hints: ["The redirector puts your input in the Location header. What schemes can a Location have?", "javascript: URLs run code. If the Location is javascript:..., the browser executes it.", "Try ?next=javascript:alert(1). The Location starts with javascript:."],
+      tools: "C",
       how: 'Request /redirect/js?next=javascript:alert(1) and inspect the Location header with curl -i.',
     },
     {
@@ -387,6 +290,8 @@ module.exports = {
       name: 'data: Scheme Honored',
       difficulty: 'Medium',
       hint: 'Same sink, different scheme: data: URLs let you smuggle a whole HTML document through the redirect.',
+      hints: ["data: URLs can hold HTML. What if the redirect goes to one?", "A data:text/html URL renders as a page. It's a redirect to attacker content.", "Try ?next=data:text/html,<script>alert(1)</script>."],
+      tools: "C",
       how: 'Request /redirect/data?next=data:text/html,<script>alert(1)</script> (URL-encoded) and check the Location header.',
     },
     {
@@ -394,20 +299,17 @@ module.exports = {
       name: 'Backslash Allowlist Bypass',
       difficulty: 'Medium',
       hint: 'The code allowlists URLs starting with https://pentrix.lab, but compares the raw string and accepts backslashes as separators. Browsers normalize backslash to slash.',
+      hints: ["The allowlist checks for 'https://'. But URLs can use backslashes too.", "https:\\evil.com: the check sees 'https:' and allows it, but the browser treats \\ as / and goes to evil.com.", "Try ?next=https:\\\\evil.com. The host is evil.com."],
+      tools: "C",
       how: 'Pass ?next=https:%5C%5Cevil.com (https:\\\\evil.com URL-encoded) to /redirect/trusted and watch the check pass.',
-    },
-    {
-      id: 'redirect-oauth-theft',
-      name: 'OAuth Code Theft via redirect_uri',
-      difficulty: 'Hard',
-      hint: 'The authorize endpoint never validates redirect_uri against the registered app. Make the victim\'s code go to your collector.',
-      how: 'Chain victim-login, authorize with redirect_uri pointing at /redirect/evil-collect, approve, and catch the code there.',
     },
     {
       id: 'redirect-pollution',
       name: 'Parameter Pollution Picks Last',
       difficulty: 'Medium',
       hint: 'When ?next= appears twice, the server silently honors the last value. The first one is just camouflage.',
+      hints: ["The endpoint takes ?next=. What if next appears twice?", "Duplicate parameters: the validator checks the first, but the redirect uses the last.", "Try ?next=safe&next=https://evil.com. The Location has the evil host."],
+      tools: "C",
       how: 'Request /redirect/polluted?next=safe&next=https://evil.com and check which value lands in the Location header.',
     },
   ],

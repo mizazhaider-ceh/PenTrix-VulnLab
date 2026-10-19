@@ -1,0 +1,38 @@
+WARNING: Ignored `filter:blur(80px)` at 19:66, unknown property.
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 23:1
+WARNING: Ignored `position:sticky` at 24:9, invalid value.
+WARNING: Ignored `backdrop-filter:blur(20px)` at 24:227, unknown property.
+WARNING: Ignored `backdrop-filter:blur(20px)` at 34:40, unknown property.
+WARNING: Unknown rule <AtRule @supports … { … }> at 36:1
+WARNING: Invalid or unsupported selector, '.clay-input::placeholder', unknown pseudo-element: placeholder
+WARNING: Ignored `backdrop-filter:blur(20px)` at 68:107, unknown property.
+WARNING: Expected a media type, got '(min-width:720px)'
+WARNING: Invalid media type '(min-width:720px)' the whole @media rule was ignored at 101:1.
+WARNING: Expected a media type, got '(max-width:719px)'
+WARNING: Invalid media type '(max-width:719px)' the whole @media rule was ignored at 102:1.
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 117:1
+WARNING: Invalid or unsupported selector, '.hint summary::-webkit-details-marker'
+WARNING: Ignored `word-break:break-word` at 139:125, invalid value.
+WARNING: Ignored `overflow-x:auto` at 144:134, unknown property.
+WARNING: Unknown rule <AtRule @supports … { … }> at 170:1
+WARNING: Expected a media type, got '(prefers-reduced-motion:reduce)'
+WARNING: Invalid media type '(prefers-reduced-motion:reduce)' the whole @media rule was ignored at 176:1.
+WARNING: Expected a media type, got '(min-width:720px)'
+WARNING: Invalid media type '(min-width:720px)' the whole @media rule was ignored at 177:1.
+WARNING: Expected a media type, got '(max-width:719px)'
+WARNING: Invalid media type '(max-width:719px)' the whole @media rule was ignored at 178:1.
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 199:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 200:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 201:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 202:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 225:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 228:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 232:1
+WARNING: Unknown rule <AtRule @keyframes … { … }> at 237:1
+WARNING: Expected a media type, got '(prefers-reduced-motion:reduce)'
+WARNING: Invalid media type '(prefers-reduced-motion:reduce)' the whole @media rule was ignored at 242:1.
+WARNING: Expected a media type, got '(max-width:480px)'
+WARNING: Invalid media type '(max-width:480px)' the whole @media rule was ignored at 248:1.
+WARNING: Expected a media type, got '(hover:none)'
+WARNING: Invalid media type '(hover:none)' the whole @media rule was ignored at 257:1.
+ERROR: No anchor #beacon-help for internal URI reference

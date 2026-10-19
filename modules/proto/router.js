@@ -3,7 +3,7 @@
 // JSON bodies) into config objects. Every challenge abuses a different way
 // to smuggle __proto__ / constructor / prototype past the merge.
 const express = require('express');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -109,7 +109,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -120,7 +121,7 @@ router.get('/', (req, res) => {
     <p class="note">Tip: pollution is process-wide once it lands. If a check
     passes "for free", restart the lab server for a clean slate.</p>
   `));
-});
+})
 
 // ------------------------------------------------- v1: query-string pollution
 router.get('/query', (req, res) => {
@@ -157,6 +158,7 @@ router.get('/query/admin', (req, res) => {
       <p>A fresh <code>{}</code> just passed the <code>role === 'admin'</code>
       check. <code>Object.prototype.role</code> is polluted.</p>
       ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-query')}
       <p><a href="/proto">Back to the module</a></p>
     `));
   }
@@ -209,6 +211,7 @@ router.get('/json/admin', (req, res) => {
       <p>A fresh <code>{}</code> just passed the <code>role === 'admin'</code>
       check. The JSON body polluted <code>Object.prototype</code>.</p>
       ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-json')}
       <p><a href="/proto">Back to the module</a></p>
     `));
   }
@@ -257,6 +260,7 @@ router.get('/constructor/admin', (req, res) => {
       <code>constructor.prototype</code>, dodging the <code>__proto__</code>
       blacklist. A fresh <code>{}</code> now reads <code>role = 'admin'</code>.</p>
       ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-constructor')}
       <p><a href="/proto">Back to the module</a></p>
     `));
   }
@@ -290,6 +294,7 @@ router.get('/dos', (req, res) => {
       <p>You polluted <code>toString</code> on the widget's prototype scope, so
       string coercion exploded. Denial of service demonstrated.</p>
       ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-dos')}
       <p><a href="/proto/dos">Reload a fresh widget</a></p>
     `));
   }
@@ -398,6 +403,7 @@ router.get('/client/claim', (req, res) => {
       <code>{}</code> in the browser: client-side <code>Object.prototype</code>
       pollution confirmed.</p>
       ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-client')}
       <p><a href="/proto">Back to the module</a></p>
     `));
   }
@@ -468,6 +474,7 @@ router.get('/unicode/admin', (req, res) => {
       and <code>JSON.parse</code> rebuilt the forbidden key. A fresh
       <code>{}</code> now reads <code>role = 'admin'</code>.</p>
       ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-unicode-bypass')}
       <p><a href="/proto">Back to the module</a></p>
     `));
   }
@@ -484,13 +491,17 @@ module.exports = {
   name: 'Prototype Pollution',
   tagline: 'Smuggle magic keys through a naive recursive merge and turn Object.prototype into a privilege escalation.',
   description: 'A hand-rolled deep merge folds attacker input into config objects without filtering keys. Pollute Object.prototype through query strings, JSON bodies, constructor.prototype, unicode escapes, and even in the victim browser, then watch fresh objects inherit your values.',
-  difficulty: 'Mixed',
+  difficulty: 'Advanced',
+  track: 'Advanced',
+  prerequisites: ['xss', 'sqli'],
   vulns: [
     {
       id: 'proto-query',
       name: 'Query-String Pollution',
       difficulty: 'Medium',
       hint: 'The merge endpoint folds every query parameter into the app config. What happens when a parameter is named __proto__[role]?',
+      hints: ["Query params are deep-merged into config. What happens with ?__proto__[role]=admin?", "The merge pollutes Object.prototype. Every object now has role=admin.", "Try ?__proto__[role]=admin, then check the admin panel."],
+      tools: "B, C",
       how: 'Pollute Object.prototype.role via the query string, then open the admin check.',
       path: '/proto/query',
     },
@@ -499,6 +510,8 @@ module.exports = {
       name: 'JSON Body Pollution',
       difficulty: 'Medium',
       hint: 'The merge endpoint accepts a JSON body. JSON.parse happily creates an own property literally named __proto__.',
+      hints: ["The JSON body is deep-merged with no key filtering. Same idea as query, different vector.", "Send {\"__proto__\": {\"role\": \"admin\"}} as JSON. The prototype is polluted.", "POST the JSON body and check admin access."],
+      tools: "C",
       how: 'POST {"__proto__":{"role":"admin"}} to the merge endpoint, then open the admin check.',
       path: '/proto/json',
     },
@@ -507,6 +520,8 @@ module.exports = {
       name: 'Blacklist Bypass via constructor',
       difficulty: 'Medium',
       hint: 'Keys containing the literal string __proto__ are dropped. But the prototype chain has more than one entrance.',
+      hints: ["The filter blocks __proto__. But there's another path to the prototype.", "constructor.prototype. __proto__ is just one spelling.", "Try ?constructor[prototype][role]=admin."],
+      tools: "C",
       how: 'Reach Object.prototype through constructor/prototype instead, then open the admin check.',
       path: '/proto/constructor',
     },
@@ -515,6 +530,8 @@ module.exports = {
       name: 'Polluting toString',
       difficulty: 'Easy',
       hint: 'The widget page stringifies an object whose prototype you control. What if toString stopped being a function?',
+      hints: ["Polluting toString breaks the widget. What happens when toString isn't a function?", "The render crashes. It's a DoS via prototype pollution.", "Pollute __proto__[toString] and load the widget. Crash = flag."],
+      tools: "B",
       how: 'Pollute toString on the widget scope so the render crashes; the crash page awards the flag.',
       path: '/proto/dos',
     },
@@ -523,6 +540,8 @@ module.exports = {
       name: 'Client-Side Pollution',
       difficulty: 'Easy',
       hint: 'All the merging happens in your browser, not on the server. Open the demo link and watch the theme box change color.',
+      hints: ["The client-side code reads ?__proto__[theme] and merges it. Client-side pollution.", "The browser's Object.prototype gets polluted. The page renders the polluted value.", "Open ?__proto__[theme]=pwned and see it reflected."],
+      tools: "B",
       how: 'Load the page with a __proto__[theme] parameter so it renders the polluted value; the page reports it for the flag.',
       path: '/proto/client',
     },
@@ -531,6 +550,8 @@ module.exports = {
       name: 'Unicode Escape Bypass',
       difficulty: 'Hard',
       hint: 'The blacklist scans the raw JSON text for __proto__. JSON string escapes are decoded after that scan.',
+      hints: ["The blacklist blocks '_' as text. But \\u005f is also underscore.", "Unicode escapes bypass text filters. The JSON parser decodes them.", "Send {\"__proto__\": ...} with \\u005f escapes for the underscores."],
+      tools: "C",
       how: 'Smuggle the key past the blacklist with \\u005f escapes, then open the admin check.',
       path: '/proto/unicode',
     },

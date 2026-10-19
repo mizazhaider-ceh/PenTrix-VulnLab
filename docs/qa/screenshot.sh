@@ -42,7 +42,7 @@ html = re.sub(r'<link[^>]+href=["\']([^"\']+\.css)["\'][^>]*>', inline_css, html
 open(html_path, 'w', encoding='utf-8').write(html)
 EOF
 
-if ! weasyprint "$HTML" "$PDF" 2>"$OUTDIR/$NAME.weasy.log"; then
+if ! python3 -m weasyprint "$HTML" "$PDF" 2>"$OUTDIR/$NAME.weasy.log"; then
   echo "weasyprint failed, see $OUTDIR/$NAME.weasy.log"
   exit 1
 fi

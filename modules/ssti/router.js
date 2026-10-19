@@ -1,5 +1,5 @@
 const express = require('express');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, flagFor } = require('../../lib/flags');
 
 const router = express.Router();
@@ -10,30 +10,28 @@ const VULNS = [
     name: 'Basic Template Injection',
     difficulty: 'Medium',
     hint: 'The greeting is built with a naive template engine: anything you put inside {{ }} gets evaluated. Start by proving it with simple arithmetic, for example name={{7*7}}.',
+    hints: ["The greeting shows your name. What happens if your name is {{7*7}}?", "The template engine evaluates {{ }} server-side. 7*7=49 proves code execution.", "Submit name={{7*7}}. If you see 49, it's SSTI."],
+    tools: "B, C",
     how: 'Submit name={{7*7}} so the evaluated expression (49) appears in the greeting.',
     link: '/ssti/greet',
   },
   {
     id: 'rce',
-    name: 'Flag Extraction via Scope Leak',
+    name: 'Scope Leak (Data Exposure, Not RCE)',
     difficulty: 'Medium',
     hint: 'Once you know {{ }} is evaluated, ask yourself: what server-side variables are in scope when the expression runs? Probe for a variable that holds the flag, e.g. name={{secretFlag}}.',
+    hints: ["Once {{ }} evaluates, what variables are in scope when it runs?", "The template runs with server variables in scope. Probe for one holding the flag, like {{secretFlag}}.", "Submit name={{secretFlag}} to read the in-scope variable. (This is a scope leak, not RCE.)"],
+    tools: "B, C",
     how: 'Submit name={{secretFlag}} to evaluate the in-scope variable holding the flag.',
     link: '/ssti/greet',
-  },
-  {
-    id: 'ssti-echo2',
-    name: 'Template Injection on a Second Endpoint',
-    difficulty: 'Easy',
-    hint: 'A second endpoint runs the same naive engine. Prove evaluation with arithmetic first: ?msg={{7*7}}.',
-    how: 'Submit msg={{7*7}} so the evaluated expression (49) appears in the invitation card.',
-    link: '/ssti/card',
   },
   {
     id: 'ssti-wordfilter',
     name: 'Word Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'The words flag, secret and config are deleted from your input. Build the blocked word at run time instead of typing it.',
+    hints: ["The filter blocks words like 'secret'. But strings can be built without typing the word.", "Concatenate: 'sec'+'ret'. Or use template tricks to assemble the blocked word at runtime.", "Submit {{'sec'+'ret'}} or use the filter bypass to reach the flag variable."],
+    tools: "B, C",
     how: 'Use nested eval with string concatenation, e.g. input={{eval("vaultSec"+"ret")}}, to read the filtered variable name.',
     link: '/ssti/wordfilter',
   },
@@ -42,6 +40,8 @@ const VULNS = [
     name: 'Underscore Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'Underscores are deleted from your input. JavaScript can build any character from its code: String.fromCharCode(95) is _.',
+    hints: ["Underscores are blocked. But every character has a char code.", "String.fromCharCode(95) is '_'. Build the underscore without typing it.", "Use {{'sec'+String.fromCharCode(95)+'ret'}} or similar to bypass."],
+    tools: "B, C",
     how: 'Evaluate the variable name assembled at run time, e.g. input={{eval("db"+String.fromCharCode(95)+"pass")}}.',
     link: '/ssti/nounderscore',
   },
@@ -50,6 +50,8 @@ const VULNS = [
     name: 'Bracket Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'Brackets are deleted and the object key has a dash, so neither indexing nor dot access works directly. Dump the whole object instead.',
+    hints: ["Brackets [] are blocked. But objects have other ways to access properties.", "Use dot notation or JSON.stringify to inspect objects without brackets.", "Try {{config.secret}} with dots, or {{JSON.stringify(config)}} to dump."],
+    tools: "B, C",
     how: 'Serialize the object to text, e.g. input={{JSON.stringify(cfg)}}, to reveal the flag without indexing.',
     link: '/ssti/nobrackets',
   },
@@ -58,6 +60,8 @@ const VULNS = [
     name: 'Dot Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'Dots are deleted from your input. JavaScript has a second property-access syntax that uses no dots.',
+    hints: ["Dots are blocked. But property access has two syntaxes.", "Bracket notation: config['secret'] works where config.secret is blocked.", "Submit {{config['secret']}}."],
+    tools: "B, C",
     how: 'Use bracket notation, e.g. input={{db["key"]}}, to read the property without a dot.',
     link: '/ssti/dotblock',
   },
@@ -66,6 +70,8 @@ const VULNS = [
     name: 'Curly-Brace Strip Bypass',
     difficulty: 'Medium',
     hint: 'The filter removes the first {{ and the first }} only, once each. Feed it more braces than it can strip.',
+    hints: ["The filter strips {{ and }}. What happens if you double them?", "Single-strip: {{{{}}}} becomes {{}} after one removal. The filter doesn't re-scan.", "Submit {{{{7*7}}}}. After stripping, {{7*7}} remains and evaluates."],
+    tools: "B, C",
     how: 'Double the braces, e.g. input={{{{7*7}}}}, so one stripped pair leaves a working {{7*7}} behind.',
     link: '/ssti/curly',
   },
@@ -74,6 +80,8 @@ const VULNS = [
     name: 'Quote Blacklist Bypass',
     difficulty: 'Hard',
     hint: 'Quotes are deleted and the variable name is blocked as a word. Spell the name with character codes and evaluate the result.',
+    hints: ["Quotes are blocked. But strings can be built from char codes.", "String.fromCharCode(65,68,77,73,78) builds 'ADMIN' with no quotes. Combine with eval for full bypass.", "Build your payload with fromCharCode and eval to read the flag."],
+    tools: "B, C",
     how: 'Use eval with String.fromCharCode, e.g. input={{eval(String.fromCharCode(118,97,117,108,116,75,101,121))}}, to reference vaultKey without quotes.',
     link: '/ssti/noquotes',
   },
@@ -82,6 +90,8 @@ const VULNS = [
     name: 'SSTI to Remote Code Execution',
     difficulty: 'Hard',
     hint: 'There is no sandbox: expressions run in Node.js with require() in scope. Reach child_process and run a system command.',
+    hints: ["The template scope includes require(). What can you require?", "require('child_process') gives you exec. This is SSTI to real RCE.", "Submit {{require('child_process').execSync('id').toString()}} and look for uid= in the output."],
+    tools: "B, C",
     how: 'Execute expr={{require("child_process").execSync("id").toString()}} and read the uid= output.',
     link: '/ssti/exec',
   },
@@ -92,7 +102,8 @@ router.get('/', (req, res) => {
     <tr>
       <td><a href="${v.link}"><strong>${esc(v.name)}</strong></a></td>
       <td>${esc(v.difficulty)}</td>
-      <td>${hintBox(v.hint)}</td>
+      <td>${hintLadder(v)}
+      ${toolsPill(v)}</td>
     </tr>`).join('');
 
   res.send(page('Server-Side Template Injection', `
@@ -101,6 +112,7 @@ router.get('/', (req, res) => {
       `it takes the string <code>Hello &lt;your name&gt;!</code> and evaluates anything inside <code>{{ }}</code> as code.</p>` +
       `<p><strong>Escalation path:</strong> first prove evaluation works with <code>{{7*7}}</code> ` +
       `(you should see <strong>49</strong> in the greeting), then look for variables in scope and try <code>{{secretFlag}}</code>.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     <table class="vuln-table">
       <thead><tr><th>Challenge</th><th>Difficulty</th><th>Hint</th></tr></thead>
@@ -126,9 +138,11 @@ router.get('/greet', (req, res) => {
 
     if (/\{\{.*\}\}/.test(name) && rendered.includes('49')) {
       awardHtml += flagBox(award(req, 'ssti', 'basic'));
+      awardHtml += fixPanel('ssti', 'basic');
     }
     if (rendered.includes(secretFlag)) {
       awardHtml += flagBox(award(req, 'ssti', 'rce'));
+      awardHtml += fixPanel('ssti', 'rce');
     }
   }
 
@@ -176,7 +190,7 @@ function sstiGadget(opts) {
       const rendered = sstiRender(tpl, opts.scope());
       result = `<div class="ssti-result">${rendered}</div>`;
       if (opts.awardCheck(raw, input, rendered)) {
-        awardHtml = flagBox(award(req, 'ssti', opts.vulnId));
+        awardHtml = flagBox(award(req, 'ssti', opts.vulnId)) + fixPanel('ssti', opts.vulnId);
       }
     }
     res.send(page(opts.title, `
@@ -193,16 +207,6 @@ function sstiGadget(opts) {
   });
 }
 
-sstiGadget({
-  route: 'card', vulnId: 'ssti-echo2', title: 'Invitation Card', param: 'msg',
-  briefHtml: `<p>A second greeting endpoint with the same naive template engine: anything inside
-    <code>{{ }}</code> is evaluated server-side. Start with arithmetic.</p>`,
-  hintHtml: 'Try <code>?msg={{7*7}}</code> - if the card shows 49, the expression was evaluated on the server.',
-  template: (i) => `You're invited: ${i}`,
-  filter: (s) => s,
-  scope: () => ({}),
-  awardCheck: (raw, input, rendered) => /\{\{.*\}\}/.test(raw) && rendered.includes('49'),
-});
 
 sstiGadget({
   route: 'wordfilter', vulnId: 'ssti-wordfilter', title: 'Filtered Note', param: 'input',
@@ -299,6 +303,8 @@ module.exports = {
   tagline: 'A greeting card that eval()s your name. Prove it with {{7*7}}, then steal the flag.',
   description: 'The /ssti/greet endpoint renders your name through a naive homemade template engine that evaluates anything inside {{ }} as server-side code. Prove expression evaluation with arithmetic, then escalate to read a secret variable from the template scope.',
   difficulty: 'Intermediate',
+  track: 'Injection',
+  prerequisites: ['sqli', 'xss'],
   vulns: VULNS,
   router,
 };

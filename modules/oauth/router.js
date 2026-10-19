@@ -8,7 +8,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -207,7 +207,7 @@ router.post('/idp/approve', (req, res) => {
     // foreign host. The bypass genuinely succeeded: a code was issued to an
     // attacker-controlled redirect URI.
     if (bypassHost(p.redirect_uri)) {
-      extra = flagBox(award(req, 'oauth', 'redirect-bypass'));
+      extra = flagBox(award(req, 'oauth', 'redirect-bypass')) + fixPanel('oauth', 'redirect-bypass');
     }
     return res.send(page('Authorization granted', `
       <h2>Authorization granted</h2>
@@ -336,7 +336,7 @@ router.get('/client/callback', (req, res) => {
   // VULN: no state check. If this code was minted for the attacker's account,
   // the victim is now logged in to the client AS THE ATTACKER (login CSRF).
   if (rec.ownerId !== sessUserId && sessUserId !== null) {
-    extra = flagBox(award(req, 'oauth', 'no-state')) +
+    extra = flagBox(award(req, 'oauth', 'no-state')) + fixPanel('oauth', 'no-state') +
       `<p class="note"><b>Login CSRF:</b> your IdP session is ` +
       `<b>${esc(idpUser(req) ? idpUser(req).username : '(none)')}</b>, but the client just logged you in as ` +
       `<b>${esc(u.username)}</b>, the owner of the code in the link you visited.</p>`;
@@ -602,7 +602,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -623,6 +624,7 @@ router.get('/', (req, res) => {
       (<a href="/oauth/login/alice">alice</a> = victim, <a href="/oauth/login/bob">bob</a> = attacker,
       <a href="/oauth/login/admin">admin</a>, <a href="/oauth/logout">logout</a>).
       Client session: ${c ? `<b>${esc(c.username)}</b>` : 'not logged in'}.</p>`)}
+    ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -633,13 +635,17 @@ module.exports = {
   name: 'OAuth Flaws',
   tagline: 'Break a miniature OAuth deployment: redirects, codes, tokens, and scopes.',
   description: 'A simulated identity provider and a flawed OAuth client in one module. Eight labs covering the classic OAuth failure modes: redirect URI validation bypass, codes leaked in logs, login CSRF from a missing state parameter, implicit-flow tokens in browser history, scope tampering, the client secret in public JavaScript, code replay, and PKCE downgrade.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Auth and Sessions',
+  prerequisites: ['auth', 'jwt'],
   vulns: [
     {
       id: 'redirect-bypass',
       name: 'Redirect URI Prefix Bypass',
       difficulty: 'Medium',
       hint: 'The IdP checks redirect_uri with a naive prefix match against http://app.pentrix.lab. What string starts with that but points at an attacker host?',
+      hints: ["The redirect_uri check is a naive prefix match. What URIs pass but aren't the real app?", "https://app.pentrix.lab.evil.com starts with the prefix but is attacker-controlled.", "Register the evil URI, authorize, and catch the code."],
+      tools: "B, C",
       how: 'Request an authorization code with redirect_uri=http://app.pentrix.lab.evil.com/cb and watch the code go to the attacker host.',
     },
     {
@@ -647,6 +653,8 @@ module.exports = {
       name: 'Authorization Code Leaked in Server Log',
       difficulty: 'Easy',
       hint: 'Every issued code is written to /oauth/idp/log, which anyone can read. A recent login by alice is already in there.',
+      hints: ["Authorization codes are written to a server log. Can you read the log?", "The log is at /oauth/log (or similar). Codes are in plaintext.", "Read the log, steal a code, and exchange it for a token."],
+      tools: "B, C",
       how: 'Read the log, copy alice\u2019s code, and exchange it at the token endpoint with client_id=pentrix-spa.',
     },
     {
@@ -654,6 +662,8 @@ module.exports = {
       name: 'Login CSRF (Missing state Parameter)',
       difficulty: 'Medium',
       hint: 'The client callback exchanges any code it is given and never validates state. Mint a code for YOUR account, then get the victim to visit the callback with it.',
+      hints: ["There's no state parameter. What attack does that enable?", "Login CSRF: the attacker starts the flow, the victim finishes it logged in as the attacker.", "Craft the authorize URL with your client_id, have the 'victim' open it. Their session binds to your account."],
+      tools: "B",
       how: 'Use the attacker link generator as bob, then open the generated link in a session whose IdP user is alice.',
     },
     {
@@ -661,6 +671,8 @@ module.exports = {
       name: 'Implicit Flow Token in URL Fragment',
       difficulty: 'Medium',
       hint: 'response_type=token puts the access token in the URL fragment. The in-lab browser history records full URLs, fragments included.',
+      hints: ["The token is in the URL fragment. Where do fragments end up?", "Browser history, logs, referer. The token leaks.", "Use the leaked fragment token at the userinfo endpoint."],
+      tools: "B, DT",
       how: 'Run the implicit flow, find the token in /oauth/client/history, and call userinfo with it.',
     },
     {
@@ -668,6 +680,8 @@ module.exports = {
       name: 'Scope Tampering',
       difficulty: 'Easy',
       hint: 'The authorize request takes a scope parameter and the IdP never checks whether your role allows it. Try scope=admin.',
+      hints: ["You asked for 'read' scope. What if you ask for 'admin'?", "The IdP grants what you ask for without checking entitlement.", "Authorize with scope=admin and read the admin data."],
+      tools: "B, C",
       how: 'Authorize with scope=admin as bob, exchange the code, then read /oauth/idp/admin-data.',
     },
     {
@@ -675,6 +689,8 @@ module.exports = {
       name: 'Client Secret in Public JavaScript',
       difficulty: 'Easy',
       hint: 'The "confidential" client ships its secret inside /oauth/client/app.js, which anyone can download.',
+      hints: ["The client secret is in the public app.js. Why is that bad?", "Confidential clients must keep the secret server-side. Yours is public.", "Extract the secret and do the token exchange directly."],
+      tools: "DT, C",
       how: 'Copy CLIENT_SECRET from app.js and exchange your own code with a direct POST to the token endpoint.',
     },
     {
@@ -682,6 +698,8 @@ module.exports = {
       name: 'Authorization Code Replay',
       difficulty: 'Medium',
       hint: 'Codes are supposed to be single-use. This IdP counts uses but never invalidates the code. Exchange the same code twice.',
+      hints: ["Are authorization codes single-use? Try using one twice.", "They're not. Exchange the same code twice and compare tokens.", "Exchange the code, then exchange it again. Two valid tokens = flag."],
+      tools: "C",
       how: 'POST the same code to /oauth/idp/token two times and compare the two valid tokens.',
     },
     {
@@ -689,6 +707,8 @@ module.exports = {
       name: 'PKCE Downgrade',
       difficulty: 'Medium',
       hint: 'The authorize endpoint accepts code_challenge, but the token endpoint never requires the code_verifier. Exchange a bound code without one.',
+      hints: ["The flow uses PKCE (code_challenge). But is the verifier checked?", "No. Exchange without a verifier.", "POST the token exchange with no code_verifier. It works."],
+      tools: "C",
       how: 'Authorize with a code_challenge, then exchange the code with no code_verifier parameter.',
     },
   ],

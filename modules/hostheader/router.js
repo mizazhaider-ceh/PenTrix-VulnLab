@@ -9,7 +9,7 @@ const express = require('express');
 const crypto = require('crypto');
 const http = require('http');
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -22,7 +22,6 @@ const PAGE_FOR = {
   'host-cache-poison': 'app',
   'host-ssrf': 'status',
   'host-xforwarded': 'forgot-xfwd',
-  'host-override': 'forgot-override',
   'host-abs-url': 'login',
 };
 
@@ -72,7 +71,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -82,7 +82,7 @@ router.get('/', (req, res) => {
     <h2>Challenges</h2>
     ${rows}
   `));
-});
+})
 
 // --------------------------------- v1/v4/v5: poisoned password reset emails
 function forgotPages(path, vulnId, headerLabel, getHost) {
@@ -135,10 +135,8 @@ function forgotPages(path, vulnId, headerLabel, getHost) {
 
 forgotPages('/forgot', 'host-reset-poison', 'Host',
   (req) => req.headers.host || '');
-forgotPages('/forgot-xfwd', 'host-xforwarded', 'X-Forwarded-Host',
-  (req) => req.headers['x-forwarded-host'] || req.headers.host || '');
-forgotPages('/forgot-override', 'host-override', 'X-Host-Override',
-  (req) => req.headers['x-host-override'] || req.headers.host || '');
+forgotPages('/forgot-xfwd', 'host-xforwarded', 'X-Forwarded-Host / X-Host-Override',
+  (req) => req.headers['x-forwarded-host'] || req.headers['x-host-override'] || req.headers.host || '');
 
 // The real reset endpoint the emailed link points at (one-time token).
 router.get('/reset', (req, res) => {
@@ -210,7 +208,7 @@ router.get('/app', (req, res) => {
       flagHtml = `<div class="comment"><p><b>Cache poison demonstrated:</b> you
         asked with the normal host <code>${esc(curHost)}</code> but received the
         page cached under <code>${esc(entry.host)}</code>. Every visitor now gets
-        the attacker's links.</p>${flagBox(flag)}</div>`;
+        the attacker's links.</p>${flagBox(flag)}${fixPanel('hostheader', 'host-cache-poison')}</div>`;
     }
     return res.send(page('Reset portal (cached)', entry.html + flagHtml));
   }
@@ -279,7 +277,7 @@ router.get('/status', async (req, res) => {
   if (body.includes('ak-internal-')) {
     const flag = award(req, 'hostheader', 'host-ssrf');
     flagHtml = `<hr /><p><b>Exfiltrated:</b> the server fetched an internal-only
-      URL on your behalf and handed you its secrets.</p>${flagBox(flag)}`;
+      URL on your behalf and handed you its secrets.</p>${flagBox(flag)}${fixPanel('hostheader', 'host-ssrf')}`;
   }
   res.send(page('Service health check', `
     <h2>Service health check</h2>
@@ -341,7 +339,7 @@ router.post('/login', (req, res) => {
   if (!isLocalHost(host)) {
     const flag = award(req, 'hostheader', 'host-abs-url');
     flagHtml = `<hr /><p>Login succeeded, and the 302 below points at the
-      attacker-controlled host from the poisoned header.</p>${flagBox(flag)}`;
+      attacker-controlled host from the poisoned header.</p>${flagBox(flag)}${fixPanel('hostheader', 'host-abs-url')}`;
   }
   res.status(302).set('Location', target).send(page('Logged in', `
     <h2>Welcome, ${esc(user.username)}</h2>
@@ -356,13 +354,17 @@ module.exports = {
   name: 'Host Header Injection',
   tagline: 'Poison the Host header and watch links, caches, and server-side fetches obey it.',
   description: 'Six host-header injection labs: password-reset poisoning through Host, X-Forwarded-Host, and X-Host-Override with an attacker token collector, cache poisoning via path-only cache keys, server-side request forgery that reaches a loopback-only internal agent, and an absolute login continue URL built from the Host header.',
-  difficulty: 'Mixed',
+  difficulty: 'Intermediate',
+  track: 'Auth and Sessions',
+  prerequisites: ['auth'],
   vulns: [
     {
       id: 'host-reset-poison',
       name: 'Password Reset Poisoning',
       difficulty: 'Medium',
       hint: 'The reset email builds its link from the Host header. Make the victim\'s token land in your collector.',
+      hints: ["The reset link is built from the Host header. Who controls Host?", "You do. Send Host: evil.com and the reset link points at evil.com. The token goes to the attacker.", "POST /hostheader/forgot with Host: evil.com. Bring the token to the collector."],
+      tools: "C",
       how: 'POST /hostheader/forgot with Host: evil.com, then bring the token to /hostheader/evil-collect?token=...',
     },
     {
@@ -370,6 +372,8 @@ module.exports = {
       name: 'Cache Poisoning via Host',
       difficulty: 'Hard',
       hint: 'The portal page is cached by path only, not by host. Poison it first, then visit as a normal user.',
+      hints: ["The cache is keyed by path only. What if the cached page contains the Host?", "Poison the cache with Host: evil.com. The next victim gets your poisoned page.", "Request with Host: evil.com to poison, then fetch with a normal Host to see the poisoned entry."],
+      tools: "C",
       how: 'GET /hostheader/app with Host: evil.com to poison the cache, then GET it again with the normal host.',
     },
     {
@@ -377,27 +381,26 @@ module.exports = {
       name: 'SSRF via Host Header',
       difficulty: 'Medium',
       hint: 'The health check fetches http://<Host>/hostheader/internal/metrics server-side. A loopback-only agent on 127.0.0.1:13919 holds secrets.',
+      hints: ["The health check builds a URL from the Host header. What URL?", "http://<Host>/internal. Send Host: 127.0.0.1:PORT and it fetches the internal endpoint.", "Set Host to the internal address. The agent key appears in the response."],
+      tools: "C",
       how: 'GET /hostheader/status with Host: 127.0.0.1:13919 so the server fetches the internal agent for you.',
     },
     {
       id: 'host-xforwarded',
-      name: 'X-Forwarded-Host Poisoning',
+      name: 'Forwarded-Host Header Poisoning',
       difficulty: 'Easy',
-      hint: 'Behind a proxy, this reset page trusts X-Forwarded-Host over Host. Same attack, different header.',
-      how: 'POST /hostheader/forgot-xfwd with X-Forwarded-Host: evil.com, then bring the token to the collector.',
-    },
-    {
-      id: 'host-override',
-      name: 'X-Host-Override Poisoning',
-      difficulty: 'Easy',
-      hint: 'A vendor-specific variant of the same flaw: X-Host-Override wins over Host here.',
-      how: 'POST /hostheader/forgot-override with X-Host-Override: evil.com, then bring the token to the collector.',
+      hint: 'Behind a proxy, this reset page trusts X-Forwarded-Host (and the vendor-specific X-Host-Override) over Host. Same attack, different headers.',
+      hints: ["Behind a proxy, the app trusts X-Forwarded-Host. Can you set that header?", "Yes. X-Forwarded-Host: evil.com (or X-Host-Override: evil.com) poisons the reset link.", "POST /hostheader/forgot-xfwd with X-Forwarded-Host: evil.com."],
+      tools: "C",
+      how: 'POST /hostheader/forgot-xfwd with X-Forwarded-Host: evil.com (or X-Host-Override: evil.com), then bring the token to the collector.',
     },
     {
       id: 'host-abs-url',
       name: 'Absolute Continue URL',
       difficulty: 'Easy',
       hint: 'The login page renders an absolute continue URL built from Host, and the post-login 302 uses it too.',
+      hints: ["After login, the continue URL is absolute and built from Host.", "The 302 Location uses your Host. Set it to evil.com.", "Login with Host: evil.com. The Location points at evil.com."],
+      tools: "B, C",
       how: 'Log in at /hostheader/login with Host: evil.com and watch the 302 Location point at evil.com.',
     },
   ],

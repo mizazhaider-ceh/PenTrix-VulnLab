@@ -4,7 +4,7 @@
 // base64 "encryption", repeating-key XOR crib-dragging, and a key leaked in JS.
 const express = require('express');
 const crypto = require('crypto');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const router = express.Router();
@@ -34,7 +34,8 @@ router.get('/', (req, res) => {
           <span class="diff">${esc(v.difficulty)}</span>
           ${done ? '<span class="captured">flag captured</span>' : ''}
         </h3>
-        ${hintBox(v.hint)}
+        ${hintLadder(v)}
+      ${toolsPill(v)}
         <p><i>Attack:</i> ${esc(v.how)}</p>
       </div>`;
   }).join('\n');
@@ -43,7 +44,7 @@ router.get('/', (req, res) => {
     <h2>Challenges</h2>
     ${rows}
   `));
-});
+})
 
 // ------------------------------------------------- v1: predictable reset PIN
 let resetPin = null;
@@ -84,6 +85,7 @@ router.post('/pin/verify', (req, res) => {
       <p>PIN <code>${esc(guess)}</code> accepted. You brute-forced the whole
       6-digit space.</p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-rand-pin')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -162,6 +164,7 @@ router.post('/ecb/solve', (req, res) => {
       <h2>Byte-at-a-time decryption worked</h2>
       <p>You recovered the full secret: <code>${esc(pt)}</code></p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-ecb-oracle')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -250,6 +253,7 @@ router.post('/cbc/check', (req, res) => {
       <p>The server decrypted your cookie and sees <code>role = 'admin'</code>.
       IV bit-flipping worked.</p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-cbc-bitflip')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -322,6 +326,7 @@ router.post('/mac/verify', (req, res) => {
       <p>Your MAC verifies for a message containing <code>;admin=1</code> that
       was never signed. The Merkle-Damgard state leaked through the digest.</p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-hash-ext')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -377,6 +382,7 @@ router.post('/md5/login', (req, res) => {
       <p>Password <code>${esc(pw)}</code> matches the leaked hash. Dictionary
       attack successful.</p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-md5-crack')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -442,6 +448,7 @@ router.post('/b64/check', (req, res) => {
       <p>You decoded the cookie, flipped <code>role</code> to
       <code>admin</code>, and re-encoded it. There was never any encryption.</p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-b64-cookie')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -487,6 +494,7 @@ router.post('/xor/solve', (req, res) => {
       <h2>Key recovered, message decrypted</h2>
       <p>Full plaintext: <code>${esc(pt)}</code></p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-xor-crib')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -552,6 +560,7 @@ router.post('/keyjs/solve', (req, res) => {
       <p>Note: <code>${esc(pt)}</code></p>
       <p>A key the browser can read is a key the attacker can read.</p>
       ${flagBox(flag)}
+      ${fixPanel('crypto', 'crypto-key-in-js')}
       <p><a href="/crypto">Back to the module</a></p>
     `));
   }
@@ -567,13 +576,17 @@ module.exports = {
   name: 'Cryptographic Failures',
   tagline: 'Break real crypto misuses: weak randomness, ECB oracles, CBC bit-flipping, length extension, and more.',
   description: 'The ciphers are fine; their usage is not. Eight hands-on labs built only on Node built-in crypto: brute-force a Math.random PIN, decrypt byte-at-a-time through an ECB oracle, flip CBC bits to forge an admin cookie, extend a SHA-256 MAC, crack an MD5 password, peel base64 "encryption", crib-drag a repeating XOR key, and steal an AES key from served JavaScript.',
-  difficulty: 'Mixed',
+  difficulty: 'Advanced',
+  track: 'Advanced',
+  prerequisites: ['Injection track'],
   vulns: [
     {
       id: 'crypto-rand-pin',
       name: 'Predictable Reset PIN',
       difficulty: 'Easy',
       hint: 'The 6-digit PIN comes from Math.random and nothing stops you from guessing. One million guesses is a script, not a chore.',
+      hints: ["The PIN is from Math.random(). Is that cryptographically secure?", "No. Math.random is predictable. Brute-force 000000-999999.", "Script POSTs with PINs 000000-999999. One works."],
+      tools: "P, C",
       how: 'Generate a PIN, then brute-force all 000000-999999 against the verify endpoint.',
       path: '/crypto/pin',
     },
@@ -582,6 +595,8 @@ module.exports = {
       name: 'ECB Decryption Oracle',
       difficulty: 'Hard',
       hint: 'Identical plaintext blocks give identical ciphertext blocks. Align your input so the unknown byte sits at the end of a block, then try all 256 values.',
+      hints: ["ECB encrypts identical blocks identically. What does that leak?", "Block equality. Use it as an oracle to decrypt byte-by-byte.", "Submit chosen plaintexts, observe which blocks match, extract the secret."],
+      tools: "P, C",
       how: 'Find the block size, confirm ECB, then decrypt the secret byte-at-a-time and submit it.',
       path: '/crypto/ecb',
     },
@@ -590,6 +605,8 @@ module.exports = {
       name: 'CBC Bit-Flipping',
       difficulty: 'Hard',
       hint: 'CBC decryption XORs each block with the previous ciphertext (or IV). You know the full plaintext and the layout: role sits in block 0, under the IV.',
+      hints: ["CBC is malleable: flipping IV bits flips plaintext bits. Your cookie has role=guest.", "Flip the IV bits to change 'guest' to 'admin'. Compute the XOR.", "Tamper the IV, send the cookie, get admin."],
+      tools: "P, C",
       how: 'XOR the IV bytes over "guest" with ("guest" xor "admin") and submit the forged cookie.',
       path: '/crypto/cbc',
     },
@@ -598,6 +615,8 @@ module.exports = {
       name: 'Hash Length Extension',
       difficulty: 'Hard',
       hint: 'SHA-256(secret || message) leaks its internal state in the digest. The secret is 16 bytes: rebuild the glue padding and continue the hash with ";admin=1".',
+      hints: ["The MAC is SHA-256(secret || message). Merkle-Damgard lets you extend it.", "Length extension: forge a valid MAC for message+padding+extension without knowing the secret.", "Use a length-extension tool to forge the admin MAC."],
+      tools: "P, C",
       how: 'Get a MAC for "role=user", forge a MAC for the extended message in pure code, and submit msghex + mac.',
       path: '/crypto/mac',
     },
@@ -606,6 +625,8 @@ module.exports = {
       name: 'Crack the MD5',
       difficulty: 'Easy',
       hint: 'Unsalted MD5 of a weak password. The password is in the in-lab wordlist: hash every candidate until one matches.',
+      hints: ["The hash is unsalted MD5 of a dictionary word. What's the attack?", "Offline cracking with a wordlist (or hashcat).", "Crack the MD5 with rockyou or a small list. Submit the password."],
+      tools: "W, P",
       how: 'Crack the hash with the wordlist, then log in with the password.',
       path: '/crypto/md5',
     },
@@ -614,6 +635,8 @@ module.exports = {
       name: 'Base64 "Encryption"',
       difficulty: 'Easy',
       hint: 'Look closely at the "encrypted" cookie. Does it look random, or does it look like something you can decode?',
+      hints: ["The 'encrypted' cookie is just base64. Decode it.", "base64(username:role). Decode, change role to admin, re-encode.", "Decode your cookie, edit to admin, re-encode, and present it."],
+      tools: "B, DT",
       how: 'Decode the cookie, change role to admin in the JSON, re-encode, and submit it.',
       path: '/crypto/b64',
     },
@@ -622,6 +645,8 @@ module.exports = {
       name: 'XOR Crib Dragging',
       difficulty: 'Medium',
       hint: 'The key repeats every few bytes and you know the plaintext header {"user":". XOR crib against ciphertext to recover the key, trying lengths 1-12.',
+      hints: ["Repeating-key XOR with a known plaintext (crib). What does that give you?", "XOR the crib with the ciphertext to recover the key stream, then decrypt.", "Crib-drag with a known header to recover the key and plaintext."],
+      tools: "P",
       how: 'Recover the repeating key with the known header, decrypt the full ciphertext, and submit the plaintext.',
       path: '/crypto/xor',
     },
@@ -630,6 +655,8 @@ module.exports = {
       name: 'Key in JavaScript',
       difficulty: 'Easy',
       hint: 'The frontend encrypts, so the frontend must know the key. Read the served JavaScript file.',
+      hints: ["The AES key is in the public JavaScript. Find it.", "It's in app.js or the page source. Extract it and decrypt offline.", "Get the key from the JS, decrypt the note ciphertext in Python, submit the plaintext."],
+      tools: "DT, P",
       how: 'Find the hardcoded AES key in app.js, decrypt the ciphertext offline, and submit the note.',
       path: '/crypto/keyjs',
     },

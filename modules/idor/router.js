@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(express.urlencoded({ extended: false }));
 
 const { getDb } = require('../../lib/db');
-const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
+const { brief, esc, fixPanel, flagBox, hintBox, hintLadder, page, toolsPill, trackBanner } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 
 // ---------- auth helpers ----------
@@ -69,6 +69,7 @@ router.get('/users/:id', (req, res) => {
     // Award: viewing a profile that is not your own.
     const flag = award(req, 'idor', 'profile');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'profile');
   }
   res.send(page('User profile #' + row.id,
     '<h1>User profile</h1>' + authBar(u) +
@@ -81,42 +82,6 @@ router.get('/users/:id', (req, res) => {
     '<p><a href="/idor">Back to the module index</a></p>'));
 });
 
-// ---------- v2: orders ----------
-
-router.get('/orders/:id', (req, res) => {
-  const u = currentUser(req);
-  const db = getDb();
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    return res.status(400).send(page('Bad request',
-      '<h1>Bad request</h1><p class="muted">Order id must be a number.</p>'));
-  }
-  // VULN: order is fetched by id with no ownership check. Any logged-in user
-  // can read any other user's order by guessing or incrementing the id.
-  const row = db.prepare('SELECT id, user_id, item, total, address FROM orders WHERE id = ?').get(id);
-  if (!row) {
-    return res.status(404).send(page('Not found',
-      '<h1>Not found</h1><p class="muted">No order with id ' + esc(req.params.id) + '.</p>'));
-  }
-  let flagHtml = '';
-  if (u && (u.id !== row.user_id)) {
-    // Award: viewing an order that belongs to someone else.
-    const flag = award(req, 'idor', 'order');
-    flagHtml = flagBox(flag);
-  }
-  res.send(page('Order #' + row.id,
-    '<h1>Order #' + Number(row.id) + '</h1>' + authBar(u) +
-    '<table>' +
-    '<tr><th>Order ID</th><td>' + Number(row.id) + '</td></tr>' +
-    '<tr><th>Owner (user_id)</th><td>' + Number(row.user_id) + '</td></tr>' +
-    '<tr><th>Item</th><td>' + esc(row.item) + '</td></tr>' +
-    '<tr><th>Total</th><td>' + esc(String(row.total)) + '</td></tr>' +
-    '<tr><th>Shipping address</th><td>' + esc(row.address) + '</td></tr>' +
-    '</table>' + flagHtml +
-    '<p><a href="/idor">Back to the module index</a></p>'));
-});
-
-// ---------- v3: admin panel ----------
 
 router.get('/admin', (req, res) => {
   const u = currentUser(req);
@@ -135,6 +100,7 @@ router.get('/admin', (req, res) => {
     // Award: a non-admin user reached the admin panel.
     const flag = award(req, 'idor', 'admin');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'admin');
   }
   const userRows = users.map(x =>
     '<tr><td>' + Number(x.id) + '</td><td>' + esc(x.username) + '</td><td>' +
@@ -247,6 +213,7 @@ router.get('/invoice/:id', (req, res) => {
     // Award: downloading an invoice that belongs to someone else.
     const flag = award(req, 'idor', 'idor-download');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'idor-download');
   }
   res.send(page('Invoice ' + row.ref,
     '<h1>Invoice ' + esc(row.ref) + '</h1>' + authBar(u) +
@@ -302,6 +269,7 @@ router.post('/account/email', (req, res) => {
     // Award: changing another user's email address.
     const flag = award(req, 'idor', 'idor-email-change');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'idor-email-change');
   }
   res.send(page('Email updated',
     '<h1>Email updated</h1>' + authBar(u) +
@@ -310,42 +278,6 @@ router.post('/account/email', (req, res) => {
     flagHtml + '<p><a href="/idor/account">Back</a></p>'));
 });
 
-// ---------- v6: cart ----------
-
-router.get('/cart', (req, res) => {
-  const u = currentUser(req);
-  if (!u) {
-    return res.status(401).send(page('Login required',
-      '<h1>401</h1><p class="muted">Log in first via the ' +
-      '<a href="/idor">module index</a>.</p>'));
-  }
-  const qid = req.query.user_id !== undefined ? parseInt(req.query.user_id, 10) : u.id;
-  const target = getDb().prepare('SELECT id, username FROM users WHERE id = ?').get(qid);
-  if (!target) {
-    return res.status(404).send(page('Not found',
-      '<h1>Not found</h1><p class="muted">No user with id ' + esc(String(req.query.user_id)) + '.</p>'));
-  }
-  // VULN: the cart is looked up by a client-supplied user_id query parameter
-  // with no ownership check.
-  const items = getDb().prepare('SELECT item, qty FROM idor_carts WHERE user_id = ?').all(target.id);
-  let flagHtml = '';
-  if (target.id !== u.id) {
-    // Award: viewing another user's shopping cart.
-    const flag = award(req, 'idor', 'idor-cart');
-    flagHtml = flagBox(flag);
-  }
-  const rows = items.map((x) =>
-    '<tr><td>' + esc(x.item) + '</td><td>' + Number(x.qty) + '</td></tr>').join('');
-  res.send(page('Shopping cart',
-    '<h1>Shopping cart of ' + esc(target.username) + '</h1>' + authBar(u) +
-    '<table><tr><th>Item</th><th>Qty</th></tr>' + rows + '</table>' + flagHtml +
-    '<p class="muted">Try <a href="/idor/cart?user_id=1">?user_id=1</a>, ' +
-    '<a href="/idor/cart?user_id=2">?user_id=2</a>, ' +
-    '<a href="/idor/cart?user_id=3">?user_id=3</a>.</p>' +
-    '<p><a href="/idor">Back to the module index</a></p>'));
-});
-
-// ---------- v7: api key regenerate + use ----------
 
 router.get('/apikey', (req, res) => {
   const u = currentUser(req);
@@ -420,6 +352,7 @@ router.get('/apikey/use', (req, res) => {
     // for them through the IDOR.
     const flag = award(req, 'idor', 'idor-apikey-regen');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'idor-apikey-regen');
   }
   res.send(page('API key check',
     '<h1>API key accepted</h1>' + authBar(u) +
@@ -428,46 +361,6 @@ router.get('/apikey/use', (req, res) => {
     '<p><a href="/idor/apikey">Back</a></p>'));
 });
 
-// ---------- v8: addresses ----------
-
-router.get('/address/:id', (req, res) => {
-  const u = currentUser(req);
-  if (!u) {
-    return res.status(401).send(page('Login required',
-      '<h1>401</h1><p class="muted">Log in first via the ' +
-      '<a href="/idor">module index</a>.</p>'));
-  }
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    return res.status(400).send(page('Bad request',
-      '<h1>Bad request</h1><p class="muted">Address id must be a number.</p>'));
-  }
-  // VULN: the stored address is fetched by id with no ownership check.
-  const row = getDb().prepare(
-    'SELECT a.*, u.username FROM idor_addresses a JOIN users u ON u.id = a.user_id WHERE a.id = ?'
-  ).get(id);
-  if (!row) {
-    return res.status(404).send(page('Not found',
-      '<h1>Not found</h1><p class="muted">No address with id ' + esc(req.params.id) + '.</p>'));
-  }
-  let flagHtml = '';
-  if (row.user_id !== u.id) {
-    // Award: viewing a stored address that belongs to someone else.
-    const flag = award(req, 'idor', 'idor-address');
-    flagHtml = flagBox(flag);
-  }
-  res.send(page('Address #' + row.id,
-    '<h1>Address #' + Number(row.id) + '</h1>' + authBar(u) +
-    '<table>' +
-    '<tr><th>Label</th><td>' + esc(row.label) + '</td></tr>' +
-    '<tr><th>Owner</th><td>' + esc(row.username) + ' (id ' + Number(row.user_id) + ')</td></tr>' +
-    '<tr><th>Address</th><td>' + esc(row.address) + '</td></tr>' +
-    '</table>' + flagHtml +
-    '<p class="muted">Try /idor/address/1, /idor/address/2, /idor/address/3.</p>' +
-    '<p><a href="/idor">Back to the module index</a></p>'));
-});
-
-// ---------- v9: forced browsing to an admin function ----------
 
 router.get('/admin/users', (req, res) => {
   const u = currentUser(req);
@@ -484,6 +377,7 @@ router.get('/admin/users', (req, res) => {
     // Award: a non-admin user reached an admin-only function.
     const flag = award(req, 'idor', 'function-browse');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'function-browse');
   }
   const rows = users.map((x) =>
     '<tr><td>' + Number(x.id) + '</td><td>' + esc(x.username) + '</td><td>' +
@@ -540,47 +434,12 @@ router.post('/comments/delete', (req, res) => {
     // Award: deleting a comment written by someone else.
     const flag = award(req, 'idor', 'idor-comment-delete');
     flagHtml = flagBox(flag);
+    flagHtml += fixPanel('idor', 'idor-comment-delete');
   }
   res.send(page('Comment deleted',
     '<h1>Deleted</h1>' + authBar(u) +
     '<p>Comment <b>#' + Number(c.id) + '</b> by <b>' + esc(c.author) + '</b> was deleted.</p>' +
     flagHtml + '<p><a href="/idor/comments">Back</a></p>'));
-});
-
-// ---------- v11: private notes ----------
-
-router.get('/notes/:id', (req, res) => {
-  const u = currentUser(req);
-  if (!u) {
-    return res.status(401).send(page('Login required',
-      '<h1>401</h1><p class="muted">Log in first via the ' +
-      '<a href="/idor">module index</a>.</p>'));
-  }
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    return res.status(400).send(page('Bad request',
-      '<h1>Bad request</h1><p class="muted">Note id must be a number.</p>'));
-  }
-  // VULN: a private note is retrieved by numeric id with no ownership check.
-  const row = getDb().prepare(
-    'SELECT n.*, u.username FROM idor_notes n JOIN users u ON u.id = n.user_id WHERE n.id = ?'
-  ).get(id);
-  if (!row) {
-    return res.status(404).send(page('Not found',
-      '<h1>Not found</h1><p class="muted">No note with id ' + esc(req.params.id) + '.</p>'));
-  }
-  let flagHtml = '';
-  if (row.user_id !== u.id) {
-    // Award: reading a private note that belongs to someone else.
-    const flag = award(req, 'idor', 'idor-notes');
-    flagHtml = flagBox(flag);
-  }
-  res.send(page('Note: ' + row.title,
-    '<h1>' + esc(row.title) + '</h1>' + authBar(u) +
-    '<div class="card"><p>' + esc(row.body) + '</p></div>' + flagHtml +
-    '<p class="muted">Owner: ' + esc(row.username) + ' (id ' + Number(row.user_id) + '). ' +
-    'Try /idor/notes/1, /idor/notes/2, /idor/notes/3.</p>' +
-    '<p><a href="/idor">Back to the module index</a></p>'));
 });
 
 // ---------- module index ----------
@@ -589,16 +448,12 @@ router.get('/', (req, res) => {
   const u = currentUser(req);
   const vulnList = [
     { id: 'profile', route: '/idor/users/1', label: '/idor/users/:id' },
-    { id: 'order', route: '/idor/orders/1', label: '/idor/orders/:id' },
     { id: 'admin', route: '/idor/admin', label: '/idor/admin' },
     { id: 'idor-download', route: '/idor/invoice/1', label: '/idor/invoice/:id' },
     { id: 'idor-email-change', route: '/idor/account', label: 'POST /idor/account/email' },
-    { id: 'idor-cart', route: '/idor/cart?user_id=3', label: '/idor/cart?user_id=' },
     { id: 'idor-apikey-regen', route: '/idor/apikey', label: '/idor/apikey (+ /regen, /use)' },
-    { id: 'idor-address', route: '/idor/address/1', label: '/idor/address/:id' },
     { id: 'function-browse', route: '/idor/admin/users', label: '/idor/admin/users' },
     { id: 'idor-comment-delete', route: '/idor/comments', label: '/idor/comments' },
-    { id: 'idor-notes', route: '/idor/notes/1', label: '/idor/notes/:id' },
   ].map(v => {
     const meta = idorMeta.vulns.find(x => x.id === v.id);
     return '<li><a href="' + v.route + '"><code>' + esc(v.label) + '</code></a> ' +
@@ -634,7 +489,7 @@ router.get('/', (req, res) => {
     brief('Broken Access Control (IDOR)',
       '<p>This module has broken access control: several endpoints identify a ' +
       'resource by its id but never check whether you are allowed to see it. ' +
-      'Log in as a normal user, then try changing ids in the URL.</p>') +
+      'Log in as a normal user, then try changing ids in the URL.</p>') + trackBanner(module.exports) +
     '<h2>Session</h2>' + authBar(u) + loginButtons +
     '<h2>Challenges</h2><ul>' + vulnList + '</ul>' +
     '<h2>Try these URLs</h2>' + samples));
@@ -653,13 +508,26 @@ const idorMeta = {
     'URL. This module teaches Insecure Direct Object Reference (IDOR) ' +
     'through genuinely unprotected endpoints.',
   difficulty: 'Beginner',
+  track: 'Foundations',
+  prerequisites: ['misconfig'],
   vulns: [
     { id: 'profile', name: 'Profile IDOR', difficulty: 'Easy',
       hint: 'Log in as alice (id 2), then open a different user id in the URL, e.g. /idor/users/1.',
+      hints: ["The delete button sends a comment id. Does it check that you wrote the comment?", "The delete endpoint keys only on the comment id, with no authorship check.", "Log in as bob, find alice's comment id on /idor/comments, and POST it to /idor/comments/delete."],
+      tools: "B, C",
+      tools: "B",
+      tools: "B, C",
+      tools: "BZ, C",
+      tools: "B",
+      tools: "B, C",
+      tools: "B, C",
+      hints: ["Some URLs aren't linked in the UI. Does that mean the server blocks them?", "Force-browse: type the admin URL directly. The server may not check your role on unlinked paths.", "Log in as alice or bob and open /idor/admin/users directly."],
+      hints: ["You can regenerate YOUR api key. The form sends a user_id. Whose key could you regenerate?", "The regenerate endpoint trusts the submitted user_id. Regenerate the admin's key, then use it.", "POST /idor/apikey/regen with user_id=1, then call /idor/apikey/use?key=<new-key>."],
+      hints: ["The email change form has a hidden field. What does it contain, and can you change it?", "The form submits a user_id parameter that the server trusts. Change it to another user's id.", "POST /idor/account/email with user_id=1 (admin) and a new email."],
+      hints: ["The admin panel link isn't shown to you. But what actually protects the /admin URL?", "The panel checks 'are you logged in' but not 'are you an admin'. The authorization check is missing, not just hidden.", "Log in as alice or bob and open /idor/admin directly."],
+      hints: ["Invoices are downloaded by id. Do you own the invoice you're downloading?", "The download endpoint trusts the :id parameter with no ownership check. Invoice IDs are sequential.", "Log in as alice, then open /idor/invoice/2 or /idor/invoice/3 to download someone else's invoice."],
+      hints: ["You're logged in as bob. The profile URL has an id in it. What happens if you change the number?", "The server fetches the user by id and never checks that it's YOUR id. The id is the only authorization.", "Open /idor/users/1 (alice's) or /idor/users/3 while logged in as bob. The secret is in the response."],
       how: 'Change the :id in /idor/users/:id to another user and read their secret.' },
-    { id: 'order', name: 'Order IDOR', difficulty: 'Easy',
-      hint: 'Log in as bob, then open /idor/orders/1 (which belongs to alice) and compare.',
-      how: 'Change the :id in /idor/orders/:id to an order that is not yours.' },
     { id: 'admin', name: 'Unprotected Admin Panel', difficulty: 'Easy',
       hint: 'The admin panel only checks "logged in", not your role. Log in as alice or bob and visit /idor/admin.',
       how: 'Log in as any non-admin user and open /idor/admin.' },
@@ -669,24 +537,15 @@ const idorMeta = {
     { id: 'idor-email-change', name: 'Email Change IDOR', difficulty: 'Easy',
       hint: 'The change-email form on /idor/account submits a user_id field. Change it to 1 (admin) and set a new email.',
       how: 'POST /idor/account/email with another user\'s id in the user_id parameter.' },
-    { id: 'idor-cart', name: 'Shopping Cart IDOR', difficulty: 'Easy',
-      hint: 'Your cart is fetched with ?user_id=. Log in as alice and try ?user_id=1 or ?user_id=3.',
-      how: 'Change the user_id query parameter on /idor/cart to view another user\'s cart.' },
     { id: 'idor-apikey-regen', name: 'API Key Regeneration IDOR', difficulty: 'Medium',
       hint: 'The regenerate form on /idor/apikey trusts the user_id you submit. Regenerate admin\'s key (id 1), then authenticate with the fresh key at /idor/apikey/use?key=....',
       how: 'Regenerate another user\'s API key via their id, then use the new key at /idor/apikey/use.' },
-    { id: 'idor-address', name: 'Stored Address IDOR', difficulty: 'Easy',
-      hint: 'Log in as alice, then open /idor/address/2 or /idor/address/3. Addresses are fetched by id with no ownership check.',
-      how: 'Change the :id in /idor/address/:id to read another user\'s stored address.' },
     { id: 'function-browse', name: 'Forced Browsing to Admin Function', difficulty: 'Medium',
       hint: '/idor/admin/users is not linked anywhere for normal users, but nothing stops you from typing it. Log in as alice or bob and open it directly.',
       how: 'Force-browse /idor/admin/users as a non-admin user.' },
     { id: 'idor-comment-delete', name: 'Comment Deletion IDOR', difficulty: 'Easy',
       hint: 'The delete button on /idor/comments sends only the comment id. Log in as bob and delete a comment written by someone else.',
       how: 'Delete another user\'s comment by submitting its id to /idor/comments/delete.' },
-    { id: 'idor-notes', name: 'Private Notes IDOR', difficulty: 'Medium',
-      hint: 'Log in as alice, then open /idor/notes/2 or /idor/notes/3. Private notes are retrieved by numeric id with no ownership check.',
-      how: 'Change the :id in /idor/notes/:id to read another user\'s private note.' },
   ],
   router,
 };
