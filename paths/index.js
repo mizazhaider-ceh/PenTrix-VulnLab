@@ -106,10 +106,10 @@ function scoreChipHtml(req) {
   return `<span class="score-chip" title="Flags captured"><span aria-hidden="true">🚩</span> ${got}/${total}</span>`;
 }
 
-function statusPill(hit, capturedLabel) {
+function statusPill(hit, capturedLabel, missingLabel) {
   return hit
     ? `<span class="status status-captured"><span class="dot" aria-hidden="true"></span>${esc(capturedLabel || 'Captured')}</span>`
-    : `<span class="status status-missing"><span class="dot" aria-hidden="true"></span>Not captured</span>`;
+    : `<span class="status status-missing"><span class="dot" aria-hidden="true"></span>${esc(missingLabel || 'Not captured')}</span>`;
 }
 
 function notFoundHtml(id) {
@@ -228,7 +228,7 @@ router.get('/:id/verify', (req, res) => {
     resultHtml = valid
       ? `<div class="card" role="status"><div class="card-top">${statusPill(true, 'Valid')}</div>
         <p>This code is a genuine certificate for <b>${esc(p.name)}</b> issued by <b>this install</b> (fingerprint <code>${esc(installFingerprint())}</code>).</p></div>`
-      : `<div class="card" role="alert"><div class="card-top">${statusPill(false)}</div>
+      : `<div class="card" role="alert"><div class="card-top">${statusPill(false, null, 'Invalid')}</div>
         <p><b>Invalid code.</b> <code>${esc(submitted)}</code> is <b>not</b> a valid certificate code for <b>${esc(p.name)}</b> on this install. Check the code for typos, or note that certificates minted on a different machine will never validate here.</p></div>`;
   }
   res.send(page('Verify certificate', `
