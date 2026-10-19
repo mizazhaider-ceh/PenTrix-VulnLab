@@ -51,8 +51,8 @@
     <rect x="640" y="330" width="260" height="120" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="770" cy="362" r="16" fill="#7C3AED"/>
     <text x="770" y="368" font-size="18" fill="#ffffff">▤</text>
-    <text x="770" y="404" fill="#332F3A">SQLite flags table</text>
-    <text x="770" y="428" font-size="15" font-weight="600" fill="#635F69">gitignored, per-install random</text>
+    <text x="770" y="404" fill="#332F3A">Per-install flags</text>
+    <text x="770" y="428" font-size="15" font-weight="600" fill="#635F69">random, never in source</text>
 
     <rect x="960" y="330" width="180" height="120" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="1050" cy="362" r="16" fill="#DB2777"/>

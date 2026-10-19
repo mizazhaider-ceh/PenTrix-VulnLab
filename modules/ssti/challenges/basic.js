@@ -44,7 +44,7 @@ router.get('/greet', (req, res) => {
     // VULN: the evaluated result is injected into the page raw so students can see the output plainly
     result = `<div class="ssti-result card"><div class="card-top"><b>Rendered greeting</b></div>${rendered}</div>`;
 
-    if (/\{\{.*\}\}/.test(name) && rendered.includes('49')) {
+    if (/\{\{.*\}\}/.test(name) && rendered.includes('49') && !rendered.includes(secretFlag)) {
       awardHtml += flagBox(award(req, 'ssti', 'basic'));
       awardHtml += fixPanel('ssti', 'basic');
     }

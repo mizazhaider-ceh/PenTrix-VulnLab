@@ -29,8 +29,8 @@
     <rect x="520" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="610" cy="166" r="18" fill="#7C3AED"/>
     <text x="610" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">■</text>
-    <text x="610" y="208" fill="#332F3A">SQLite store</text>
-    <text x="610" y="232" font-size="14" font-weight="600" fill="#635F69">gitignored, local only</text>
+    <text x="610" y="208" fill="#332F3A">On your machine</text>
+    <text x="610" y="232" font-size="14" font-weight="600" fill="#635F69">random per install</text>
 
     <rect x="750" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="840" cy="166" r="18" fill="#DB2777"/>
@@ -54,6 +54,6 @@
   <g>
     <rect x="60" y="300" width="1080" height="90" rx="24" fill="#ffffff" stroke="#F59E0B" stroke-width="2" stroke-dasharray="10 8"/>
     <text x="100" y="338" font-size="20" font-weight="800" fill="#332F3A">What GitHub sees: <tspan fill="#DC2626">nothing</tspan></text>
-    <text x="100" y="366" font-size="17" fill="#635F69">No flag literal exists in any tracked file. Delete data/vulnlab.db and reboot for a fresh set of 201.</text>
+    <text x="100" y="366" font-size="17" fill="#635F69">No flag literal exists in any tracked file. Your 201 flags differ from everyone else's.</text>
   </g>
 </svg>

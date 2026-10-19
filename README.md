@@ -5,7 +5,9 @@
 ![node](https://img.shields.io/badge/node-20%2B-10B981?style=for-the-badge)
 ![status](https://img.shields.io/badge/status-intentionally%20vulnerable-F59E0B?style=for-the-badge)
 
-An intentionally vulnerable web application for learning **real-world web security**, built by **The PenTrix**. Every challenge behaves like a small genuine website, a shop, a login portal, a blog, an API, and every flag is earned by genuine multi-step exploitation. Nothing is handed to you, and nothing leaks from the source.
+**201 challenges. 29 modules. 3 kill chains. 3 career paths. Zero fake flags.**
+
+PenTrix VulnLab is an intentionally vulnerable web app for learning **real-world web security**, built by **The PenTrix**. Every challenge is a small, believable website with a real bug inside: a shop, a login portal, a blog, an API. Every flag is earned by genuine multi-step exploitation. Nothing leaks from the source, so read all the code you want. The flags are not in it.
 
 > ⚠️ **WARNING: This application is intentionally vulnerable.**
 > Never deploy it to a public server or expose it to the internet.
@@ -15,23 +17,23 @@ An intentionally vulnerable web application for learning **real-world web securi
 
 I am a cybersecurity student, and I learn by breaking things.
 
-When I started learning web security, I tried the existing labs. Some handed me the flag just for opening a page. Some taught the theory and skipped the part where you actually exploit something. Some felt nothing like the real websites I wanted to learn to test.
+When I started learning web security, the labs let me down. Some handed me the flag just for opening a page. Some taught the theory and skipped the part where you actually exploit something. None of them felt like the real websites I wanted to learn to test.
 
 So I built the lab I wished existed.
 
-Every challenge in PenTrix VulnLab is a small, believable website with a real bug in it. No hand-holding, no fake flags, no shortcuts. You either exploit it for real, or you get nothing. That is how the real world works, and that is how this lab works.
+Every challenge here is a small, believable website with a real bug in it. No hand-holding, no fake flags, no shortcuts. You exploit it for real, or you get nothing. That is how the real world works, and that is how this lab works.
 
-I built it for students like me: people who learn by doing, late at night, with Burp open, proxy intercepting, and too much coffee. If that is you, welcome. Break everything.
+I built it for students like me: people who learn by doing, late at night, with Burp open, the proxy intercepting, and too much coffee. If that is you, welcome. Break everything.
 
 *Muhammad Izaz Haider ([@mizazhaider-ceh](https://github.com/mizazhaider-ceh))*
 
 ## Who this is for
 
-- **Students** meeting web security for the first time and wanting real practice, not slides.
+- **Students** meeting web security for the first time who want real practice, not slides.
 - **Self-learners** grinding toward pentesting certifications or their first CTF.
 - **CTF players** who want 201 warm-up challenges with honest, uncheatable flags.
-- **Instructors** who need a one-command lab for a classroom (event mode is on the way).
-- **Career switchers** who want proof of skill: solve paths, earn certificates, show your work.
+- **Instructors** who need a one-command classroom lab (event mode is on the way).
+- **Career switchers** who want proof of skill: finish paths, earn certificates, show your work.
 
 ## Quick start
 
@@ -40,7 +42,7 @@ docker compose up --build
 # open http://localhost:3000
 ```
 
-The compose file binds to `127.0.0.1` only, ships a healthcheck, drops Linux capabilities, and caps CPU and memory. The database persists in `./data` (gitignored).
+The compose file binds to `127.0.0.1` only, ships a healthcheck, drops Linux capabilities, and caps CPU and memory. App data persists in `./data` (gitignored).
 
 Or without Docker (Node 20+):
 
@@ -49,9 +51,9 @@ npm install
 npm start
 ```
 
-Set `SESSION_SECRET` to a private value for any graded or shared use. The app falls back to an insecure dev secret when it is unset, which is fine for local labs only.
+Set `SESSION_SECRET` to a private value for any graded or shared use. Left unset, the app falls back to an insecure dev secret, which is fine for local labs only.
 
-Run the regression suite (boots the app on a throwaway database; needs Node 20 and the installed dependencies, or run it in the container with `docker compose run --rm vulnlab npm test`):
+Run the regression suite (490 tests, boots the app on a throwaway database):
 
 ```bash
 npm test
@@ -59,45 +61,46 @@ npm test
 
 ## Recommended tools
 
-This lab teaches **Burp Suite first**. Every challenge is fully solvable through the standard Burp workflow: intercept with the Proxy, tamper in the Repeater, automate the boring parts with the Intruder. Burp Community edition is enough for all 201 challenges. Pro adds Scanner and Collaborator, which you will not need here.
+This lab teaches **Burp Suite first**. Every challenge falls to the standard Burp workflow: intercept with the Proxy, tamper in the Repeater, automate the boring parts with the Intruder. Burp Community edition clears all 201 challenges. Pro adds Scanner and Collaborator, which you will not need here.
 
-**New to these tools?** Read the full step-by-step setup guide: [docs/TOOL_SETUP_GUIDE.md](docs/TOOL_SETUP_GUIDE.md) (install Burp, connect the browser proxy, install the CA certificate, plus ZAP, sqlmap, ffuf, gobuster, and nmap walkthroughs).
+**New to these tools?** Read the step-by-step setup guide: [docs/TOOL_SETUP_GUIDE.md](docs/TOOL_SETUP_GUIDE.md) (install Burp, connect the browser proxy, install the CA certificate, plus ZAP, sqlmap, ffuf, gobuster, and nmap walkthroughs).
 
 | Tool | What it is | Where it shines in this lab |
 |---|---|---|
 | **Burp Suite** (recommended) | The intercepting proxy, request editor, and fuzzer real pentesters live in | Everywhere. XSS, SQLi, IDOR, SSRF, JWT, auth, race conditions: intercept it, replay it, mutate it |
 | **OWASP ZAP** | The free and open-source proxy alternative | Same job as Burp for intercepting and replaying, plus spidering the app before you start a module |
-| **sqlmap** | Automated SQL injection exploitation | `sqli` module. Confirm the injection by hand in Burp first, then let sqlmap do the heavy lifting on blind and error-based challenges |
+| **sqlmap** | Automated SQL injection exploitation | `sqli` module. Confirm the injection by hand in Burp first, then let sqlmap carry the blind and error-based challenges |
 | **ffuf** | Fast web fuzzer | `lfi` path traversal wordlists, `ssrf` blocklist bypasses (decimal, hex, octal encodings), `api` endpoint enumeration |
 | **gobuster** | Directory and file brute-forcer | `misconfig` module: hunting exposed `.git`, `.env`, backup and swap files, directory listings |
-| **nmap** | Network mapper | Know your target. The lab is localhost-only, so there is little to map here, but port scanning and service fingerprinting are part of any real engagement |
+| **nmap** | Network mapper | Know your target. The lab is localhost-only, so there is little to map, but scanning and fingerprinting belong in every real engagement |
 
-curl still works fine for quick beacons and one-off requests, but it is no longer the lab's default voice. If you reach for curl, do it because the request is simple, not because you skipped learning the proxy.
+curl still works for quick beacons and one-off requests, but it is no longer the lab's default voice. Reach for curl because the request is simple, not because you skipped learning the proxy.
 
 ## How a session goes
 
 1. **Pick a module** on the home page. 29 to choose from, with search and difficulty filters.
-2. **Read the briefing**, then open a challenge. Each one looks and behaves like a real little website. The vulnerability is there to be discovered, not announced.
-3. **Find the bug.** Exploit it the way a real attacker would, with real tools: Burp Suite first (Proxy, Repeater, Intruder), your browser, and curl when a quick one-liner earns its keep.
-4. **Capture the flag.** Progress lands on the scoreboard.
-5. **Want a story?** Open `/scenarios` for a kill-chain: several challenges chained into one attack, stages unlocking one at a time.
+2. **Read the briefing**, then open a challenge. Each one looks and behaves like a real little website. The bug is there to be discovered, not announced.
+3. **Find the bug.** Exploit it the way a real attacker would: Burp Suite first (Proxy, Repeater, Intruder), your browser, and curl when a quick one-liner earns its keep.
+4. **Capture the flag.** It lands on the scoreboard.
+5. **Want a story?** Open `/scenarios`: a kill chain of several challenges, stages unlocking one at a time.
 6. **Want a career path?** Open `/paths`: ordered challenge sequences from beginner to intermediate, ending in a verifiable certificate.
 7. **Stuck?** Reveal the hint. Still stuck? `SOLUTIONS.md` walks the technique, never the flag.
+
+Demoing for a class or a video? [docs/demo-cheat-sheet.md](docs/demo-cheat-sheet.md) packs a five-minute tour.
 
 ## Flags are born on your machine, not in this repo
 
 ![Flag lifecycle](docs/assets/flags.svg)
 
-- On first boot the app generates its own **201 flags**: `PENTRIX{` + 32 random hex characters.
-- They live only in the local SQLite database (`data/vulnlab.db`), which is gitignored and mounted as a Docker volume.
+- On first boot, the app generates its own **201 flags** on your machine: `PENTRIX{` + 32 random hex characters.
 - **No flag literal exists in any tracked file.** Reading the source on GitHub reveals nothing.
-- Delete the database and reboot for a fresh set. Your flags and everyone else's are different, so sharing them proves nothing.
+- Your flags differ from everyone else's. Sharing them proves nothing, because only genuine exploits earn flags.
 
 ## Shortcuts earn nothing
 
 ![Verification integrity](docs/assets/verification.svg)
 
-Flags are awarded only when the exploit genuinely works:
+Flags land only when the exploit genuinely works:
 
 | Real exploitation | Result |
 |---|---|
@@ -111,47 +114,43 @@ Flags are awarded only when the exploit genuinely works:
 | Replaying a stolen token | `400`, no flag |
 | Just visiting a demo page | Nothing |
 
-Every challenge is paired with tests proving the real path works and the fakes fail.
+Every challenge ships with tests proving the real path works and the fakes fail.
 
 ## The three pillars
 
 ![The three pillars](docs/assets/pillars.svg)
 
-Most labs stop at "find the bug". PenTrix is being built to train complete security engineers:
+Most labs stop at "find the bug". PenTrix trains complete security engineers:
 
-1. **Break-then-fix.** After you capture a flag, patch the vulnerable code yourself. The lab re-runs the original exploit against your fix in an isolated sandbox. If the exploit fails and the app still works, you earn a fix badge. Offense and defense, in one place. *(In active development: framework plus full SQLi and XSS coverage first.)*
-2. **Kill-chain scenarios.** Multi-stage attacks that tell one story: recon a target, exploit it, pivot, escalate, exfiltrate. Single challenges teach techniques; scenarios teach how attackers actually think. Three stories ship today: **Shop Takeover**, **API Heist**, and **Ghost in the CMS**. Each unlocks stage by stage and ends with its own scenario flag.
-3. **Guided career paths.** Ordered journeys like **Zero to Web Pentester**, **API Hacker**, and **Authentication Assassin**, with prerequisites, skill tracking, and a verifiable certificate when you finish. Finish all steps, download your PNG, and prove your skill on any machine running your install.
+1. **Break-then-fix.** Capture the flag, then patch the vulnerable code yourself. The lab re-runs the original exploit against your fix in an isolated sandbox. If the exploit fails and the app still works, you earn a fix badge. Offense and defense, in one place. *(In active development: the framework is in-tree, with pilot coverage for sqli and xss first.)*
+2. **Kill-chain scenarios.** Multi-stage attacks that tell one story: recon, break in, pivot, escalate, exfiltrate. Single challenges teach techniques; scenarios teach how attackers actually think. Three stories ship today: **Shop Takeover**, **API Heist**, and **Ghost in the CMS**. Each unlocks stage by stage and ends with its own scenario flag.
+3. **Guided career paths.** Ordered journeys like **Zero to Web Pentester**, **API Hacker**, and **Authentication Assassin**, with prerequisites, skill tracking, and a verifiable certificate at the finish. Solve every step, download your PNG, prove your skill on any machine running your install.
 
 ## Guided career paths
 
-A **career path** is an ordered sequence of challenges that takes you from one skill level to the next. You enter through `/paths`, work the steps in order, and capture every flag. Finish all steps and you earn a **certificate**: a downloadable PNG with a verification code (printed on it, like `PTX-XXXXXXXX`) bound to your install.
+A **career path** is an ordered sequence of challenges that carries you from one skill level to the next. Enter through `/paths`, work the steps in order, capture every flag. Finish all steps and you earn a **certificate**: a downloadable PNG stamped with a verification code (like `PTX-XXXXXXXX`) bound to your install.
 
-Three paths ship with this release:
-
-| Path | Level | Steps | Prerequisites |
-|------|-------|-------|---------------|
+| Path | Level | Steps | Prerequisite |
+|------|-------|-------|--------------|
 | **Zero to Web Pentester** | Beginner | 10: reflected XSS, SQLi login bypass, IDOR, CSRF, debug page leak, HTTP verb tampering, open redirect, CSV formula injection, user enumeration, stored XSS | None. Start here. |
 | **API Hacker** | Intermediate | 10: data exposure, mass assignment, missing rate limits, JWT forgery three ways, OAuth flow hijack, API key regeneration abuse, API version bypass, CORS data leak | Zero to Web Pentester |
 | **Authentication Assassin** | Intermediate | 11: user enumeration, brute force, reset flow abuse, predictable reset tokens, OTP brute force, security questions, session fixation, predictable sessions, `kid` SQL injection, OAuth code replay, support impersonation | Zero to Web Pentester |
 
-Prerequisites are guidance, not a hard lock: you can browse any path's steps anytime, but the paths are designed to be taken in order. When you finish a path, download your certificate from the path page and check the code on that path's `/verify` page. Certificates are minted from your install's secret identity, so a certificate from one machine will never validate on another.
+Prerequisites are guidance, not a lock: browse any path's steps anytime, but the paths are designed to be taken in order. Check your code on that path's `/verify` page. Certificates are minted from your install's identity, so a certificate from one machine never validates on another.
 
 ## Kill-chain scenarios
 
 Single challenges teach techniques. Scenarios teach how attackers actually think.
 
-A **kill-chain scenario** strings several challenges from different modules into one story: recon a target, break in, pivot, escalate, exfiltrate. You enter through `/scenarios` and work through a scenario's stages in order. Stages unlock one at a time: capturing a stage's flag opens the next stage. When every stage is captured, the **scenario flag** is awarded at the top of the scenario page.
-
-Three scenarios ship with this release:
+A **kill-chain scenario** strings challenges from different modules into one story: recon a target, break in, pivot, escalate, exfiltrate. Enter through `/scenarios` and work the stages in order. Capturing a stage's flag unlocks the next. Capture them all and the **scenario flag** is awarded at the top of the scenario page, generated per install like every other flag.
 
 | Scenario | Story | Stages |
 |----------|-------|--------|
-| **Shop Takeover** (Intermediate) | Break into the PenTrix Corner Store, abuse its business logic, leave your mark. | SQLi login bypass -> IDOR admin access -> price tampering -> stored XSS |
-| **API Heist** (Intermediate) | Rob Acme Corp's private API: leak data, forge tokens, empty the vault. | Data exposure -> mass assignment -> `alg=none` JWT forgery -> API version bypass |
-| **Ghost in the CMS** (Intermediate) | Slip through a misconfigured CMS unseen, take an account, haunt the front page. | Exposed `.git` -> predictable reset tokens -> upload filter bypass -> stored XSS |
+| **Shop Takeover** (Intermediate) | Rob the PenTrix Corner Store: pick its locks, abuse its logic, leave your mark. | Pick the Front Lock (SQLi login bypass) -> The Hidden Door (IDOR admin access) -> Pocket Change (price tampering) -> Leave Your Mark (stored XSS) |
+| **API Heist** (Intermediate) | Rob Acme Corp's private API: leak data, forge tokens, empty the vault. | The Spill (data exposure) -> The Promotion (mass assignment) -> The Forgery (`alg=none` JWT) -> The Vault (API version bypass) |
+| **Ghost in the CMS** (Intermediate) | Slip through a misconfigured CMS unseen, wear another face, haunt the front page. | Dig up the buried past (exposed `.git`) -> Wear someone else's face (predictable reset tokens) -> Plant your shell (upload filter bypass) -> Haunt the front page (stored XSS) |
 
-The scenario flag works like every other flag: generated per deployment, stored in your local database, and awarded only for genuine exploitation. Lockout is per stage, so you can leave and come back: captured stages stay captured in your session, and later stages wait behind the lock icon until you earn your way in.
+Lockout is per stage, so leave and come back freely: captured stages stay captured, and the rest wait behind the lock icon until you earn your way in.
 
 ## Why PenTrix
 
@@ -171,10 +170,10 @@ The scenario flag works like every other flag: generated per deployment, stored 
 ![Architecture](docs/assets/architecture.svg)
 
 - **Express + SQLite**, zero build step, plain CSS and JS. Clone it, read it, run it.
-- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each module is split one file per challenge: `modules/<id>/challenges/<vuln-id>.js` holds a single challenge, `modules/<id>/index.js` is a thin aggregator, and `modules/<id>/shared.js` holds module helpers.
-- **`lib/flags.js`** looks up the per-deployment flag and verifies the exploit before awarding. Challenge code never touches flag values.
-- **Scoreboard** tracks progress per browser session. Sessions are stored in `data/sessions.db` (separate from the vulnerable app's database), so progress survives restarts and is cleared only by deleting `data/`. It never displays secrets.
-- Every vulnerability is marked in the source with `// VULN:` comments (281 across the codebase) so you can study the code *after* solving.
+- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). One file per challenge: `modules/<id>/challenges/<vuln-id>.js` holds a single challenge, `modules/<id>/index.js` is a thin aggregator, `modules/<id>/shared.js` holds module helpers.
+- **`lib/flags.js`** looks up the per-install flag and verifies the exploit before awarding. Challenge code never touches flag values.
+- **Scoreboard** tracks progress per browser session. Sessions persist under `data/`, so progress survives restarts. It never displays secrets.
+- Every vulnerability is marked in the source with `// VULN:` comments (281 across the codebase). Solve first, then study the code.
 
 ## The lab catalog
 
@@ -214,18 +213,17 @@ The scenario flag works like every other flag: generated per deployment, stored 
 
 ## What we built
 
-This repo went through a full engineering transformation:
-
-- **Phase Zero, audit.** Live exploitation of the original app, feature inventory, architecture and risk analysis, documented in `docs/audit/`.
-- **Phase One, planning.** Lab quality matrix (every challenge graded), design brief, motion system, platform research, architecture assessment, and a 10-milestone implementation plan in `docs/roadmap/`.
-- **Safety groundwork.** Localhost-only container binding, healthcheck, resource limits, non-root image, loader validation, env-based session secret, database untracked.
+- **Phase Zero, audit.** Live exploitation of the original app, feature inventory, architecture and risk analysis, all in `docs/audit/`.
+- **Phase One, planning.** A lab quality matrix grading every challenge, a design brief, a motion system, platform research, and a 10-milestone implementation plan in `docs/roadmap/`.
+- **Safety groundwork.** Localhost-only binding, healthcheck, resource limits, non-root image, loader validation, env-based session secret, database untracked.
 - **Claymorphism redesign.** A light-only, candy-colored, soft-3D interface: super-rounded cards, squishy buttons, floating blobs, Nunito + DM Sans.
-- **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
-- **Per-deployment random flags.** Flag values are generated fresh at first boot, on your own machine. GitHub reveals nothing.
+- **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims get rejected. Only genuine exploits earn flags.
+- **Per-install random flags.** Fresh flag values at first boot, on your own machine. GitHub reveals nothing.
 - **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
-- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked.
-- **Kill-chain scenarios.** Three story-driven scenarios live at `/scenarios`: Shop Takeover, API Heist, and Ghost in the CMS. Staged unlock: each stage opens only after the previous stage's flag is captured, and finishing all stages earns a scenario flag.
-- **Career paths.** Three guided paths live at `/paths`: Zero to Web Pentester, API Hacker, and Authentication Assassin. Ordered steps, prerequisites, progress tracking, and a verifiable PNG certificate on completion.
+- **490 regression tests.** The real paths and the fake ones, proven on every run.
+- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit dies.
+- **Kill-chain scenarios.** Three story-driven scenarios at `/scenarios`: Shop Takeover, API Heist, Ghost in the CMS. Staged unlock, one scenario flag per story.
+- **Career paths.** Three guided paths at `/paths`: Zero to Web Pentester, API Hacker, Authentication Assassin. Ordered steps, prerequisites, progress tracking, verifiable PNG certificates.
 - The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 ## Project layout
@@ -236,6 +234,7 @@ PenTrix-VulnLab/
 ├── lib/
 │   ├── db.js               # SQLite setup and seed
 │   ├── flags.js            # flagFor() lookup, award() with exploit verification
+│   ├── fixmode.js          # break-then-fix sandbox runner (in development)
 │   └── page.js             # shared page shell, nav, scoreboard components
 ├── modules/
 │   ├── sqli/
@@ -250,7 +249,7 @@ PenTrix-VulnLab/
 │                           #   authentication-assassin), prerequisites, PNG
 │                           #   certificates with verification codes
 ├── public/                 # claymorphism CSS, client JS
-├── data/                   # SQLite database (gitignored, created on boot)
+├── data/                   # local app data (gitignored, created on boot)
 ├── docs/
 │   ├── assets/             # diagrams used in this README
 │   ├── audit/              # Phase Zero findings
@@ -267,14 +266,17 @@ PenTrix-VulnLab/
 **Is it safe to run?**
 Yes, on your own machine. The container binds to `127.0.0.1` only, drops Linux capabilities, and is resource-limited. It is still intentionally vulnerable software, so keep it off shared networks.
 
-**Can I deploy it to the internet so friends can play?**
-No. Never. It is a practice target, not a hardened app. If you want a shared event, run it on an isolated lab network you fully control.
+**Can I put it on the internet so friends can play?**
+No. Never. It is a practice target, not a hardened app. For a shared event, run it on an isolated lab network you fully control.
 
 **How do flags work?**
 Every install generates its own 201 random flags on first boot, on your machine. The source on GitHub contains zero flags, so nothing can be spoiled by reading code.
 
+**Can I peek at the flags in the code?**
+There is nothing to peek at. No flag literal exists in any tracked file. Read the whole repo: you will learn techniques, never flags.
+
 **I solved a challenge but got no flag. Why?**
-Because the lab only awards flags for genuine exploitation. A request that does not actually trigger the vulnerability earns nothing. Re-read the briefing, check the hint, and make the exploit real.
+The lab awards flags for genuine exploitation only. A request that never triggers the vulnerability earns nothing. Re-read the briefing, check the hint, and make the exploit real.
 
 **I found an unintended vulnerability in the lab itself.**
 That is a bonus flag in spirit. Open an issue and tell the story.
@@ -283,10 +285,10 @@ That is a bonus flag in spirit. Open an issue and tell the story.
 A simple challenge-builder format is in development. Until then, issues and pull requests with new challenge ideas are welcome.
 
 **Do I need Burp Suite?**
-It is the lab's first-class tool, and I very highly recommend it. Every one of the 201 challenges is fully solvable through the standard Burp workflow (Proxy, Repeater, Intruder), and the Burp Community edition is enough, you do not need Pro. curl still works for many challenges, and your browser handles the rest, but the lab teaches Burp-first: hints and technique walkthroughs name the Burp step, not the curl one-liner.
+It is the lab's first-class tool, and I very highly recommend it. All 201 challenges fall to the standard Burp workflow (Proxy, Repeater, Intruder), and the Community edition is enough; you do not need Pro. curl still works for many challenges and your browser handles the rest, but this lab teaches Burp-first: hints and technique walkthroughs name the Burp step, not the curl one-liner.
 
 **Where do I start if I am brand new?**
-Open the app and follow the "Start here" card. It points to the gentlest module first. Then start the **Zero to Web Pentester** path at `/paths`: ten steps from gentlest to trickiest, ending with your first certificate.
+Open the app and follow the "Start here" card: it points to the gentlest module first. Then take the **Zero to Web Pentester** path at `/paths`: ten steps from gentlest to trickiest, ending with your first certificate.
 
 ## Rules
 
