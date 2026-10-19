@@ -51,6 +51,12 @@ npm start
 
 Set `SESSION_SECRET` to a private value for any graded or shared use. The app falls back to an insecure dev secret when it is unset, which is fine for local labs only.
 
+Run the regression suite (boots the app on a throwaway database; needs Node 20 and the installed dependencies, or run it in the container with `docker compose run --rm vulnlab npm test`):
+
+```bash
+npm test
+```
+
 ## How a session goes
 
 1. **Pick a module** on the home page. 29 to choose from, with search and difficulty filters.
@@ -116,9 +122,9 @@ Most labs stop at "find the bug". PenTrix is being built to train complete secur
 ![Architecture](docs/assets/architecture.svg)
 
 - **Express + SQLite**, zero build step, plain CSS and JS. Clone it, read it, run it.
-- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each of the **201 challenges lives in its own file** under `modules/<id>/challenges/`, owning its page, its routes, and its vulnerability.
+- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each module is currently a single `modules/<id>/router.js` holding all of its challenges (the one-file-per-challenge split is specified in `docs/roadmap/CHALLENGE_SPLIT_CONTRACT.md` but not yet applied; the loader already accepts `modules/<id>/index.js`).
 - **`lib/flags.js`** looks up the per-deployment flag and verifies the exploit before awarding. Challenge code never touches flag values.
-- **Scoreboard** tracks progress from session state. It never displays secrets.
+- **Scoreboard** tracks progress per browser session. Sessions are stored in `data/sessions.db` (separate from the vulnerable app's database), so progress survives restarts and is cleared only by deleting `data/`. It never displays secrets.
 - Every vulnerability is marked in the source with `// VULN:` comments (280 across the codebase) so you can study the code *after* solving.
 
 ## The lab catalog

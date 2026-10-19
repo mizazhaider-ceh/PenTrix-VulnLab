@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
 
-const { getDb, ensureFlags } = require('./lib/db');
+const { getDb, ensureFlags, DB_PATH } = require('./lib/db');
 const { page, esc, difficultyPill, progressBar, emptyState, payloadBlock, errorPage } = require('./lib/page');
 const { captured } = require('./lib/flags');
 
@@ -30,7 +30,9 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'pentrix-vulnlab-insecure-d
 if (!process.env.SESSION_SECRET) {
   console.warn('[warn] SESSION_SECRET not set, using insecure dev fallback (fine for local labs only)');
 }
+const { SqliteStore } = require('./lib/session-store');
 app.use(session({
+  store: new SqliteStore(path.join(path.dirname(DB_PATH), 'sessions.db')),
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
@@ -293,7 +295,7 @@ app.get('/about', (req, res) => {
         <li>Capture the flag; progress is tracked on the scoreboard.</li>
         <li>Stuck? Open the hint. Still stuck? Check <code>SOLUTIONS.md</code>.</li>
       </ol>
-      ${payloadBlock('Flag format', 'PENTRIX{module_challenge}')}
+      ${payloadBlock('Flag format', 'PENTRIX{<32 hex characters>}')}
     </section>
     <section class="block">
       <h2>Rules of the lab</h2>
@@ -323,4 +325,8 @@ app.use((err, req, res, next) => {
     null, { scoreChip: scoreChipHtml(req) }));
 });
 
-app.listen(PORT, () => console.log(`[ok] PenTrix VulnLab listening on http://localhost:${PORT}`));
+// Exported so the test suite can boot the app on an ephemeral port.
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`[ok] PenTrix VulnLab listening on http://localhost:${PORT}`));
+}
+module.exports = app;

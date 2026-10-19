@@ -1,6 +1,32 @@
 # PROGRESS: PenTrix VulnLab transformation
 
-Date: 2026-10-19. Updated as milestones complete.
+Date: 2026-10-19. Statuses: NOT STARTED / IN PROGRESS / BLOCKED / IMPLEMENTED /
+VERIFIED / INTEGRATED / COMPLETE.
+
+## Current ledger (reconciled against git and a live run, 2026-10-19)
+
+Git history shows M3-M7 merged to `main` (safety, verification integrity,
+claymorphism shell, motion system, curriculum pass to 201 challenges). The
+"Phase One review gate" text further down is historical and no longer current.
+See `docs/audit/KNOWN_ISSUES.md` for the verified baseline and open issues.
+
+| Unit | Status | Evidence | Next action |
+|---|---|---|---|
+| Fresh audit (runtime, inventory, flags, scoreboard) | VERIFIED | `docs/audit/KNOWN_ISSUES.md`; isolated container on :3100 | Browser UI audit (KI-10) |
+| Test harness (`npm test`, Node 20) | IMPLEMENTED, run in Docker: 10/10 pass | `tests/platform.test.js` | Extend with per-module exploit tests |
+| Persistent sessions (KI-1) | VERIFIED (restart test) | `lib/session-store.js`, `tests/platform.test.js` | Not committed yet |
+| Docs/UI text corrections (KI-2, KI-3) | IMPLEMENTED | `app.js`, `README.md` | none |
+| Per-challenge exploit tests (KI-4) | IN PROGRESS: 1/201 covered (sqli:login-bypass) | `tests/platform.test.js` | Start with `sqli` module, then `auth`, `idor`, `xss` claim flow |
+| Lab network isolation (KI-7) | NOT STARTED | n/a | Compose internal network + egress restriction design |
+| Challenge file split | NOT STARTED (contract exists) | `docs/roadmap/CHALLENGE_SPLIT_CONTRACT.md` | Decide after KI-4 coverage exists |
+
+## Continuation note
+
+Resume by running `docker build -t pentrix-audit:test . ; docker run --rm pentrix-audit:test npm test`
+(host Node 24 cannot load better-sqlite3 v11). Re-verify before trusting this table.
+
+# Historical notes (pre-M3, kept for context)
+
 
 ## Done
 
