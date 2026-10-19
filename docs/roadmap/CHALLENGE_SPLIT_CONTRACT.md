@@ -54,6 +54,29 @@ Rules:
 - Keep every `// VULN:` marker with the code it describes.
 - Never hardcode a flag (MODULE_CONTRACT.md rule 8). Use `award()`/`flagFor()`.
 
+## Reserved: M11 break-then-fix hook (optional export)
+
+Phase 2 (M11) adds an optional `fix` export to challenge files. Writers: do
+NOT implement fix blocks; just keep the shape in mind so nothing you write
+prevents it. The M11 agents will add:
+
+```js
+module.exports.fix = {
+  // snippet: the vulnerable code as a displayable string (the exact code the
+  // student will edit in the "Now fix it" editor).
+  snippet: '...',
+  // exploitTest(baseUrl): async, returns true when the EXPLOIT still works.
+  // After a correct fix this must return false.
+  exploitTest: async (baseUrl) => true,
+  // legitTest(baseUrl): async, returns true when LEGITIMATE use still works.
+  // After a correct fix this must stay true.
+  legitTest: async (baseUrl) => true,
+};
+```
+
+Pilot scope for M11: all sqli and xss challenges get real fix blocks; every
+other challenge shows "fix mode coming", never a faked block.
+
 ## Aggregator shape (`modules/<id>/index.js`)
 
 ```js
