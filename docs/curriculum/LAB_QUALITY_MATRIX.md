@@ -743,6 +743,93 @@ matrix is the first explicit tool mapping the curriculum has.
 
 ---
 
+## (e) Per-challenge file split status (2026-10-19)
+
+The codebase is being split from monolithic `modules/<id>/router.js` files to
+one file per challenge. Target layout, verified against the tree on
+2026-10-19:
+
+- `modules/<id>/index.js`: thin aggregator. Requires each challenge file,
+  builds the module index page (vuln cards, hint ladders, tool pills), holds
+  only module-level helper routes.
+- `modules/<id>/challenges/<vulnId>.js`: one challenge per file. Exports the
+  `vuln` metadata (id, name, difficulty, how, start, hint) plus its own
+  express router, which the aggregator mounts.
+- `modules/<id>/shared.js`: module-scoped shared state and helpers (shop
+  state, session fixtures). Present in 23 of 29 modules; absent in cors,
+  crypto, csti, formula, http.
+- `tests/<module>.test.js`: per-challenge exploit tests (node:test). Each
+  challenge gets a subtest that boots the lab via `tests/helpers.js`
+  (`bootLab`, `client`, `flagFromDb`, `capturedSet`, `FLAG_RE`) and asserts
+  the flag is awarded by the documented technique and NOT by the obvious
+  shortcut (benign input earns nothing, unauthenticated request is rejected).
+  27 of 29 modules have one; crypto and xxe have none yet. Supporting files:
+  `tests/helpers.js`, `tests/platform.test.js`, and the fixmode suite
+  (`fixmode.test.js`, `fixmode-sqli.test.js`, `fixmode-xss.test.js`,
+  `fixmode-badges.test.js`).
+
+The done set is 8 modules / 63 challenge files; the in-progress set is 21
+modules / 138 challenge files. 63 + 138 = 201, the post-dedupe challenge
+count (section (a) records the 34 removed challenges; that list is unchanged).
+Challenge-file counts below are post-dedupe, so they differ from the
+pre-dedupe vuln counts in the audit tables above (e.g. api 5 here vs 11
+above, csrf 5 vs 11, idor 7 vs 11).
+
+### Done: 8 modules, 63 challenge files
+
+| Module | Challenge files | index.js (lines) | Tests |
+|---|---|---|---|
+| api | 5 | 87 | tests/api.test.js |
+| sqli | 11 | 57 | tests/sqli.test.js |
+| xss | 9 | 132 | tests/xss.test.js |
+| auth | 8 | 83 | tests/auth.test.js |
+| idor | 7 | 119 | tests/idor.test.js |
+| csrf | 5 | 109 | tests/csrf.test.js |
+| cmdi | 9 | 83 | tests/cmdi.test.js |
+| lfi | 9 | 62 | tests/lfi.test.js |
+| **Total** | **63** | | |
+
+### In progress: 21 modules, 138 challenge files
+
+| Module | Challenge files | index.js (lines) | shared.js | Note |
+|---|---|---|---|---|
+| ssrf | 9 | 175 | yes | |
+| upload | 8 | 165 | yes | |
+| xxe | 8 | none | yes | still monolithic `router.js` (623 lines); `challenges/` not wired |
+| ssti | 9 | 65 | yes | |
+| jwt | 8 | 140 | yes | |
+| session | 6 | 67 | yes | |
+| race | 8 | 87 | yes | |
+| bizlogic | 8 | 103 | yes | |
+| redirect | 5 | 66 | yes | |
+| hostheader | 5 | 148 | yes | |
+| http | 3 | 77 | no | |
+| cors | 6 | 231 | no | `/cors/prove` harness still in index.js |
+| proto | 6 | 76 | yes | |
+| crypto | 8 | none | no | still monolithic `router.js` (665 lines); `challenges/` not wired |
+| oauth | 8 | 391 | yes | in-lab IdP simulation lives in index.js |
+| postmsg | 5 | 122 | yes | |
+| csti | 5 | 142 | no | |
+| jsonp | 5 | 100 | yes | |
+| formula | 4 | 104 | no | |
+| redos | 4 | 78 | yes | |
+| misconfig | 10 | 68 | yes | plus `backup.sql`, `public-files/` assets |
+| **Total** | **138** | | | |
+
+Notes:
+
+- crypto and xxe are the two modules with no `index.js` yet; they still mount
+  via the old monolithic `modules/<id>/router.js`, so their split is not
+  finished even though their `challenges/` files exist.
+- oauth's aggregator is thickest (391 lines) because the OAuth IdP + client
+  simulation is module-level machinery shared by all 8 challenges, not
+  per-challenge logic.
+- sqli and xss also carry `modules/<id>/fixes/` for the break-then-fix mode;
+  lfi carries `docs/` and `lfi_secret.conf`; these are module extras, not
+  part of the split layout.
+
+---
+
 *Method: all 29 `modules/*/router.js` read; vuln counts from exported
 `vulns[]` arrays (235 total); VULN markers and award() call sites grepped and
 read in context; SOLUTIONS.md checked for per-flag coverage (all 235 flags

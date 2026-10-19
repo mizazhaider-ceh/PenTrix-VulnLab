@@ -16,14 +16,136 @@ See `docs/audit/KNOWN_ISSUES.md` for the verified baseline and open issues.
 | Test harness (`npm test`, Node 20) | IMPLEMENTED, run in Docker: 10/10 pass | `tests/platform.test.js` | Extend with per-module exploit tests |
 | Persistent sessions (KI-1) | VERIFIED (restart test) | `lib/session-store.js`, `tests/platform.test.js` | Not committed yet |
 | Docs/UI text corrections (KI-2, KI-3) | IMPLEMENTED | `app.js`, `README.md` | none |
-| Per-challenge exploit tests (KI-4) | IN PROGRESS: 1/201 covered (sqli:login-bypass) | `tests/platform.test.js` | Start with `sqli` module, then `auth`, `idor`, `xss` claim flow |
+| Per-challenge exploit tests (KI-4) | IN PROGRESS: 63/201 covered (api, sqli, xss, auth, idor, csrf, cmdi, lfi); every split challenge carries its own exploit test | `tests/`, `modules/<id>/challenges/*.js` on main at 3375613 | Continue with `ssrf`, `upload`, `xxe`, then the rest in checklist order |
 | Lab network isolation (KI-7) | NOT STARTED | n/a | Compose internal network + egress restriction design |
-| Challenge file split | NOT STARTED (contract exists) | `docs/roadmap/CHALLENGE_SPLIT_CONTRACT.md` | Decide after KI-4 coverage exists |
+| Challenge file split | IN PROGRESS: 8/29 modules split (63/201 challenges), each with exploit tests, on main at 3375613 | `modules/<id>/challenges/<vulnId>.js`; contract at `docs/roadmap/CHALLENGE_SPLIT_CONTRACT.md` | Split remaining 21 modules (138 challenges) in the checklist order below |
+
+## Challenge split progress (2026-10-19)
+
+8 of 29 modules split so far, 63 of 201 challenges, all on `main` at
+`3375613`. Every split challenge ships with its own per-challenge exploit
+test, and the tests caught real bugs that the split commits fixed:
+
+- `sqli`: the login-bypass challenge awarded the flag when real admin
+  credentials were used (it should only award on an actual injection
+  bypass).
+- `idor`: an IDOR challenge leaked the admin secret and awarded flags to
+  admin sessions (the flag must only go to the intended exploit).
+- `csrf`: the referer host check was wrong (allowed wrong-host requests).
+- `xss`: the dom-clobber challenge state was shared across students.
+- Wrong hint payloads in some challenges (hints that would never work).
+
+21 modules remain, to be split in this order: ssrf, upload, xxe, ssti,
+misconfig, jwt, session, race, bizlogic, redirect, hostheader, cors, proto,
+crypto, oauth, postmsg, csti, http, jsonp, formula, redos (138 challenges).
+
+### Per-module split checklist
+
+Legend: `done` = split, tested, verified and committed on main at 3375613
+(verified means the per-challenge exploit tests pass). `pending` = not
+started. Challenge counts are listed for done modules; pending counts are
+tbd and sum to 138.
+
+| # | Module | Challenges | Split | Tests | Verified | Committed |
+|---|---|---|---|---|---|---|
+| 1 | api | 5 | done | done | done | done |
+| 2 | sqli | 11 | done | done | done | done |
+| 3 | xss | 9 | done | done | done | done |
+| 4 | auth | 8 | done | done | done | done |
+| 5 | idor | 7 | done | done | done | done |
+| 6 | csrf | 5 | done | done | done | done |
+| 7 | cmdi | 9 | done | done | done | done |
+| 8 | lfi | 9 | done | done | done | done |
+| 9 | ssrf | tbd | pending | pending | pending | pending |
+| 10 | upload | tbd | pending | pending | pending | pending |
+| 11 | xxe | tbd | pending | pending | pending | pending |
+| 12 | ssti | tbd | pending | pending | pending | pending |
+| 13 | misconfig | tbd | pending | pending | pending | pending |
+| 14 | jwt | tbd | pending | pending | pending | pending |
+| 15 | session | tbd | pending | pending | pending | pending |
+| 16 | race | tbd | pending | pending | pending | pending |
+| 17 | bizlogic | tbd | pending | pending | pending | pending |
+| 18 | redirect | tbd | pending | pending | pending | pending |
+| 19 | hostheader | tbd | pending | pending | pending | pending |
+| 20 | cors | tbd | pending | pending | pending | pending |
+| 21 | proto | tbd | pending | pending | pending | pending |
+| 22 | crypto | tbd | pending | pending | pending | pending |
+| 23 | oauth | tbd | pending | pending | pending | pending |
+| 24 | postmsg | tbd | pending | pending | pending | pending |
+| 25 | csti | tbd | pending | pending | pending | pending |
+| 26 | http | tbd | pending | pending | pending | pending |
+| 27 | jsonp | tbd | pending | pending | pending | pending |
+| 28 | formula | tbd | pending | pending | pending | pending |
+| 29 | redos | tbd | pending | pending | pending | pending |
 
 ## Continuation note
 
 Resume by running `docker build -t pentrix-audit:test . ; docker run --rm pentrix-audit:test npm test`
 (host Node 24 cannot load better-sqlite3 v11). Re-verify before trusting this table.
+
+## Milestone 11 (break-then-fix mode): IN PROGRESS
+
+Recorded 2026-10-19. M11 adds a fix mode on top of the exploit
+challenges: after capturing a flag the student gets the vulnerable code
+and must patch it. A fix is accepted only when the exploit is blocked
+and legitimate use still works. Pilot scope: `sqli` (11) + `xss` (9) =
+20 fix blocks, each living at `modules/<module>/fixes/<vulnId>.js`.
+
+### Framework
+
+| File | Status | What it does |
+|---|---|---|
+| `lib/fixmode.js` | done | Sandboxed runner: executes student code in `node:vm` with a minimal sandbox (plain JS builtins plus a neutered console; no `require`, no `process`, no file or network access), 2s run timeout, 50KB code cap. Exports `listFixBlocks`, `hasFixBlock`, `getFixBlock`, `validateBlock`, `testFix`, `resetFixCache` |
+| `lib/fixbadges.js` | done | Badge storage: `fix_badges` SQLite table keyed by express `sessionID` (same user identity as the flag system), so badges survive server restarts |
+| `lib/page.js` fix UI | done | `fixCta`, `fixEditorPage`, `fixResultHtml`, `fixBadgePill`; challenge pages render the fix CTA when a block exists |
+
+### The four runner checks (`testFix` in `lib/fixmode.js`)
+
+A student fix is accepted only when all four pass
+(`ok: true, exploitBlocked: true, legitWorks: true`):
+
+1. Block sanity (`validateBlock`): the block has `vulnerableCode`,
+   `fixedCode`, `testExploit`, `testLegit`; the vulnerable code defines a
+   callable `vulnFn` in the sandbox; `testExploit` returns `true` on the
+   vulnerable code (the exploit really works); `testLegit` returns `true`
+   on the vulnerable code (normal use really works).
+2. `definesVulnFn`: the student's fixed code defines a callable `vulnFn`
+   in the sandbox.
+3. Exploit blocked: `testExploit` evaluates to something other than
+   `true` against the student's fixed code.
+4. Legit use preserved: `testLegit` evaluates to `true` against the
+   student's fixed code.
+
+### Pilot fix blocks
+
+| Module | Fix blocks | Status |
+|---|---|---|
+| `sqli` | 11/11: blind, error, groupby-having, insert-inject, like-wildcard, limit-offset, login-bypass, order-by, second-order, union-filter-bypass, union | done |
+| `xss` | 9/9: dom, reflected, stored, xss-attr-breakout, xss-backtick, xss-dom-clobber, xss-js-context, xss-markdown, xss-svg-upload | done |
+
+Each block carries `title`, `vulnerableCode`, `fixedCode` (reference
+solution), `fixHint`, `testExploit` (expression that is `true` when the
+exploit succeeds), and `testLegit` (expression that is `true` when
+legitimate use works). Block ids mirror their challenge ids one to one.
+
+Rule for the other 181 challenges: `fixCta` degrades to the honest
+"Fix mode is coming soon for this challenge." note until a fix block
+lands for that challenge.
+
+### Tests
+
+| File | Status |
+|---|---|
+| `tests/fixmode.test.js` | in progress (file not yet present) |
+| `tests/fixmode-sqli.test.js` | in progress (file not yet present) |
+| `tests/fixmode-xss.test.js` | in progress (file not yet present) |
+| `tests/fixmode-badges.test.js` | in progress (file not yet present) |
+
+### Next actions
+
+1. Write the four fix-mode test files above and run them (VM Node 24
+   needs the better-sqlite3 v12 verify copy, or Docker).
+2. Re-verify this section after the tests land.
 
 # Historical notes (pre-M3, kept for context)
 

@@ -122,10 +122,10 @@ Most labs stop at "find the bug". PenTrix is being built to train complete secur
 ![Architecture](docs/assets/architecture.svg)
 
 - **Express + SQLite**, zero build step, plain CSS and JS. Clone it, read it, run it.
-- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each module is currently a single `modules/<id>/router.js` holding all of its challenges (the one-file-per-challenge split is specified in `docs/roadmap/CHALLENGE_SPLIT_CONTRACT.md` but not yet applied; the loader already accepts `modules/<id>/index.js`).
+- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each module is split one file per challenge: `modules/<id>/challenges/<vuln-id>.js` holds a single challenge, `modules/<id>/index.js` is a thin aggregator, and `modules/<id>/shared.js` holds module helpers.
 - **`lib/flags.js`** looks up the per-deployment flag and verifies the exploit before awarding. Challenge code never touches flag values.
 - **Scoreboard** tracks progress per browser session. Sessions are stored in `data/sessions.db` (separate from the vulnerable app's database), so progress survives restarts and is cleared only by deleting `data/`. It never displays secrets.
-- Every vulnerability is marked in the source with `// VULN:` comments (280 across the codebase) so you can study the code *after* solving.
+- Every vulnerability is marked in the source with `// VULN:` comments (281 across the codebase) so you can study the code *after* solving.
 
 ## The lab catalog
 
@@ -174,7 +174,7 @@ This repo went through a full engineering transformation:
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
 - **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
 - **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
-- **In progress:** real-website feel for every challenge page, motion polish, curriculum depth pass, and the three pillars above (break-then-fix, kill-chain scenarios, career paths). The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
+- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked. Kill-chain scenarios and career paths are next. The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 ## Project layout
 
