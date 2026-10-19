@@ -22,8 +22,16 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(cookieParser());
+// Session secret: set SESSION_SECRET in the environment for any graded or
+// shared use. The fallback below is committed and insecure by design (it only
+// needs to be unique per browser for a local training lab); never rely on it
+// where session integrity matters.
+const SESSION_SECRET = process.env.SESSION_SECRET || 'pentrix-vulnlab-insecure-dev-secret';
+if (!process.env.SESSION_SECRET) {
+  console.warn('[warn] SESSION_SECRET not set, using insecure dev fallback (fine for local labs only)');
+}
 app.use(session({
-  secret: 'pentrix-vulnlab-insecure-dev-secret',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
   // VULN (deliberate): cookies readable by JS so XSS cookie-stealing demos work.
@@ -36,23 +44,40 @@ getDb(); // init + seed
 
 // ---- auto-mount modules: modules/<id>/router.js ----
 const modulesDir = path.join(__dirname, 'modules');
+// Route prefixes owned by the app shell; modules may not claim them.
+const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads']);
+const seenIds = new Set();
 const registry = [];
 if (fs.existsSync(modulesDir)) {
   for (const dir of fs.readdirSync(modulesDir)) {
     const modPath = path.join(modulesDir, dir, 'router.js');
     if (!fs.existsSync(modPath)) continue;
+    let mod;
     try {
-      const mod = require(modPath);
-      if (!mod.id || !mod.router || !Array.isArray(mod.vulns)) {
-        console.warn(`[warn] skipping ${dir}: bad module shape`);
-        continue;
-      }
-      app.use('/' + mod.id, mod.router);
-      registry.push(mod);
-      console.log(`[ok] mounted /${mod.id} (${mod.vulns.length} vulns)`);
+      mod = require(modPath);
     } catch (e) {
       console.error(`[err] failed to load ${dir}:`, e.message);
+      continue;
     }
+    if (!mod.id || !mod.router || !Array.isArray(mod.vulns)) {
+      console.warn(`[warn] skipping ${dir}: bad module shape`);
+      continue;
+    }
+    // Fail fast (abort boot) on contract violations that would silently
+    // shadow routes or collide with app shell routes.
+    if (!/^[a-z0-9]+$/.test(mod.id)) {
+      throw new Error(`module "${dir}" has invalid id "${mod.id}": use lowercase alphanumeric only`);
+    }
+    if (RESERVED_IDS.has(mod.id)) {
+      throw new Error(`module "${dir}" claims reserved id "${mod.id}" (reserved: ${[...RESERVED_IDS].join(', ')})`);
+    }
+    if (seenIds.has(mod.id)) {
+      throw new Error(`duplicate module id "${mod.id}" (already mounted from another directory)`);
+    }
+    seenIds.add(mod.id);
+    app.use('/' + mod.id, mod.router);
+    registry.push(mod);
+    console.log(`[ok] mounted /${mod.id} (${mod.vulns.length} vulns)`);
   }
 }
 app.locals.registry = registry;
