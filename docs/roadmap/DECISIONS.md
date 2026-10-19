@@ -151,7 +151,19 @@ flag-capture moment) while challenge pages stay clear, high-contrast, and
 restrained (see MOTION_SYSTEM.md section 5). The lab-engine half of the
 project (D11) is unaffected by this change.
 
-## D16. Burp Suite is the lab's first-class tool (owner doctrine)
+## D16. Challenge catalog is 201 after dedupe (owner decision, supersedes D2)
+
+Decision (2026-10-19, owner confirmed: KEEP 201): the M7 curriculum pass
+removed 34 duplicate or near-duplicate challenges (235 to 201), every one
+documented in docs/curriculum/LAB_QUALITY_MATRIX.md. D2 ("235 is the
+authoritative challenge count") is superseded but kept as a historical
+record, as are the 235 figures in docs/audit/* and the design briefs.
+README, its diagrams, the demo cheat sheet, and SOLUTIONS.md were updated
+to 201 (pushed as 5442473). Live code never hardcoded the count; the
+scoreboard computes it from the module registry (verified: 0 / 201).
+Per-module counts are recorded in PROGRESS.md.
+
+## D17. Burp Suite is the lab's first-class tool (owner doctrine)
 
 Decision (2026-10-19, owner instruction): every one of the 201 challenges
 must be fully solvable through the standard Burp Suite workflow (Proxy
