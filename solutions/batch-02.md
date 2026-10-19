@@ -8,7 +8,7 @@ a browser address bar (curl `--data-urlencode` does this for you).
 
 ## sqli – SQL Injection
 
-**1. ORDER BY Injection** – `PENTRIX{sqli_order-by}`
+**1. ORDER BY Injection** – `PENTRIX{...}`
 
 The `sort` parameter on `/sqli/sort` is interpolated straight into `ORDER BY`,
 and `ORDER BY` accepts full expressions, not just column names. Smuggle in a
@@ -28,7 +28,7 @@ against the users table runs successfully.
 Why it works: `ORDER BY` evaluates any expression per row, so a conditional
 expression turns the visible sort order into a boolean oracle.
 
-**2. Second-Order SQL Injection** – `PENTRIX{sqli_second-order}`
+**2. Second-Order SQL Injection** – `PENTRIX{...}`
 
 Registration (`POST /sqli/register`) stores your display name with a prepared
 statement, so the payload sleeps quietly. But `/sqli/profile` later interpolates
@@ -52,7 +52,7 @@ fires on read, not on write.
 Why it works: input that is safe at rest becomes SQL when it is concatenated
 into a later query; the trust boundary moved from the form to the database.
 
-**3. LIKE Wildcard Injection** – `PENTRIX{sqli_like-wildcard}`
+**3. LIKE Wildcard Injection** – `PENTRIX{...}`
 
 `/sqli/wildcard` drops your term into `LIKE '%q%'` without escaping the pattern
 characters `%` and `_`:
@@ -68,7 +68,7 @@ Why it works: `%` and `_` are wildcards inside `LIKE`, and the app never escapes
 them, so attacker-controlled wildcards widen the match to rows the search
 should not return.
 
-**4. LIMIT/OFFSET Injection** – `PENTRIX{sqli_limit-offset}`
+**4. LIMIT/OFFSET Injection** – `PENTRIX{...}`
 
 `/sqli/paged` shows 2 products, but `limit` is interpolated raw into the `LIMIT`
 clause, and `LIMIT` accepts more than a plain number:
@@ -85,7 +85,7 @@ dumps rows too, but earns nothing).
 Why it works: the numeric context was never validated, so SQL clause syntax
 (`-1`, `offset,count`) is accepted where only a page size was intended.
 
-**5. GROUP BY Injection** – `PENTRIX{sqli_groupby-having}`
+**5. GROUP BY Injection** – `PENTRIX{...}`
 
 `/sqli/stats` groups sales by the `by` parameter and prints the grouping key in
 the first column. `GROUP BY` accepts any expression, including a subquery:
@@ -101,7 +101,7 @@ in the Group column and triggers the flag.
 Why it works: the grouping expression is attacker-controlled and echoed back,
 so pointing it at the users table exfiltrates data through the group key.
 
-**6. UNION Filter Bypass** – `PENTRIX{sqli_union-filter-bypass}`
+**6. UNION Filter Bypass** – `PENTRIX{...}`
 
 `/sqli/shop` strips only the exact lowercase word `union` from your search. The
 filter is case-sensitive and comment-blind:
@@ -119,7 +119,7 @@ which is the filter "working".
 Why it works: blacklist filters that do not understand SQL case-insensitivity
 or comment syntax are trivially bypassed with equivalent spellings.
 
-**7. INSERT Injection** – `PENTRIX{sqli_insert-inject}`
+**7. INSERT Injection** – `PENTRIX{...}`
 
 The feedback form at `/sqli/feedback` interpolates your input into
 `INSERT INTO sqli_feedback(name, message) VALUES ('...', '...')`. Stacked
@@ -140,7 +140,7 @@ wall awards the flag.
 Why it works: breaking out of the VALUES list lets a scalar subquery supply a
 column value, turning an INSERT into a read primitive.
 
-**8. Error-based Injection (Runtime Errors)** – `PENTRIX{sqli_error-cast}`
+**8. Error-based Injection (Runtime Errors)** – `PENTRIX{...}`
 
 `/sqli/cast` leaks raw database errors like the syntax-error lab, but a plain
 stray quote earns nothing here. Trigger a *runtime* error instead:
@@ -173,7 +173,7 @@ Log in once per session for the authenticated labs:
 curl -c c.txt http://localhost:3000/api/login/alice
 ```
 
-**1. BOLA: Order Access** – `PENTRIX{api_bola-orders}`
+**1. BOLA: Order Access** – `PENTRIX{...}`
 
 `GET /api/v1/orders/:id` trusts the id and never checks ownership:
 
@@ -188,7 +188,7 @@ awards the flag.
 Why it works: broken object-level authorization; the endpoint resolves the
 object id without verifying it belongs to the caller.
 
-**2. Mass Assignment: Role** – `PENTRIX{api_mass-assign-role}`
+**2. Mass Assignment: Role** – `PENTRIX{...}`
 
 `PATCH /api/v1/users/:id` builds its SQL SET clause from every key in the JSON
 body, with no allowlist:
@@ -204,7 +204,7 @@ The response shows your role flipped to admin and the flag is awarded.
 Why it works: client-controlled keys become columns in the UPDATE, so `role`
 is writable even though no UI ever sends it.
 
-**3. API Key Exposure** – `PENTRIX{api_data-exposure-keys}`
+**3. API Key Exposure** – `PENTRIX{...}`
 
 `GET /api/v1/me` bundles a secret API key into the profile response:
 
@@ -218,7 +218,7 @@ client should never see. Fetching it awards the flag.
 Why it works: excessive data exposure; the server serializes internal secrets
 into a client-facing response.
 
-**4. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{api_ratelimit-xff}`
+**4. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{...}`
 
 `POST /api/v1/login` locks an IP out after 3 bad attempts, but the "client IP"
 is read from the `X-Forwarded-For` header, which you control:
@@ -246,7 +246,7 @@ a spoofed header.
 Why it works: rate-limit identity comes from a client-controlled header, so the
 attacker gets a fresh quota by spoofing a new IP per attempt.
 
-**5. Unsafe PUT: Read-only Field Overwrite** – `PENTRIX{api_unsafe-put}`
+**5. Unsafe PUT: Read-only Field Overwrite** – `PENTRIX{...}`
 
 `PUT /api/v1/profile` replaces your profile object and copies every key you
 send, including the read-only `is_admin` flag:
@@ -262,7 +262,7 @@ The response shows `is_admin: 1` and the flag is awarded.
 Why it works: PUT full-object replacement with no field allowlist lets the
 client overwrite server-managed fields.
 
-**6. API Version AuthZ Bypass** – `PENTRIX{api_api-version-bypass}`
+**6. API Version AuthZ Bypass** – `PENTRIX{...}`
 
 `GET /api/v1/users/:id` enforces "your own record, or admin". The v2 copy
 forgot the check:
@@ -277,7 +277,7 @@ The v2 response includes bob's password hash and secret.
 Why it works: the authorization check was not carried over when the endpoint
 was versioned, so the new route exposes what the old one protects.
 
-**7. IDOR: Invoice Enumeration** – `PENTRIX{api_id-enumeration}`
+**7. IDOR: Invoice Enumeration** – `PENTRIX{...}`
 
 Invoice ids are sequential and `GET /api/v1/invoices/:id` does not check
 ownership:
@@ -290,7 +290,7 @@ curl -b c.txt http://localhost:3000/api/v1/invoices/2   # someone else's + flag
 Why it works: predictable identifiers plus missing ownership check turn id
 guessing into cross-user data access.
 
-**8. PATCH Self-Privilege Escalation** – `PENTRIX{api_patch-self-admin}`
+**8. PATCH Self-Privilege Escalation** – `PENTRIX{...}`
 
 `PATCH /api/v1/me` is meant for `display_name` and `bio`, but there is no
 allowlist:

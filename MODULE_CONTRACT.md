@@ -55,6 +55,11 @@ const { award, flagFor, captured } = require('../../lib/flags');
 6. **Provide attack surface.** Every vuln needs a visible form, link, or endpoint
    to attack. No hidden routes the user can't discover from your pages.
 7. **Session flags only.** Do not invent your own flag strings. Flag format is fixed.
+8. **Never hardcode a flag.** Flags are random per deployment and live only in
+   the `flags` table. Use `award(req, '<id>', '<vuln-id>')` to award and
+   `flagFor('<id>', '<vuln-id>')` to display an already-captured flag. Never
+   write a literal `PENTRIX{...}` value in code (format examples like
+   `PENTRIX{...}` in docs are fine).
 8. **Keep it robust:** validate your file with `node --check modules/<id>/router.js`.
    The coordinator will boot the app and curl your pages; broken modules get fixed
    or cut.
@@ -64,7 +69,8 @@ const { award, flagFor, captured } = require('../../lib/flags');
 
 ## Seeded data you can use
 
-- `users`: admin/admin123 (role admin, secret = `PENTRIX{sqli_union}`),
-  alice/alice123, bob/bob123 (role user).
+- `users`: admin/admin123 (role admin, secret = random `PENTRIX{...}` per
+  deployment), alice/alice123, bob/bob123 (role user). Read the admin secret
+  from the DB at request time via `getDb()`; never hardcode it.
 - `products`, `orders`, `comments` tables exist. Add your own tables if needed,
   but prefix them clearly (e.g. `xss_notes`) and create them with IF NOT EXISTS.

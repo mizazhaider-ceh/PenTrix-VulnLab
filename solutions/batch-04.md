@@ -8,7 +8,7 @@ elsewhere. Each walkthrough was verified against a live boot with curl.
 
 ## ssrf – Server-Side Request Forgery
 
-**1. Open-redirect SSRF** – `PENTRIX{ssrf_ssrf-redirect}`
+**1. Open-redirect SSRF** – `PENTRIX{...}`
 
 `/ssrf/fetch3` follows redirects (up to 5) but only inspects the *initial*
 URL's hostname against its blocklist (`127.0.0.1`). Bounce the fetch through
@@ -22,7 +22,7 @@ curl --get --data-urlencode \
 ```
 
 The response contains the internal secret marker `SSRF-INTERNAL-9921` and the
-flag `PENTRIX{ssrf_ssrf-redirect}`. The page awards the flag only when at
+flag `PENTRIX{...}`. The page awards the flag only when at
 least one redirect was actually followed, so a direct fetch of the secret
 through `/ssrf/fetch3` shows the marker but earns no flag. Fetching
 `http://127.0.0.1:3000/...` directly still returns 403.
@@ -31,7 +31,7 @@ Why it works: the blocklist is checked against the first URL only and the
 redirect target is never re-validated, so the 302 response from `/ssrf/jump`
 smuggles the server-side request to the blocked host.
 
-**2. Userinfo bypass** – `PENTRIX{ssrf_ssrf-userinfo}`
+**2. Userinfo bypass** – `PENTRIX{...}`
 
 `/ssrf/userinfo` "allows" only URLs containing the string `pentrix.lab`.
 Smuggle the trusted string in as userinfo (everything before `@` is
@@ -45,13 +45,13 @@ curl --get --data-urlencode \
 
 The check sees `pentrix.lab` and passes, but the request really goes to
 `127.0.0.1:3000`, returning the secret marker and the flag
-`PENTRIX{ssrf_ssrf-userinfo}`.
+`PENTRIX{...}`.
 
 Why it works: the allowlist is a raw substring test instead of parsing the
 real hostname, so userinfo positioning tricks it while the URL parser routes
 to loopback.
 
-**3. Hex IP bypass** – `PENTRIX{ssrf_ssrf-hex-ip}`
+**3. Hex IP bypass** – `PENTRIX{...}`
 
 `/ssrf/hex-ip` blocks the literal strings `127.0.0.1` and `localhost` in the
 raw URL. Use hex octets, which the WHATWG URL parser normalizes to 127.0.0.1:
@@ -64,13 +64,13 @@ curl --get --data-urlencode \
 
 The string `0x7f.0.0.1` contains no blocked substring, yet the fetcher
 connects to loopback and returns the secret marker plus the flag
-`PENTRIX{ssrf_ssrf-hex-ip}`.
+`PENTRIX{...}`.
 
 Why it works: the blocklist compares raw strings while the URL parser
 normalizes alternate IP spellings, so the normalized request and the
 blocklisted string never match.
 
-**4. Octal IP bypass** – `PENTRIX{ssrf_ssrf-octal-ip}`
+**4. Octal IP bypass** – `PENTRIX{...}`
 
 Same naive blocklist on `/ssrf/octal-ip`. Leading zeros make the parser read
 octets as octal (`0177` = 127):
@@ -82,12 +82,12 @@ curl --get --data-urlencode \
 ```
 
 No blocked substring is present, the request lands on loopback, and the page
-returns the secret marker with the flag `PENTRIX{ssrf_ssrf-octal-ip}`.
+returns the secret marker with the flag `PENTRIX{...}`.
 
 Why it works: the blocklist only knows dotted decimal, but the URL parser
 interprets zero-padded parts as octal, resolving `0177.0.0.1` to 127.0.0.1.
 
-**5. 0.0.0.0 bypass** – `PENTRIX{ssrf_ssrf-zero-ip}`
+**5. 0.0.0.0 bypass** – `PENTRIX{...}`
 
 `/ssrf/zero-ip` never mentions `0.0.0.0` in its blocklist, and this fetcher
 treats it as "this host":
@@ -98,14 +98,14 @@ curl --get --data-urlencode \
   http://localhost:3000/ssrf/zero-ip
 ```
 
-The fetch succeeds against loopback and the flag `PENTRIX{ssrf_ssrf-zero-ip}`
+The fetch succeeds against loopback and the flag `PENTRIX{...}`
 is awarded.
 
 Why it works: `0.0.0.0` is a loopback-adjacent address the blocklist simply
 never considered, and the fetcher rewrites it to 127.0.0.1 the way several
 real HTTP stacks do.
 
-**6. Integer IP bypass** – `PENTRIX{ssrf_ssrf-single-int}`
+**6. Integer IP bypass** – `PENTRIX{...}`
 
 An IPv4 address is one 32-bit number; 127.0.0.1 = 2130706433. `/ssrf/single-int`
 has the same substring blocklist:
@@ -118,13 +118,13 @@ curl --get --data-urlencode \
 
 The decimal form contains no blocked string, resolves to loopback, and the
 response carries the secret marker with the flag
-`PENTRIX{ssrf_ssrf-single-int}`.
+`PENTRIX{...}`.
 
 Why it works: the URL parser accepts the single-integer IPv4 form and
 normalizes it to 127.0.0.1, while the blocklist only recognizes the dotted
 spelling.
 
-**7. Cloud metadata SSRF** – `PENTRIX{ssrf_ssrf-metadata}`
+**7. Cloud metadata SSRF** – `PENTRIX{...}`
 
 `/ssrf/fetch-meta` simulates a cloud instance metadata service at the
 link-local address 169.254.169.254, which nothing blocks:
@@ -137,13 +137,13 @@ curl --get --data-urlencode \
 
 The simulated metadata document (including fake IAM credentials whose secret
 access key embeds the marker `SSRF-INTERNAL-9921`) is returned and the flag
-`PENTRIX{ssrf_ssrf-metadata}` is awarded.
+`PENTRIX{...}` is awarded.
 
 Why it works: the fetcher does not restrict destination addresses, so the
 classic cloud metadata endpoint is reachable server-side and leaks instance
 credentials.
 
-**8. file:// scheme SSRF** – `PENTRIX{ssrf_ssrf-file}`
+**8. file:// scheme SSRF** – `PENTRIX{...}`
 
 `/ssrf/fetch-file` accepts the `file:` scheme and reads the path with the
 server's filesystem privileges:
@@ -154,7 +154,7 @@ curl --get --data-urlencode "url=file:///etc/passwd" \
 ```
 
 The page shows the contents of `/etc/passwd` (look for the `root:` line) and
-awards the flag `PENTRIX{ssrf_ssrf-file}`.
+awards the flag `PENTRIX{...}`.
 
 Why it works: allowing `file://` in a URL fetcher turns it into a local file
 reader running with the server's privileges.
@@ -163,7 +163,7 @@ reader running with the server's privileges.
 
 ## upload – Unrestricted File Upload
 
-**1. Double extension bypass** – `PENTRIX{upload_upload-double-ext}`
+**1. Double extension bypass** – `PENTRIX{...}`
 
 `/upload/ext-blacklist` blocks `.svg`/`.html`/`.htm` by exact, case-sensitive
 *final* extension only, while `/upload/view/:name` guesses the served content
@@ -175,7 +175,7 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
   | curl --data-binary @- "http://localhost:3000/upload/ext-blacklist?filename=shell.svg.jpg"
 ```
 
-The response contains the flag `PENTRIX{upload_upload-double-ext}`. Verify it
+The response contains the flag `PENTRIX{...}`. Verify it
 is served as active content:
 
 ```bash
@@ -187,7 +187,7 @@ Why it works: `path.extname("shell.svg.jpg")` is `.jpg`, so the blacklist
 misses it, but the viewer's substring check finds `.svg` and serves the file
 as SVG, so embedded scripts execute in a victim's browser.
 
-**2. Case-sensitive blacklist bypass** – `PENTRIX{upload_upload-case}`
+**2. Case-sensitive blacklist bypass** – `PENTRIX{...}`
 
 The same v3 blacklist compares the extension exactly as written, without
 lowercasing:
@@ -198,7 +198,7 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
 ```
 
 `evil.SVG` dodges the lowercase `.svg` entry and the flag
-`PENTRIX{upload_upload-case}` is awarded. Fetching
+`PENTRIX{...}` is awarded. Fetching
 `/upload/view/evil.SVG` shows it served as `image/svg+xml` with the payload
 intact.
 
@@ -206,7 +206,7 @@ Why it works: the blacklist does a case-sensitive string comparison, but the
 viewer lowercases before guessing the content type, so the uppercase variant
 is stored yet still served as active SVG.
 
-**3. Content-Type header spoofing** – `PENTRIX{upload_upload-ctype}`
+**3. Content-Type header spoofing** – `PENTRIX{...}`
 
 `/upload/mime-check` decides "is this an image" from the client-supplied
 `Content-Type` request header alone, never inspecting the bytes:
@@ -217,13 +217,13 @@ printf '<html><body><script>alert(1)</script></body></html>' \
     "http://localhost:3000/upload/mime-check?filename=evil.html"
 ```
 
-The HTML file is accepted and the flag `PENTRIX{upload_upload-ctype}` is
+The HTML file is accepted and the flag `PENTRIX{...}` is
 awarded. `/upload/view/evil.html` returns it as `text/html`.
 
 Why it works: the header is fully attacker-controlled, so lying about the
 content type sails past a check that never looks at the actual file bytes.
 
-**4. Path traversal on write** – `PENTRIX{upload_upload-traversal}`
+**4. Path traversal on write** – `PENTRIX{...}`
 
 `/upload/traverse` joins the raw filename to the uploads directory with no
 basename or containment check. Escape the directory with `../`:
@@ -234,7 +234,7 @@ printf 'TRAVERSAL-PROOF' \
 ```
 
 The file lands one level above the uploads dir and the flag
-`PENTRIX{upload_upload-traversal}` is awarded. Read it back through the same
+`PENTRIX{...}` is awarded. Read it back through the same
 missing check on the read path:
 
 ```bash
@@ -245,7 +245,7 @@ Why it works: `path.join` does not stop `../` segments from escaping the
 intended directory, so both the write and the read resolve outside the
 uploads folder.
 
-**5. SVG onload stored XSS** – `PENTRIX{upload_upload-svg-onload}`
+**5. SVG onload stored XSS** – `PENTRIX{...}`
 
 `/upload/svg-avatar` accepts `.svg` files and serves them inline without
 stripping event-handler attributes:
@@ -256,14 +256,14 @@ printf '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="1
 ```
 
 The `onload` handler survives (the endpoint only checks for its presence) and
-the flag `PENTRIX{upload_upload-svg-onload}` is awarded. Opening
+the flag `PENTRIX{...}` is awarded. Opening
 `/uploads/xss.svg` directly serves it as `image/svg+xml` with the handler
 intact, so the script runs in the visitor's browser.
 
 Why it works: SVG is XML and allows event handlers on elements, the uploader
 never sanitizes them, and the file is served inline as active content.
 
-**6. Strip-once filter bypass** – `PENTRIX{upload_upload-strip-once}`
+**6. Strip-once filter bypass** – `PENTRIX{...}`
 
 `/upload/filter` removes each dangerous extension (`.svg`, `.html`, `.htm`)
 exactly once with a non-global `replace`. Nest the extension inside itself so
@@ -275,14 +275,14 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
 ```
 
 `evil.s.svgvg` minus one occurrence of `.svg` becomes `evil.svg`; the file is
-stored under that name and the flag `PENTRIX{upload_upload-strip-once}` is
+stored under that name and the flag `PENTRIX{...}` is
 awarded. `/upload/view/evil.svg` serves it as `image/svg+xml`.
 
 Why it works: the filter runs only once, so nesting the banned string inside
 itself (`.s.svgvg` -> `.svg`) reconstructs the dangerous extension after the
 single strip.
 
-**7. Avatar overwrite** – `PENTRIX{upload_upload-overwrite}`
+**7. Avatar overwrite** – `PENTRIX{...}`
 
 `/upload/avatar` stores files at predictable paths (`avatar-<user>.png`) and
 never checks that the uploader owns the target user. Overwrite bob's avatar:
@@ -293,7 +293,7 @@ printf 'ATTACKER-BYTES' \
 ```
 
 Since bob's avatar bytes changed from the original, the flag
-`PENTRIX{upload_upload-overwrite}` is awarded. Verify the victim URL now
+`PENTRIX{...}` is awarded. Verify the victim URL now
 serves attacker content:
 
 ```bash
@@ -304,7 +304,7 @@ Why it works: predictable filenames plus no ownership check let anyone write
 any user's file, and the serve path even sniffs content, rendering an HTML
 replacement as a page.
 
-**8. GIF/HTML polyglot** – `PENTRIX{upload_upload-polyglot}`
+**8. GIF/HTML polyglot** – `PENTRIX{...}`
 
 `/upload/polyglot` "validates" images by checking only the first 6 magic
 bytes, then `/upload/poly/:name` serves the file as `text/html`. A file can
@@ -316,7 +316,7 @@ printf 'GIF89a<script>alert(1)</script>' \
 ```
 
 The magic bytes pass, the scriptable HTML survives, and the flag
-`PENTRIX{upload_upload-polyglot}` is awarded. Fetching
+`PENTRIX{...}` is awarded. Fetching
 `/upload/poly/x.gif` returns `Content-Type: text/html` with
 `GIF89a<script>alert(1)</script>` intact, so the browser executes it.
 

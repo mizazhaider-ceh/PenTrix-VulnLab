@@ -4,8 +4,8 @@ const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
 
-const { getDb } = require('./lib/db');
-const { page, esc } = require('./lib/page');
+const { getDb, ensureFlags } = require('./lib/db');
+const { page, esc, difficultyPill, progressBar, emptyState, payloadBlock, errorPage } = require('./lib/page');
 const { captured } = require('./lib/flags');
 
 const app = express();
@@ -22,8 +22,16 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(cookieParser());
+// Session secret: set SESSION_SECRET in the environment for any graded or
+// shared use. The fallback below is committed and insecure by design (it only
+// needs to be unique per browser for a local training lab); never rely on it
+// where session integrity matters.
+const SESSION_SECRET = process.env.SESSION_SECRET || 'pentrix-vulnlab-insecure-dev-secret';
+if (!process.env.SESSION_SECRET) {
+  console.warn('[warn] SESSION_SECRET not set, using insecure dev fallback (fine for local labs only)');
+}
 app.use(session({
-  secret: 'pentrix-vulnlab-insecure-dev-secret',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
   // VULN (deliberate): cookies readable by JS so XSS cookie-stealing demos work.
@@ -36,87 +44,279 @@ getDb(); // init + seed
 
 // ---- auto-mount modules: modules/<id>/router.js ----
 const modulesDir = path.join(__dirname, 'modules');
+// Route prefixes owned by the app shell; modules may not claim them.
+const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads']);
+const seenIds = new Set();
 const registry = [];
 if (fs.existsSync(modulesDir)) {
   for (const dir of fs.readdirSync(modulesDir)) {
     const modPath = path.join(modulesDir, dir, 'router.js');
     if (!fs.existsSync(modPath)) continue;
+    let mod;
     try {
-      const mod = require(modPath);
-      if (!mod.id || !mod.router || !Array.isArray(mod.vulns)) {
-        console.warn(`[warn] skipping ${dir}: bad module shape`);
-        continue;
-      }
-      app.use('/' + mod.id, mod.router);
-      registry.push(mod);
-      console.log(`[ok] mounted /${mod.id} (${mod.vulns.length} vulns)`);
+      mod = require(modPath);
     } catch (e) {
       console.error(`[err] failed to load ${dir}:`, e.message);
+      continue;
     }
+    if (!mod.id || !mod.router || !Array.isArray(mod.vulns)) {
+      console.warn(`[warn] skipping ${dir}: bad module shape`);
+      continue;
+    }
+    // Fail fast (abort boot) on contract violations that would silently
+    // shadow routes or collide with app shell routes.
+    if (!/^[a-z0-9]+$/.test(mod.id)) {
+      throw new Error(`module "${dir}" has invalid id "${mod.id}": use lowercase alphanumeric only`);
+    }
+    if (RESERVED_IDS.has(mod.id)) {
+      throw new Error(`module "${dir}" claims reserved id "${mod.id}" (reserved: ${[...RESERVED_IDS].join(', ')})`);
+    }
+    if (seenIds.has(mod.id)) {
+      throw new Error(`duplicate module id "${mod.id}" (already mounted from another directory)`);
+    }
+    seenIds.add(mod.id);
+    app.use('/' + mod.id, mod.router);
+    registry.push(mod);
+    console.log(`[ok] mounted /${mod.id} (${mod.vulns.length} vulns)`);
   }
 }
 app.locals.registry = registry;
 
+// Seed per-deployment random flags for every registered challenge.
+// Flags live only in the SQLite file (gitignored); the source never
+// contains a real flag, so reading GitHub reveals nothing.
+ensureFlags(registry.flatMap((m) => m.vulns.map((v) => ({ modId: m.id, vulnId: v.id }))));
+
+// ---- shell helpers (M4) ----
+const DIFFICULTIES = ['Beginner', 'Easy', 'Intermediate', 'Medium', 'Mixed', 'Hard'];
+// Difficulties actually present in the registry, in pedagogical order, so the
+// filter never offers a dead-end option.
+const presentDiffs = DIFFICULTIES.filter((d) => registry.some((m) => m.difficulty === d));
+
+function moduleProgress(req, m) {
+  const done = m.vulns.filter((v) => captured(req, m.id, v.id)).length;
+  return { done, total: m.vulns.length };
+}
+
+function totals(req) {
+  let got = 0, total = 0;
+  for (const m of registry) {
+    total += m.vulns.length;
+    got += moduleProgress(req, m).done;
+  }
+  return { got, total };
+}
+
+function scoreChipHtml(req) {
+  const { got, total } = totals(req);
+  return `<span class="score-chip" title="Flags captured"><span aria-hidden="true">🚩</span> ${got}/${total}</span>`;
+}
+
+// Gentlest entry point: first Beginner module, else first Easy, else first.
+function startHereModule() {
+  return registry.find((m) => m.difficulty === 'Beginner')
+    || registry.find((m) => m.difficulty === 'Easy')
+    || registry[0];
+}
+
 // ---- home ----
 app.get('/', (req, res) => {
-  const cards = registry.map((m) => {
-    const done = m.vulns.filter((v) => captured(req, m.id, v.id)).length;
-    return `<a class="modcard" href="/${m.id}">
+  const q = String(req.query.q || '').trim();
+  const qLower = q.toLowerCase();
+  const diff = presentDiffs.includes(String(req.query.difficulty)) ? String(req.query.difficulty) : 'All';
+  const filtering = q !== '' || diff !== 'All';
+
+  const cards = registry.map((m, i) => {
+    if (diff !== 'All' && m.difficulty !== diff) return '';
+    if (qLower && !(m.name + ' ' + m.tagline + ' ' + m.id).toLowerCase().includes(qLower)) return '';
+    const { done, total } = moduleProgress(req, m);
+    const start = startHereModule();
+    const featured = !filtering && start && m.id === start.id;
+    const num = String(i + 1).padStart(2, '0');
+    return `<a class="clay-card reveal${featured ? ' featured' : ''}" href="/${m.id}"
+      data-search="${esc((m.name + ' ' + m.tagline + ' ' + m.id).toLowerCase())}" data-key="${esc(m.difficulty.toLowerCase())}">
+      ${featured ? '<span class="badge-new">Start here</span>' : ''}
+      <div class="card-top"><span class="orb" aria-hidden="true">${num}</span>${difficultyPill(m.difficulty)}</div>
       <h3>${esc(m.name)}</h3>
-      <p>${esc(m.tagline)}</p>
-      <div class="meta"><span class="pill">${esc(m.difficulty)}</span><span class="dim">${done}/${m.vulns.length} flags</span></div>
+      <p class="tagline">${esc(m.tagline)}</p>
+      <div class="card-foot">${progressBar(done, total, m.name + ' progress')}</div>
     </a>`;
   }).join('');
+
+  const { got, total } = totals(req);
+  const start = startHereModule();
+  const starter = got === 0 && start ? `
+    <section class="starter" aria-label="Where to start">
+      <div class="orb-row"><span class="orb" aria-hidden="true">🧭</span><h2>New to the lab? Start here.</h2></div>
+      <p>No flags captured yet. <b>${esc(start.name)}</b> is the gentlest entry point: ${esc(start.tagline)}</p>
+      <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="/${start.id}">Begin with ${esc(start.name)}</a></p>
+    </section>` : '';
+
+  const diffOptions = ['All', ...presentDiffs].map((d) =>
+    `<option value="${esc(d)}"${d === diff ? ' selected' : ''}>${esc(d === 'All' ? 'All difficulties' : d)}</option>`
+  ).join('');
+
   res.send(page('Home', `
-    <section class="hero">
-      <h1>🧪 PenTrix VulnLab</h1>
-      <p>An intentionally vulnerable web application for learning web security, built by The PenTrix.
+    <section class="hero reveal">
+      <h1>PenTrix VulnLab</h1>
+      <p class="lead">An intentionally vulnerable web application for learning web security, built by The PenTrix.
       <b>Run locally only.</b> Pick a module, exploit it, capture the flags.</p>
-      <p><a class="btn" href="/scoreboard">View scoreboard</a> <a class="btn ghost" href="/about">How to use</a></p>
+      <div class="cta-row">
+        <a class="clay-btn clay-btn-primary" href="/scoreboard">View scoreboard</a>
+        <a class="clay-btn clay-btn-secondary" href="/about">How to use</a>
+      </div>
+      <div class="stats" aria-label="Lab statistics">
+        <div class="stat"><b>${registry.length}</b><span>modules</span></div>
+        <div class="stat"><b>${total}</b><span>challenges</span></div>
+        <div class="stat"><b>${got}</b><span>flags captured</span></div>
+      </div>
     </section>
-    <section class="grid">${cards || '<p>No modules found. Something went wrong with the build.</p>'}</section>`));
+    ${starter}
+    <form class="filterbar" id="home-filter" method="get" action="/" role="search" aria-label="Filter modules">
+      <div class="clay-field">
+        <label for="hq">Search modules</label>
+        <input class="clay-input" type="search" id="hq" name="q" value="${esc(q)}" placeholder="e.g. injection, xss, crypto" autocomplete="off">
+      </div>
+      <div class="clay-field">
+        <label for="hdiff">Difficulty</label>
+        <select class="clay-select" id="hdiff" name="difficulty">${diffOptions}</select>
+      </div>
+      <div class="actions">
+        <button class="clay-btn clay-btn-primary clay-btn-sm" type="submit">Filter</button>
+        <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/">Reset</a>
+      </div>
+    </form>
+    <p class="dim" data-home-empty hidden>No modules match your filter. Try clearing the search.</p>
+    <section class="grid" aria-label="Modules">${cards || emptyState('No modules found', '<p>Something went wrong with the build: no modules loaded.</p>', '')}</section>`,
+    'home', { scoreChip: scoreChipHtml(req) }));
 });
 
 // ---- scoreboard ----
 app.get('/scoreboard', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const status = String(req.query.status || 'all').toLowerCase();
+  const statusOk = ['all', 'captured', 'missing'].includes(status) ? status : 'all';
+
   let total = 0, got = 0;
-  const sections = registry.map((m) => {
+  const sections = registry.map((m, i) => {
+    const num = String(i + 1).padStart(2, '0');
     const rows = m.vulns.map((v) => {
       total++;
       const hit = captured(req, m.id, v.id);
       if (hit) got++;
-      return `<tr><td>${hit ? '✅' : '⬜'}</td><td><b>${esc(v.name)}</b></td><td>${esc(v.difficulty)}</td><td class="dim">${hit ? 'captured' : 'not captured'}</td></tr>`;
+      if (statusOk === 'captured' && !hit) return '';
+      if (statusOk === 'missing' && hit) return '';
+      if (q && !(v.name + ' ' + m.name).toLowerCase().includes(q)) return '';
+      const st = hit
+        ? '<span class="status status-captured"><span class="dot" aria-hidden="true"></span>Captured</span>'
+        : '<span class="status status-missing"><span class="dot" aria-hidden="true"></span>Not captured</span>';
+      return `<tr data-search="${esc((v.name + ' ' + m.name).toLowerCase())}" data-key="${hit ? 'captured' : 'missing'}">
+        <td>${st}</td><td><b>${esc(v.name)}</b></td><td>${difficultyPill(v.difficulty)}</td></tr>`;
     }).join('');
-    return `<h3 class="modhead"><a href="/${m.id}">${esc(m.name)}</a></h3>
-      <table class="tbl"><tr><th></th><th>Vulnerability</th><th>Difficulty</th><th>Status</th></tr>${rows}</table>`;
+    if (!rows) return '';
+    const { done, total: modTotal } = moduleProgress(req, m);
+    const capId = `sb-cap-${m.id}`;
+    return `<section class="sb-module" aria-labelledby="${capId}">
+      <div class="sb-head"><span class="orb" aria-hidden="true">${num}</span>
+        <h3 id="${capId}"><a href="/${m.id}">${esc(m.name)}</a></h3>
+        <span class="sb-count">${done}/${modTotal}</span></div>
+      ${progressBar(done, modTotal, m.name + ' progress')}
+      <div class="tbl-scroll"><table class="tbl">
+        <caption class="sr-only">${esc(m.name)}: challenge status</caption>
+        <thead><tr><th scope="col">Status</th><th scope="col">Challenge</th><th scope="col">Difficulty</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </section>`;
   }).join('');
+
   const pct = total ? Math.round((got / total) * 100) : 0;
-  res.send(page('Scoreboard', `<h2>🏆 Scoreboard</h2>
-    <p class="dim">${got} / ${total} flags captured</p>
-    <div class="progress"><div class="bar" style="width:${pct}%"></div></div>${sections}`));
+  const start = startHereModule();
+  const starterPanel = got === 0 && start ? `
+    <section class="starter" aria-label="Getting started">
+      <div class="orb-row"><span class="orb" aria-hidden="true">🏁</span><h2>No flags captured yet</h2></div>
+      <p>Every expert starts with one flag. <b>${esc(start.name)}</b> is the gentlest entry point: ${esc(start.tagline)}</p>
+      <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="/${start.id}">Start with ${esc(start.name)}</a></p>
+    </section>` : '';
+
+  const statusOptions = [['all', 'All'], ['captured', 'Captured'], ['missing', 'Not captured']].map(([v, l]) =>
+    `<option value="${v}"${v === statusOk ? ' selected' : ''}>${l}</option>`
+  ).join('');
+
+  res.send(page('Scoreboard', `
+    <h1>Scoreboard</h1>
+    <section class="card" aria-label="Overall progress">
+      <div class="progress-meta" style="font-size:1rem">
+        <div class="clay-progress" role="progressbar" aria-valuenow="${got}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Total flags captured" style="height:18px"><div class="fill" style="width:${pct}%"></div></div>
+        <span><b>${got} / ${total}</b> flags · ${pct}%</span>
+      </div>
+    </section>
+    ${starterPanel}
+    <form class="filterbar" id="sb-filter" method="get" action="/scoreboard" role="search" aria-label="Filter challenges">
+      <div class="clay-field">
+        <label for="sq">Search challenges</label>
+        <input class="clay-input" type="search" id="sq" name="q" value="${esc(String(req.query.q || ''))}" placeholder="e.g. login bypass" autocomplete="off">
+      </div>
+      <div class="clay-field">
+        <label for="sstatus">Status</label>
+        <select class="clay-select" id="sstatus" name="status">${statusOptions}</select>
+      </div>
+      <div class="actions">
+        <button class="clay-btn clay-btn-primary clay-btn-sm" type="submit">Filter</button>
+        <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Reset</a>
+      </div>
+    </form>
+    <p class="dim" data-sb-empty hidden>No challenges match your filter. Try clearing the search.</p>
+    ${sections || emptyState('Nothing matches', '<p>No challenges match the current filter.</p>', '<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Clear filter</a></p>')}`,
+    'scoreboard', { scoreChip: scoreChipHtml(req) }));
 });
 
 // ---- about / rules ----
 app.get('/about', (req, res) => {
   res.send(page('About', `
-    <h2>⚠️ Read this first</h2>
-    <div class="warn"><p><b>This application is intentionally vulnerable.</b>
-    Never deploy it to a public server or expose it to the internet.
-    Run it only on your own machine or an isolated lab network.</p></div>
-    <h3>How to use</h3>
-    <ol>
-      <li>Pick a module on the home page.</li>
-      <li>Read the briefing: each module tells you what to attack.</li>
-      <li>Exploit the vulnerability the way a real attacker would.</li>
-      <li>Capture the flag (<code>PENTRIX{...}</code>); progress is tracked on the scoreboard.</li>
-      <li>Stuck? Open the hint. Still stuck? Check <code>SOLUTIONS.md</code>.</li>
-    </ol>
-    <h3>Rules of the lab</h3>
-    <ul>
-      <li>Attack <b>only</b> this application.</li>
-      <li>Flags prove exploitation. Share write-ups, not just flags.</li>
-      <li>Every vulnerability is marked in the source with <code>// VULN:</code> comments so you can study the code after solving.</li>
-    </ul>`));
+    <h1>About this lab</h1>
+    <div class="warn" role="note" aria-label="Safety warning">
+      <p class="warn-title"><span class="dot" aria-hidden="true"></span>Read this first: run locally only</p>
+      <p><b>This application is intentionally vulnerable.</b>
+      Never deploy it to a public server or expose it to the internet.
+      Run it only on your own machine or an isolated lab network.</p>
+    </div>
+    <section class="block">
+      <h2>How to use</h2>
+      <ol>
+        <li>Pick a module on the home page. New here? The <b>Start here</b> card is the gentlest entry point.</li>
+        <li>Read the briefing: each module tells you what to attack.</li>
+        <li>Exploit the vulnerability the way a real attacker would.</li>
+        <li>Capture the flag; progress is tracked on the scoreboard.</li>
+        <li>Stuck? Open the hint. Still stuck? Check <code>SOLUTIONS.md</code>.</li>
+      </ol>
+      ${payloadBlock('Flag format', 'PENTRIX{module_challenge}')}
+    </section>
+    <section class="block">
+      <h2>Rules of the lab</h2>
+      <ul>
+        <li>Attack <b>only</b> this application.</li>
+        <li>Flags prove exploitation. Share write-ups, not just flags.</li>
+        <li>Every vulnerability is marked in the source with <code>// VULN:</code> comments so you can study the code after solving.</li>
+      </ul>
+    </section>`,
+    'about', { scoreChip: scoreChipHtml(req) }));
+});
+
+// ---- 404 and 500, rendered inside the page template ----
+app.use((req, res) => {
+  res.status(404).send(page('Not found',
+    errorPage(404, 'Lost in the lab?',
+      '<p>That page does not exist. It may have been a mistyped URL, or a module that never shipped.</p><p class="dim">Tip: the lab runs locally, so check the address bar for typos first.</p>'),
+    null, { scoreChip: scoreChipHtml(req) }));
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[err]', err && err.stack ? err.stack : err);
+  res.status(500).send(page('Error',
+    errorPage(500, 'Something broke',
+      '<p>The lab hit an unexpected error. Your progress is safe; try going back and continuing.</p><p class="dim">If this keeps happening, restart the lab and check the terminal for the error log.</p>'),
+    null, { scoreChip: scoreChipHtml(req) }));
 });
 
 app.listen(PORT, () => console.log(`[ok] PenTrix VulnLab listening on http://localhost:${PORT}`));

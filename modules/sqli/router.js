@@ -44,12 +44,13 @@ function sqliExtraTables() {
 sqliExtraTables();
 
 // The admin secret is the exfiltration target for several labs below.
+// It is random per deployment (see lib/db.js); never hardcode it.
 function adminSecret() {
   try {
     const r = getDb().prepare("SELECT secret FROM users WHERE username='admin'").get();
-    return (r && r.secret) || 'PENTRIX{sqli_union}';
+    return (r && r.secret) || null;
   } catch (e) {
-    return 'PENTRIX{sqli_union}';
+    return null;
   }
 }
 
@@ -236,7 +237,8 @@ router.get('/products', (req, res) => {
       : `<table><tr><th>ID</th><th>Name</th><th>Price</th><th>Description</th></tr>${table}</table>`;
   }
   let html = page('Product Search', body);
-  if (html.includes('PENTRIX{sqli_union}')) {
+  const target = adminSecret();
+  if (target && html.includes(target)) {
     const flag = award(req, 'sqli', 'union');
     html = page('Product Search', body + flagBox(flag));
   }
@@ -279,15 +281,8 @@ router.get('/product', (req, res) => {
 
 router.post('/blind-submit', (req, res) => {
   const submitted = String(req.body.secret || '').trim();
-  const db = getDb();
-  let adminSecret = 'PENTRIX{sqli_union}';
-  try {
-    const admin = db.prepare("SELECT secret FROM users WHERE username='admin'").get();
-    if (admin && admin.secret) adminSecret = admin.secret;
-  } catch (e) {
-    // fall back to the known literal
-  }
-  if (submitted !== '' && submitted === adminSecret) {
+  const target = adminSecret();
+  if (target && submitted !== '' && submitted === target) {
     const flag = award(req, 'sqli', 'blind');
     return res.send(page('Blind Submission', `
       <p><strong>Correct.</strong> You extracted the admin secret via boolean blind injection.</p>

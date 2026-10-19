@@ -17,10 +17,26 @@ router.use(express.urlencoded({ extended: false }));
 const VULN_IDS = ['no-check', 'wildcard', 'data-xss', 'substring', 'csrf-action'];
 
 // ---------------------------------------------------------------------------
+// Per-session, per-vuln token issued when the victim page loads. The victim
+// page's own beacon script echoes it back, binding the award to a real victim-
+// page load in this session. Single-use: consumed on award. A bare curl of the
+// beacon with no page load earns no flag.
+// ---------------------------------------------------------------------------
+function pmNonce(req, v) {
+  if (!req.session.pmNonce) req.session.pmNonce = {};
+  // hasOwnProperty: never trust a plain truthiness check on a keyed map.
+  if (!Object.prototype.hasOwnProperty.call(req.session.pmNonce, v)) {
+    req.session.pmNonce[v] = crypto.randomBytes(16).toString('hex');
+  }
+  return req.session.pmNonce[v];
+}
+
+// ---------------------------------------------------------------------------
 // Flag capture beacon. Awards only when the victim page's own JavaScript fired
 // with lab-specific data: every victim handler prefixes its beacon payload,
 // and two labs additionally require real lab state (the exfiltrated secret,
-// the deleted account).
+// the deleted account). The three prefix-match labs additionally require the
+// page-bound token.
 // ---------------------------------------------------------------------------
 router.get('/beacon', (req, res) => {
   const v = String(req.query.v || '');
@@ -32,7 +48,13 @@ router.get('/beacon', (req, res) => {
     } else if (v === 'csrf-action') {
       ok = d.startsWith('csrf-action:') && req.session.pm_deleted === true;
     } else {
-      ok = d.startsWith(v + ':');
+      // Bound to the victim page: the beacon must echo the one-time token the
+      // victim page rendered when it loaded in this session.
+      const n = String(req.query.n || '');
+      const m = req.session.pmNonce;
+      const cur = m && Object.prototype.hasOwnProperty.call(m, v) ? m[v] : null;
+      ok = d.startsWith(v + ':') && !!cur && cur === n;
+      if (ok) delete m[v]; // single-use
     }
   }
   if (ok) {
@@ -64,11 +86,13 @@ router.get('/no-check', (req, res) => {
     <p>Messages posted to this page appear below.</p>
     <div id="inbox" style="border:1px dashed #888; padding:1em; min-height:3em;"></div>
     <script>
+      // Page-bound token: only a handler running in this loaded page can know it.
+      var PM_NONCE = ${JSON.stringify(pmNonce(req, 'no-check'))};
       window.addEventListener('message', function (e) {
         // VULN: no origin check at all - any website can drive this handler,
         // and the message is rendered as HTML.
         document.getElementById('inbox').innerHTML = '<p>Message: ' + e.data + '</p>';
-        fetch('/postmsg/beacon?v=no-check&d=' + encodeURIComponent('no-check:' + String(e.data).slice(0, 200)));
+        fetch('/postmsg/beacon?v=no-check&d=' + encodeURIComponent('no-check:' + String(e.data).slice(0, 200)) + '&n=' + encodeURIComponent(PM_NONCE));
       });
     </script>
     <p class="note">Attacker page: <a href="/postmsg/no-check/attacker">open it</a> and fire the payload.</p>
@@ -144,11 +168,13 @@ router.get('/data-xss', (req, res) => {
     <p>Other pages can send this pane a preview to render.</p>
     <div id="preview" style="border:1px dashed #888; padding:1em; min-height:3em;"></div>
     <script>
+      // Page-bound token: only a handler running in this loaded page can know it.
+      var PM_NONCE = ${JSON.stringify(pmNonce(req, 'data-xss'))};
       window.addEventListener('message', function (e) {
         var html = (e.data && e.data.html) ? e.data.html : String(e.data);
         // VULN: event.data is rendered as HTML with no sanitization.
         document.getElementById('preview').innerHTML = html;
-        fetch('/postmsg/beacon?v=data-xss&d=' + encodeURIComponent('data-xss:' + String(html).slice(0, 200)));
+        fetch('/postmsg/beacon?v=data-xss&d=' + encodeURIComponent('data-xss:' + String(html).slice(0, 200)) + '&n=' + encodeURIComponent(PM_NONCE));
       });
     </script>
     <p class="note">Attacker page: <a href="/postmsg/data-xss/attacker">open it</a> and fire the payload.</p>
@@ -187,6 +213,8 @@ router.get('/substring', (req, res) => {
     <div id="out" style="border:1px dashed #888; padding:1em; min-height:3em;">(no message yet)</div>
     <script>
       var SIMULATED_ORIGIN = ${JSON.stringify(sim)};
+      // Page-bound token: only a handler running in this loaded page can know it.
+      var PM_NONCE = ${JSON.stringify(pmNonce(req, 'substring'))};
       window.addEventListener('message', function (e) {
         var originToTest = SIMULATED_ORIGIN || e.origin;
         // VULN: substring match instead of an exact/suffix comparison.
@@ -194,7 +222,7 @@ router.get('/substring', (req, res) => {
         // so an attacker domain containing the trusted string passes.
         if (originToTest.includes('pentrix.lab')) {
           document.getElementById('out').innerHTML = String(e.data);
-          fetch('/postmsg/beacon?v=substring&d=' + encodeURIComponent('substring:' + String(e.data).slice(0, 200)));
+          fetch('/postmsg/beacon?v=substring&d=' + encodeURIComponent('substring:' + String(e.data).slice(0, 200)) + '&n=' + encodeURIComponent(PM_NONCE));
         } else {
           document.getElementById('out').textContent = 'Blocked origin: ' + e.origin;
         }

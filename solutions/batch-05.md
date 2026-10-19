@@ -7,7 +7,7 @@ containing `&`, use `curl --data-urlencode`.
 
 ## cmdi - Command Injection
 
-**1. Ping Gadget v3 (spaces stripped)** - `PENTRIX{cmdi_cmdi-ifs}`
+**1. Ping Gadget v3 (spaces stripped)** - `PENTRIX{...}`
 
 Request:
 
@@ -23,7 +23,7 @@ the flag is awarded.
 Why it works: the blacklist removes spaces but the shell still expands `$IFS` into a
 word separator at run time.
 
-**2. Ping Gadget v4 ($IFS blocked too)** - `PENTRIX{cmdi_cmdi-braces}`
+**2. Ping Gadget v4 ($IFS blocked too)** - `PENTRIX{...}`
 
 Request (note: `{` and `}` must be URL-encoded as `%7B`/`%7D`, `$` as `%24`):
 
@@ -38,7 +38,7 @@ sees `cat /etc/passwd`.
 Why it works: string-matching filters do not understand shell syntax, and `${IFS}`
 expands exactly like `$IFS`.
 
-**3. Ping Gadget v5 (separators blocked)** - `PENTRIX{cmdi_cmdi-newline}`
+**3. Ping Gadget v5 (separators blocked)** - `PENTRIX{...}`
 
 Request (`%0a` is a URL-encoded newline):
 
@@ -53,7 +53,7 @@ both. The output shows `root:` and the flag is awarded.
 Why it works: the blacklist forgot that newline is a command separator, and the
 value is placed into the command unquoted.
 
-**4. Ping Gadget v6 ($() blocked)** - `PENTRIX{cmdi_cmdi-backtick}`
+**4. Ping Gadget v6 ($() blocked)** - `PENTRIX{...}`
 
 Request:
 
@@ -68,7 +68,7 @@ output (`uid=...`) is echoed.
 Why it works: the filter blocks one command-substitution syntax but the shell honors
 two.
 
-**5. Ping Gadget v7 (cat and / blocked)** - `PENTRIX{cmdi_cmdi-wildcard}`
+**5. Ping Gadget v7 (cat and / blocked)** - `PENTRIX{...}`
 
 Request (`?` encoded as `%3F`, space as `%20`):
 
@@ -84,7 +84,7 @@ is ever typed. The output contains `root:` and the flag is awarded.
 Why it works: the blacklist matches literal words, but glob wildcards let the shell
 itself rebuild the blocked words during pathname expansion.
 
-**6. Ping Gadget v8 (; blocked)** - `PENTRIX{cmdi_cmdi-pipe}`
+**6. Ping Gadget v8 (; blocked)** - `PENTRIX{...}`
 
 Request:
 
@@ -98,7 +98,7 @@ runs, its output is piped into `id`, and `id` prints `uid=...`.
 Why it works: `|` is a command separator the single-character blacklist never
 considered.
 
-**7. Ping Gadget v9 (spaces blocked, again)** - `PENTRIX{cmdi_cmdi-tab}`
+**7. Ping Gadget v9 (spaces blocked, again)** - `PENTRIX{...}`
 
 Request (`%09` is a URL-encoded tab):
 
@@ -112,7 +112,7 @@ Spaces are stripped, but a literal tab is also shell whitespace. The shell sees
 Why it works: the filter blocks one whitespace character while the shell accepts
 several (space, tab, newline).
 
-**8. Ping Gadget v10 (metachars blocked, unquoted)** - `PENTRIX{cmdi_cmdi-env}`
+**8. Ping Gadget v10 (metachars blocked, unquoted)** - `PENTRIX{...}`
 
 Request (`%0a` is a URL-encoded newline):
 
@@ -130,7 +130,7 @@ separator this one missed.
 
 ## xxe - XXE Injection
 
-**1. Billion Laughs (Entity-Expansion DoS)** - `PENTRIX{xxe_xxe-billion-laughs}`
+**1. Billion Laughs (Entity-Expansion DoS)** - `PENTRIX{...}`
 
 Request (use `--data-urlencode` so the `&` characters survive):
 
@@ -149,7 +149,7 @@ passes 5 MB, which de-flakes fast hardware). Verified: 16,111,259 chars expanded
 Why it works: recursive entity expansion is exponential, and nothing caps the
 recursion depth or total output.
 
-**2. External DTD Exfiltration** - `PENTRIX{xxe_xxe-external-dtd}`
+**2. External DTD Exfiltration** - `PENTRIX{...}`
 
 Step 1 - host the malicious DTD on the in-lab collector:
 
@@ -175,7 +175,7 @@ DTD template with the correct absolute path and port.)
 Why it works: external DTDs are fetched and their parameter entities are honored, so
 a DTD can turn a file read into a server-side request carrying the file content.
 
-**3. XXE in Uploaded SVG** - `PENTRIX{xxe_xxe-svg}`
+**3. XXE in Uploaded SVG** - `PENTRIX{...}`
 
 Request:
 
@@ -191,7 +191,7 @@ entity is resolved, and the secret appears in the extracted text.
 Why it works: the "parser" expands external entities on any XML it is handed,
 including uploaded SVGs.
 
-**4. XInclude File Inclusion** - `PENTRIX{xxe_xxe-xinclude}`
+**4. XInclude File Inclusion** - `PENTRIX{...}`
 
 Request:
 
@@ -207,7 +207,7 @@ document and shown in the output.
 Why it works: `xi:include` hrefs are fetched server-side with no allowlist, which is
 XXE by another name.
 
-**5. Parameter-Entity OOB Exfiltration** - `PENTRIX{xxe_xxe-param-oob}`
+**5. Parameter-Entity OOB Exfiltration** - `PENTRIX{...}`
 
 Request (single quotes around the inner URL are required):
 
@@ -231,7 +231,7 @@ Why it works: parameter entities are expanded inside the doctype, so an attacker
 declare new external entities at parse time and pivot a file read into an
 out-of-band request.
 
-**6. XXE in SOAP Endpoint** - `PENTRIX{xxe_xxe-soap}`
+**6. XXE in SOAP Endpoint** - `PENTRIX{...}`
 
 Request:
 
@@ -253,7 +253,7 @@ All eight gadgets use the same homemade engine as `/ssti/greet` (`eval()` inside
 `{{ }}`), each with a different naive input blacklist. For GET requests, URL-encode
 the payload or use `curl --get --data-urlencode`.
 
-**1. Template Injection on a Second Endpoint** - `PENTRIX{ssti_ssti-echo2}`
+**1. Template Injection on a Second Endpoint** - `PENTRIX{...}`
 
 Request:
 
@@ -267,7 +267,7 @@ to 49 in the invitation card.
 Why it works: the template engine evaluates anything inside `{{ }}` as server-side
 code.
 
-**2. Word Blacklist Bypass** - `PENTRIX{ssti_ssti-wordfilter}`
+**2. Word Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -283,7 +283,7 @@ the nested `eval()` reassembles it at run time and reads the in-scope variable.
 Why it works: the blacklist is plain substring matching, and string concatenation
 plus a nested `eval()` rebuilds the blocked identifier after filtering.
 
-**3. Underscore Blacklist Bypass** - `PENTRIX{ssti_ssti-nounderscore}`
+**3. Underscore Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -298,7 +298,7 @@ Underscores are deleted, so `{{db_pass}}` becomes `{{dbpass}}`. Character code 9
 Why it works: the filter removes a character the attacker can regenerate from its
 character code.
 
-**4. Bracket Blacklist Bypass** - `PENTRIX{ssti_ssti-nobrackets}`
+**4. Bracket Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -314,7 +314,7 @@ no brackets at all.
 Why it works: when indexing is impossible, serializing the entire object leaks every
 property.
 
-**5. Dot Blacklist Bypass** - `PENTRIX{ssti_ssti-dotblock}`
+**5. Dot Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -327,7 +327,7 @@ bracket notation (`db["key"]`) accesses the same property with no dots.
 
 Why it works: property access has two syntaxes, and the filter only blocks one.
 
-**6. Curly-Brace Strip Bypass** - `PENTRIX{ssti_ssti-curly}`
+**6. Curly-Brace Strip Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -341,7 +341,7 @@ semicolon filter in the cmdi module). Sending doubled braces leaves one working
 
 Why it works: a strip-once filter is defeated by doubling the stripped sequence.
 
-**7. Quote Blacklist Bypass** - `PENTRIX{ssti_ssti-noquotes}`
+**7. Quote Blacklist Bypass** - `PENTRIX{...}`
 
 Request:
 
@@ -357,7 +357,7 @@ no blocked word; the nested `eval()` turns it back into the identifier.
 Why it works: any string can be rebuilt from character codes, and a nested `eval()`
 evaluates the rebuilt identifier in the template scope.
 
-**8. SSTI to Remote Code Execution** - `PENTRIX{ssti_ssti-rce}`
+**8. SSTI to Remote Code Execution** - `PENTRIX{...}`
 
 Request:
 

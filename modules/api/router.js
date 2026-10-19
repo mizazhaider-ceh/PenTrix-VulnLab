@@ -2,7 +2,7 @@
 const express = require('express');
 const { getDb } = require('../../lib/db');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
-const { award, captured } = require('../../lib/flags');
+const { award, captured, flagFor } = require('../../lib/flags');
 
 const router = express.Router();
 
@@ -105,7 +105,7 @@ router.get('/users/view', (req, res) => {
   if (json.includes('"password"')) {
     flagHtml = flagBox(award(req, 'api', 'exposure'));
   } else if (captured(req, 'api', 'exposure')) {
-    flagHtml = flagBox(`PENTRIX{api_exposure}`);
+    flagHtml = flagBox(flagFor('api', 'exposure'));
   }
   res.send(page('API: excessive data', `
     ${brief('Excessive Data Exposure', `This page renders the raw response of <code>GET /api/users</code>.

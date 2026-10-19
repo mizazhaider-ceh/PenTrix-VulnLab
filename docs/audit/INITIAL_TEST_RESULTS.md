@@ -26,7 +26,7 @@ verify copy.
 | `GET /about` | 200 (not curled in detail yet) |
 | `GET /sqli` | 200, briefing + vuln table |
 | `GET /sqli/login` | 200, form fields `username`, `password` |
-| `POST /sqli/login` with `admin' OR '1'='1' -- ` | REAL EXPLOIT VERIFIED: logged in as admin, response contained `PENTRIX{sqli_login-bypass}` |
+| `POST /sqli/login` with `admin' OR '1'='1' -- ` | REAL EXPLOIT VERIFIED: logged in as admin, response contained the challenge flag (per-deployment random since the flag-scheme change; deterministic `PENTRIX{sqli_login-bypass}` at the time of this test) |
 
 ## Exploit validation method
 
