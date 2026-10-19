@@ -29,10 +29,11 @@ for spot checks only.
 ## Method notes (affect many rows)
 
 1. **Beacon-honor-system weakness** (xss, postmsg, csti, partly jsonp): award
-   endpoints accept `?v=<known-id>&d=<data>` from *any* client. Nothing binds the
-   beacon to actual script execution, so flags are one crafted curl away from a
-   student who never ran a payload. This is the single largest verification gap
-   in the curriculum.
+   endpoints accept `?v=<known-id>&d=<data>` from *any* client. Nothing bound the
+   beacon to actual script execution, so flags were one crafted curl away from a
+   student who never ran a payload. This was the single largest verification gap
+   in the curriculum; fixed in M5 (per-session page-bound tokens, see
+   VERIFICATION_MODEL.md).
 2. **Module difficulty labels are mostly uninformative**: 21 of 29 modules are
    labeled `Mixed`; only csrf/idor/misconfig say `Beginner` and only
    api/cmdi/ssrf/ssti/xxe say `Intermediate`. There is no cross-module ordering,
@@ -47,25 +48,24 @@ for spot checks only.
 
 ## xss: Cross-Site Scripting [Mixed], 11 vulns
 
-Module verdict: strong content, weak verification. The context ladder
+Module verdict: strong content; verification fixed in M5 (page-bound beacon tokens). The context ladder
 (reflected, stored, attribute, JS string, template literal, DOM, markdown,
-clobbering) is genuinely pedagogical. All BCN-based awards are URL-forgeable
-(see method note 1). `xss-svg-upload` conceptually duplicates upload-module
+clobbering) is genuinely pedagogical. All BCN-based awards are bound to per-session page tokens since M5. `xss-svg-upload` conceptually duplicates upload-module
 SVG XSS.
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
-| reflected | Easy | Unescaped reflection into HTML executes script | B | BCN (`c` non-empty, known `v`) | needs work: BCN forgeable |
-| stored | Easy | Persisted payload executes for every later visitor | B | BCN | needs work: BCN forgeable |
-| dom | Medium | `location.hash` into `innerHTML` is client-side only | B, DT | BCN | needs work: BCN forgeable |
-| stored-xss-profile | Easy | Stored XSS via profile bio field | B | BCN | duplicate of `stored` (same sink class, different field) |
-| xss-attr-breakout | Medium | Break out of an HTML attribute context with `">` | B | BCN | strong (context teaching) |
-| xss-js-context | Medium | Break out of a JS string context with `';//` | B | BCN | strong (context teaching) |
-| xss-svg-upload | Medium | SVG served as `image/svg+xml` runs embedded script | B, C | BCN | duplicate: same lesson as upload's SVG XSS |
-| xss-markdown | Medium | Naive `[text](url)` renderer allows `javascript:` URLs | B | BCN | strong (real-world pattern) |
+| reflected | Easy | Unescaped reflection into HTML executes script | B | BCN + page token (single-use) | strong |
+| stored | Easy | Persisted payload executes for every later visitor | B | BCN + page token (single-use) | strong |
+| dom | Medium | `location.hash` into `innerHTML` is client-side only | B, DT | BCN + page token (single-use) | strong |
+| stored-xss-profile | Easy | Stored XSS via profile bio field | B | BCN + page token (single-use) | duplicate of `stored` (same sink class, different field) |
+| xss-attr-breakout | Medium | Break out of an HTML attribute context with `">` | B | BCN + page token (single-use) | strong (context teaching) |
+| xss-js-context | Medium | Break out of a JS string context with `';//` | B | BCN + page token (single-use) | strong (context teaching) |
+| xss-svg-upload | Medium | SVG served as `image/svg+xml` runs embedded script | B, C | BCN + page token (single-use) | duplicate: same lesson as upload's SVG XSS |
+| xss-markdown | Medium | Naive `[text](url)` renderer allows `javascript:` URLs | B | BCN + page token (single-use) | strong (real-world pattern) |
 | xss-dom-clobber | Hard | Named DOM elements shadow `window` properties, flipping an auth check | B, DT | OUT (form+input detected server-side) | strong |
-| xss-hash-write | Medium | Fragment into `document.write` executes | B, C | BCN | duplicate of `dom` (both DOM XSS sinks) |
-| xss-backtick | Medium | Code execution inside a JS template literal via `${}` | B | BCN | strong (context teaching) |
+| xss-hash-write | Medium | Fragment into `document.write` executes | B, C | BCN + page token (single-use) | duplicate of `dom` (both DOM XSS sinks) |
+| xss-backtick | Medium | Code execution inside a JS template literal via `${}` | B | BCN + page token (single-use) | strong (context teaching) |
 
 ## sqli: SQL Injection [Mixed], 12 vulns
 
@@ -173,16 +173,16 @@ Overlaps xss on SVG; two blacklist-bypass entries are near-duplicates.
 
 ## cmdi: Command Injection [Intermediate], 10 vulns
 
-Module verdict: strong ladder, weak validation. The v1-v10 filter-bypass
+Module verdict: strong ladder; validation fixed in M5. The v1-v10 filter-bypass
 series ($IFS, ${IFS}, newline, backticks, globs, pipe, tab) is excellent
-technique teaching, but awards check for metacharacters *in the input*, not
-evidence the injected command *ran* (`host=127.0.0.1;` with an empty second
-command awards). `cmdi-newline` and `cmdi-env` are both newline injection.
+technique teaching, and basic/bypass now award on output evidence (the
+injected command's output in the shell output); the empty-second-command
+award is gone. `cmdi-newline` and `cmdi-env` are both newline injection.
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
-| basic | Medium | Unescaped input concatenated into shell command | B, C | INP (metachar in input) | needs work: award on output evidence, not input pattern |
-| bypass | Medium | Single-strip `;` filter beaten by `&&`, `||`, newline | B, C | INP | needs work: same as above |
+| basic | Medium | Unescaped input concatenated into shell command | B, C | OUT (injected command output in shell output) | strong |
+| bypass | Medium | Single-strip `;` filter beaten by `&&`, `||`, newline | B, C | OUT (injected command output in shell output) | strong |
 | cmdi-ifs | Medium | Space-stripping beaten with `$IFS` | B, C | INP | needs work: same as above |
 | cmdi-braces | Medium | `$IFS` string-strip beaten with `${IFS}` | B, C | INP | needs work: same as above |
 | cmdi-newline | Medium | Separator blacklist beaten with `%0a` newline | B, C | INP | duplicate of cmdi-env (both newline); keep one |
@@ -255,16 +255,16 @@ encoding, absolute paths, encoded separators) plus a genuine chained lab
 
 Module verdict: needs work. Broad coverage (GET CSRF, JSON/text-plain,
 multipart, login CSRF, referer bypass, content-type confusion, method
-override, 2FA disable) but two structural problems: (1) `clickjacking` awards
-on merely visiting `/csrf/framedemo`, a Rule 2 violation (flag with no
-exploit); (2) `redirect` duplicates the entire redirect module, and several
+override, 2FA disable) but two structural problems: (1) `clickjacking` awarded
+on merely visiting `/csrf/framedemo`, a Rule 2 violation (fixed in M5: the
+framed form submission with a one-time token is now required); (2) `redirect` duplicates the entire redirect module, and several
 entries duplicate http-module concepts (referer, method override).
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
 | email | Easy | State-changing GET with no token: forged request changes email | B | OUT (email changed) | strong |
 | redirect | Easy | Unvalidated `to` param redirects off-site | B | INP (external target) | duplicate: whole redirect module covers this; cut from csrf |
-| clickjacking | Easy | Missing X-Frame-Options allows framing | B | VIS (page visit) | needs work: Rule 2 violation, award on visit with no exploit; require a framing proof |
+| clickjacking | Easy | Missing X-Frame-Options allows framing | B | OUT (framed form submitted with one-time token) | strong |
 | json-csrf | Medium | text/plain "simple request" carries JSON to tokenless API | BZ, C | OUT (email changed via JSON API) | strong |
 | login-csrf | Medium | Forged login switches the victim's session | B | OUT (session switched) | needs work: overlaps oauth/no-state; keep the better one |
 | multipart-csrf | Easy | multipart POST with no token changes password | B | OUT | duplicate of `email` (same no-token CSRF, different content type) |
@@ -504,49 +504,48 @@ realistic multi-actor module in the curriculum.
 
 ## postmsg: postMessage Flaws [Mixed], 5 vulns
 
-Module verdict: needs work. Attacker/victim page pairs are the right design,
-but for 3 of 5 vulns the beacon check is `d.startsWith(v + ':')`, forgeable
-with a single curl. Only `wildcard` (session secret) and `csrf-action`
-(server state) are evidence-bound. Bind all beacons to victim-side state.
+Module verdict: strong. Attacker/victim page pairs are the right design,
+and since M5 the three prefix-match beacons are bound to per-session page
+tokens; `wildcard` (session secret) and `csrf-action` (server state) were
+already evidence-bound.
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
-| no-check | Medium | No origin check: any site drives the handler | B, DT | BCN (prefix match) | needs work: BCN forgeable |
+| no-check | Medium | No origin check: any site drives the handler | B, DT | BCN + page token (single-use) | strong |
 | wildcard | Easy | Secret broadcast with `targetOrigin:'*'`, captured by embedder | B, DT | BCN (secret in beacon) | strong |
-| data-xss | Medium | Unsanitized `event.data` rendered as HTML | B, DT | BCN (prefix match) | needs work: BCN forgeable |
-| substring | Medium | Substring origin check beaten by `pentrix.lab.evil.com` | B, DT | BCN (prefix match) | needs work: BCN forgeable |
+| data-xss | Medium | Unsanitized `event.data` rendered as HTML | B, DT | BCN + page token (single-use) | strong |
+| substring | Medium | Substring origin check beaten by `pentrix.lab.evil.com` | B, DT | BCN + page token (single-use) | strong |
 | csrf-action | Medium | Forged message triggers privileged action in victim | B, DT | BCN (server state `pm_deleted`) | strong |
 
 ## csti: Client-Side Template Injection [Mixed], 5 vulns
 
 Module verdict: needs work. Good concept coverage (basic eval, delimiter
 bypass, constructor breakout, attribute context, stored), but the beacon
-check is `d === '49'` (or non-empty for constructor): any student can curl
-`/csti/beacon?v=basic&d=49` with zero template execution. Bind the beacon to
-a server-issued nonce rendered by the vulnerable page.
+check was `d === '49'` (or non-empty for constructor): any student could curl
+`/csti/beacon?v=basic&d=49` with zero template execution. Fixed in M5: the
+beacon is bound to a per-session token rendered by the lab page.
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
-| basic | Easy | `{{7*7}}` evaluated client-side via Function constructor | B | BCN (`d==='49'`) | needs work: BCN forgeable |
-| filter-bypass | Medium | `[[ ]]` delimiter bypasses the `{{ }}` blacklist | B | BCN | needs work: BCN forgeable |
-| constructor | Medium | `constructor.constructor(...)` reaches code execution | B, DT | BCN (non-empty `d`) | needs work: BCN forgeable |
-| attr | Medium | Template inside an HTML attribute, decoded then evaluated | B, DT | BCN | needs work: BCN forgeable |
-| stored | Easy | Stored display name evaluated as template on view | B | BCN | needs work: BCN forgeable |
+| basic | Easy | `{{7*7}}` evaluated client-side via Function constructor | B | BCN + page token (single-use) | strong |
+| filter-bypass | Medium | `[[ ]]` delimiter bypasses the `{{ }}` blacklist | B | BCN + page token (single-use) | strong |
+| constructor | Medium | `constructor.constructor(...)` reaches code execution | B, DT | BCN + page token (single-use) | strong |
+| attr | Medium | Template inside an HTML attribute, decoded then evaluated | B, DT | BCN + page token (single-use) | strong |
+| stored | Easy | Stored display name evaluated as template on view | B | BCN + page token (single-use) | strong |
 
 ## jsonp: JSONP Injection [Mixed], 5 vulns
 
-Module verdict: needs work. `csrf-data` and `array-hijack` use secret-bound
-beacons (good); `callback-xss`, `filter-bypass`, and `mimetype` award on
-input patterns (`/[^\w$.]/` on the callback), so no script ever needs to run.
-Require beacon evidence for all five.
+Module verdict: strong. Since M5 all five require beacon evidence: the
+reflection labs echo a per-session token from the executed script, and
+`csrf-data` / `array-hijack` use per-session secrets.
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
-| callback-xss | Easy | Callback reflected into JS with no validation breaks out | B | INP (non-word chars in callback) | needs work: INP, no execution evidence |
-| csrf-data | Medium | JSONP as cross-origin data theft; beacon the secret | B, DT | BCN (secret in beacon) | strong |
-| filter-bypass | Medium | `alert` blocklist beaten with `'al'+'ert'` concatenation | B | INP (concat + syntax chars) | needs work: INP, no execution evidence |
-| array-hijack | Hard | Redefined Array constructor captures feed elements | B, DT | BCN (captured items) | strong |
-| mimetype | Easy | JSONP served as text/html parses as a document | B | INP (`<` in callback) | needs work: INP, no execution evidence |
+| callback-xss | Easy | Callback reflected into JS with no validation breaks out | B | BCN (executed script echoes per-session token) | strong |
+| csrf-data | Medium | JSONP as cross-origin data theft; beacon the secret | B, DT | BCN (per-session secret in beacon) | strong |
+| filter-bypass | Medium | `alert` blocklist beaten with `'al'+'ert'` concatenation | B | BCN (token echo + bypass attempt recorded) | strong |
+| array-hijack | Hard | Redefined Array constructor captures feed elements | B, DT | BCN (items incl. per-session token) | strong |
+| mimetype | Easy | JSONP served as text/html parses as a document | B | BCN (token echo + HTML attempt recorded) | strong |
 
 ## formula: CSV Formula Injection [Mixed], 4 vulns
 
@@ -580,17 +579,17 @@ input becomes the pattern atom) is a standout. Keep.
 
 | Module | Vulns | Strong | Needs work | Shallow | Duplicate | Module takeaway |
 |---|---|---|---|---|---|---|
-| xss | 11 | 4 | 4 | 0 | 3 | context ladder is great; fix BCN validation |
+| xss | 11 | 8 | 0 | 0 | 3 | context ladder is great; beacons now page-bound (M5) |
 | sqli | 12 | 9 | 2 | 1 | 0 | best module; merge the two error-based |
 | auth | 11 | 9 | 2 | 0 | 1 | drop jwt-none (lives in jwt) |
 | idor | 11 | 5 | 0 | 0 | 6 | one technique x11; cut to 5-6 |
 | ssrf | 10 | 9 | 0 | 0 | 1 | best bypass ladder; merge single-int into bypass |
 | upload | 10 | 8 | 1 | 0 | 1 | excellent; merge double-ext/blacklist-bypass |
-| cmdi | 10 | 6 | 4 | 0 | 0 | fix INP awards; merge the two newline vulns |
+| cmdi | 10 | 10 | 0 | 0 | 0 | awards now output-evidence-based (M5); merge the two newline vulns |
 | xxe | 8 | 8 | 0 | 0 | 0 | exemplary |
 | ssti | 10 | 8 | 1 | 0 | 1 | rename `rce`; cut echo2 |
 | lfi | 10 | 8 | 1 | 1 | 0 | merge the two encoding bypasses |
-| csrf | 11 | 2 | 3 | 0 | 6 | fix clickjacking Rule 2 violation; heavy dedupe |
+| csrf | 11 | 3 | 2 | 0 | 6 | clickjacking now needs a framed submission (M5); heavy dedupe |
 | api | 11 | 3 | 0 | 0 | 8 | 4x mass assignment; BOLA/IDOR dupes |
 | misconfig | 11 | 8 | 0 | 2 | 1 | honest Beginner; merge the two debug vulns |
 | jwt | 8 | 8 | 0 | 0 | 0 | exemplary |
@@ -604,14 +603,14 @@ input becomes the pattern atom) is a standout. Keep.
 | proto | 6 | 6 | 0 | 0 | 0 | exemplary ladder |
 | crypto | 8 | 6 | 2 | 0 | 0 | merge client-secret entries with auth |
 | oauth | 8 | 6 | 2 | 0 | 0 | best multi-actor realism; cross-link dupes |
-| postmsg | 5 | 2 | 3 | 0 | 0 | bind beacons to state |
-| csti | 5 | 0 | 5 | 0 | 0 | bind beacons to nonce |
-| jsonp | 5 | 2 | 3 | 0 | 0 | require beacon evidence for all |
+| postmsg | 5 | 5 | 0 | 0 | 0 | beacons bound to page tokens and state (M5) |
+| csti | 5 | 5 | 0 | 0 | 0 | beacons bound to page tokens (M5) |
+| jsonp | 5 | 5 | 0 | 0 | 0 | all five require beacon evidence (M5) |
 | formula | 4 | 4 | 0 | 0 | 0 | small and solid |
 | redos | 4 | 4 | 0 | 0 | 0 | small and solid |
-| **Total** | **235** | **160** | **37** | **4** | **34** | |
+| **Total** | **235** | **180** | **17** | **4** | **34** | |
 
-Verdict distribution: 68% strong, 16% needs work, 2% shallow, 14% duplicate.
+Verdict distribution: 77% strong, 7% needs work, 2% shallow, 14% duplicate.
 Net curriculum after dedupe and merges: roughly 195-200 distinct, high-quality
 challenges.
 

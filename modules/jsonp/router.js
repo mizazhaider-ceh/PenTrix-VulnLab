@@ -3,6 +3,7 @@
 // naive callback blocklists, the classic Array-constructor hijack, and
 // dangerous MIME types.
 const express = require('express');
+const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
@@ -11,8 +12,76 @@ const router = express.Router();
 // Router-scoped form parsing only (app-level middleware is out of scope).
 router.use(express.urlencoded({ extended: false }));
 
-const JSONP_SECRET = 'ALICE-JSONP-SECRET-7f3a9c';
 const FRIENDS = ['alice:A1', 'bob:B2', 'carol:C3'];
+
+// ---------------------------------------------------------------------------
+// Verification model.
+// - The three reflection labs (callback-xss, filter-bypass, mimetype) no
+//   longer award on input patterns. Each JSONP endpoint embeds a per-session,
+//   per-vuln nonce in its response data; the injected script must echo the
+//   nonce back to /jsonp/beacon-xss, proving it really executed with the
+//   response data (or that the endpoint was at least hit in this session).
+//   Nonces are single-use.
+// - csrf-data and array-hijack beacons are bound to per-session secrets
+//   issued by /jsonp/data and /jsonp/legacy, so a forged beacon with no feed
+//   load earns nothing.
+// ---------------------------------------------------------------------------
+function jsonpNonce(req, v) {
+  if (!req.session.jsonpNonce) req.session.jsonpNonce = {};
+  // hasOwnProperty: never trust a plain truthiness check on a keyed map.
+  if (!Object.prototype.hasOwnProperty.call(req.session.jsonpNonce, v)) {
+    req.session.jsonpNonce[v] = crypto.randomBytes(16).toString('hex');
+  }
+  return req.session.jsonpNonce[v];
+}
+function jsonpConsumeNonce(req, v, n) {
+  const m = req.session.jsonpNonce;
+  const cur = m && Object.prototype.hasOwnProperty.call(m, v) ? m[v] : null;
+  const ok = !!cur && cur === n && n.length > 0;
+  if (ok) delete m[v]; // single-use
+  return ok;
+}
+// Per-session secret stolen via the JSONP feed (was a module constant: anyone
+// reading source knew it without a single request).
+function jsonpSecret(req) {
+  if (!req.session.jsonpSecret) req.session.jsonpSecret = crypto.randomBytes(16).toString('hex');
+  return req.session.jsonpSecret;
+}
+// Per-session token appended to the legacy Array feed; the hijack beacon must
+// carry it back, proving the feed was actually loaded.
+function jsonpArrayToken(req) {
+  if (!req.session.jsonpArrayToken) req.session.jsonpArrayToken = crypto.randomBytes(16).toString('hex');
+  return req.session.jsonpArrayToken;
+}
+// Beacon for the three reflection labs: the executed payload echoes the nonce.
+router.get('/beacon-xss', (req, res) => {
+  const v = String(req.query.v || '');
+  const n = String(req.query.n || '');
+  const ids = ['callback-xss', 'filter-bypass', 'mimetype'];
+  let ok = ids.includes(v) && jsonpConsumeNonce(req, v, n);
+  // The filter-bypass and mimetype labs teach a specific payload shape; the
+  // endpoint records the attempt, the nonce echo proves it executed.
+  if (ok && v === 'filter-bypass') ok = req.session.jsonpFbAttempt === true;
+  if (ok && v === 'mimetype') ok = req.session.jsonpMimeAttempt === true;
+  if (ok) {
+    const flag = award(req, 'jsonp', v);
+    return res.send(page('Payload executed', `
+      <h2>Payload executed</h2>
+      <p>The injected script ran with the JSONP response data and echoed the
+      page-bound token back for vuln <b>${esc(v)}</b>. Flag awarded:</p>
+      ${flagBox(flag)}
+      <p><a href="/jsonp">Back to the JSONP module</a></p>
+    `));
+  }
+  res.status(400).send(page('Beacon', `
+    <h2>No flag</h2>
+    <p>This endpoint only awards a flag when the injected script really executed:
+    the beacon must echo the per-session token (<code>n</code>) that the JSONP
+    endpoint embedded in its response data. Load the JSONP URL as a script and
+    let your payload fire the beacon.</p>
+    <p><a href="/jsonp">Back to the JSONP module</a></p>
+  `));
+});
 
 // ---------------------------------------------------------------- index page
 const CHALLENGES = [
@@ -50,8 +119,11 @@ router.get('/', (req, res) => {
       JavaScript, steal JSONP data cross-origin via an attacker page, bypass a
       naive callback blocklist, replay the historic Array-constructor hijack, and
       abuse a <code>text/html</code> MIME type.</p>
-      <p><b>Heads up:</b> flags from JavaScript endpoints come back in the
-      <code>X-Flag</code> response header and are saved to your scoreboard.</p>`)}
+      <p><b>Heads up:</b> the reflection labs embed a per-session token in the JSONP
+      response data. Your injected script must echo that token back to
+      <code>/jsonp/beacon-xss</code> - that beacon is what captures the flag, and it
+      only fires when your payload really executed. Merely sending a suspicious
+      callback earns nothing.</p>`)}
     <h2>Challenges</h2>
     ${rows}
   `));
@@ -63,11 +135,10 @@ router.get('/user', (req, res) => {
   res.type('application/javascript');
   // VULN: the callback name is reflected into executable JavaScript with no
   // validation, so it can break out of the function-call context.
-  const body = `${cb}({"user":"alice","role":"user"});`;
-  if (/[^\w$.]/.test(cb)) {
-    const flag = award(req, 'jsonp', 'callback-xss');
-    res.set('X-Flag', flag);
-  }
+  // The response embeds a per-session token in the data object; the injected
+  // script must echo it back to /jsonp/beacon-xss. The old input-pattern award
+  // (any non-word character in the callback) is gone: no execution, no flag.
+  const body = `${cb}({"user":"alice","role":"user","token":"${jsonpNonce(req, 'callback-xss')}"});`;
   res.send(body);
 });
 
@@ -76,8 +147,9 @@ router.get('/data', (req, res) => {
   const cb = (req.query.callback || 'callback').toString().slice(0, 200);
   res.type('application/javascript');
   // VULN: sensitive data is served as JSONP, readable cross-origin by any
-  // page via a script tag.
-  res.send(`${cb}({"user":"alice","email":"alice@example.com","secret":"${JSONP_SECRET}"});`);
+  // page via a script tag. The secret is per-session: the beacon only accepts
+  // the secret this session's feed actually served.
+  res.send(`${cb}({"user":"alice","email":"alice@example.com","secret":"${jsonpSecret(req)}"});`);
 });
 
 router.get('/attacker', (req, res) => {
@@ -115,8 +187,11 @@ router.get('/attacker', (req, res) => {
 
 router.post('/beacon', (req, res) => {
   const b = req.body || {};
-  if (b.secret === JSONP_SECRET) {
+  // The beacon must carry the secret this session's feed served: proof the
+  // feed was actually loaded. Single-use: the secret rotates after the award.
+  if (b.secret && req.session.jsonpSecret && b.secret === req.session.jsonpSecret) {
     const flag = award(req, 'jsonp', 'csrf-data');
+    delete req.session.jsonpSecret;
     return res.json({ ok: true, flag });
   }
   res.status(400).json({ ok: false, error: 'beacon must carry the stolen secret field' });
@@ -137,11 +212,11 @@ router.get('/filtered', (req, res) => {
   res.type('application/javascript');
   // VULN: the blocklist only bans the literal word "alert"; concatenation like
   // 'al'+'ert' rebuilds it at runtime and the filter never sees it.
-  const body = `${cb}({"ok":true});`;
-  if (/['"]\s*\+/.test(cb) && /[();]/.test(cb)) {
-    const flag = award(req, 'jsonp', 'filter-bypass');
-    res.set('X-Flag', flag);
-  }
+  // The response embeds a per-session token; the injected script must echo it
+  // back to /jsonp/beacon-xss. The old input-pattern award is gone: the attempt
+  // shape is recorded here, but only an executed beacon earns the flag.
+  if (/['"]\s*\+/.test(cb) && /[();]/.test(cb)) req.session.jsonpFbAttempt = true;
+  const body = `${cb}({"ok":true,"token":"${jsonpNonce(req, 'filter-bypass')}"});`;
   res.send(body);
 });
 
@@ -152,7 +227,10 @@ router.get('/legacy', (req, res) => {
   // VULN: this legacy endpoint builds its JSONP with `new Array(...)`. An
   // attacker page that overrides the global Array constructor before loading
   // this script captures every array element (the classic 2007 hijack).
-  res.send(`${cb}(new Array(${FRIENDS.map((f) => JSON.stringify(f)).join(',')}));`);
+  // The feed appends a per-session token: the hijack beacon must carry it back,
+  // proving the feed was actually loaded and hijacked in this session.
+  const items = FRIENDS.concat(['feed-token:' + jsonpArrayToken(req)]);
+  res.send(`${cb}(new Array(${items.map((f) => JSON.stringify(f)).join(',')}));`);
 });
 
 router.get('/array-attacker', (req, res) => {
@@ -198,8 +276,12 @@ router.get('/array-attacker', (req, res) => {
 
 router.post('/array-beacon', (req, res) => {
   const items = (req.body || {}).items;
-  if (Array.isArray(items) && items.includes('alice:A1')) {
+  // The beacon must carry the per-session feed token: proof the legacy feed was
+  // loaded and its Array hijacked in this session. Single-use: token rotates.
+  const tok = req.session.jsonpArrayToken;
+  if (Array.isArray(items) && tok && items.includes('alice:A1') && items.includes('feed-token:' + tok)) {
     const flag = award(req, 'jsonp', 'array-hijack');
+    delete req.session.jsonpArrayToken;
     return res.json({ ok: true, flag });
   }
   res.status(400).json({ ok: false, error: 'beacon must carry the hijacked items array' });
@@ -211,11 +293,11 @@ router.get('/snippet', (req, res) => {
   // VULN: JSONP served as text/html is parsed as a document, so HTML/JS in the
   // callback executes on direct visit or inside an iframe.
   res.set('Content-Type', 'text/html; charset=utf-8');
-  const body = `${cb}({"note":"hello"});`;
-  if (/</.test(cb)) {
-    const flag = award(req, 'jsonp', 'mimetype');
-    res.set('X-Flag', flag);
-  }
+  // The old input-pattern award (any '<' in the callback) is gone: the attempt
+  // shape is recorded here, but only an executed script echoing the token back
+  // to /jsonp/beacon-xss earns the flag.
+  if (/</.test(cb)) req.session.jsonpMimeAttempt = true;
+  const body = `${cb}({"note":"hello","token":"${jsonpNonce(req, 'mimetype')}"});`;
   res.send(body);
 });
 
@@ -230,8 +312,8 @@ module.exports = {
       id: 'callback-xss',
       name: 'Callback XSS',
       difficulty: 'Easy',
-      hint: 'The callback parameter is dropped straight into executable JavaScript. It does not have to stay a function name.',
-      how: 'Send a callback containing JS syntax (e.g. alert(1)//) so it executes when loaded as a script.',
+      hint: 'The callback parameter is dropped straight into executable JavaScript. It does not have to stay a function name. The response data carries a per-session token your payload must echo back to /jsonp/beacon-xss.',
+      how: 'Load /jsonp/user?callback=... as a script with a breakout payload that reads the token from the data object and beacons it, e.g. callback=(d=>fetch(\'/jsonp/beacon-xss?v=callback-xss&n=\'+d.token)).',
     },
     {
       id: 'csrf-data',
@@ -244,8 +326,8 @@ module.exports = {
       id: 'filter-bypass',
       name: 'Callback Filter Bypass',
       difficulty: 'Medium',
-      hint: 'Only the literal word "alert" is blocked. JavaScript can build strings at runtime.',
-      how: 'Rebuild "alert" with concatenation (e.g. top[\'al\'+\'ert\'](1)) inside a callback that still breaks out.',
+      hint: 'Only the literal word "alert" is blocked. JavaScript can build strings at runtime. Your payload must also echo the per-session token from the response data back to /jsonp/beacon-xss.',
+      how: 'Beat the filter with concatenation and beacon the token, e.g. callback=(d=>top[\'fe\'+\'tch\'](\'/jsonp/beacon-xss?v=filter-bypass&n=\'+d.token))// loaded as a script.',
     },
     {
       id: 'array-hijack',
@@ -258,8 +340,8 @@ module.exports = {
       id: 'mimetype',
       name: 'JSONP MIME Sniffing',
       difficulty: 'Easy',
-      hint: 'The response is served as text/html, so the browser parses it as a document, not just script.',
-      how: 'Put an HTML tag (e.g. <script>alert(1)</script>) in the callback and open the URL directly.',
+      hint: 'The response is served as text/html, so the browser parses it as a document, not just script. Your injected markup must read the per-session token from the response text and beacon it to /jsonp/beacon-xss.',
+      how: 'Put an HTML tag in the callback and open the URL directly, e.g. <img src=x onerror="fetch(\'/jsonp/beacon-xss?v=mimetype&n=\'+document.body.innerHTML.match(/\\"token\\":\\"([a-f0-9]+)\\"/)[1])">.',
     },
   ],
   router,

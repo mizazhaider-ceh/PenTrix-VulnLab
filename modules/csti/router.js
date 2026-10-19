@@ -5,6 +5,7 @@
 // Function through the exposed constructor, CSTI inside an HTML attribute,
 // and a stored template evaluated on every view. Local lab use only.
 const express = require('express');
+const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
@@ -38,17 +39,45 @@ function cstiRender(tpl) {
 }`;
 
 // ---------------------------------------------------------------------------
+// Per-session, per-vuln token issued when the lab page loads and rendered into
+// the page as CSTI_NONCE. The beacon must echo it back, so only a template
+// that really evaluated in the page (or a client that loaded the page) can
+// claim the flag. Single-use: consumed on award. A bare curl of the beacon
+// with no page load earns no flag.
+// ---------------------------------------------------------------------------
+function cstiNonce(req, v) {
+  if (!req.session.cstiNonce) req.session.cstiNonce = {};
+  // hasOwnProperty: one lab is literally named 'constructor', which exists on
+  // Object.prototype - a plain truthiness check would return the Object
+  // function instead of issuing a token.
+  if (!Object.prototype.hasOwnProperty.call(req.session.cstiNonce, v)) {
+    req.session.cstiNonce[v] = crypto.randomBytes(16).toString('hex');
+  }
+  return req.session.cstiNonce[v];
+}
+function cstiConsumeNonce(req, v, n) {
+  const m = req.session.cstiNonce;
+  const cur = m && Object.prototype.hasOwnProperty.call(m, v) ? m[v] : null;
+  const ok = !!cur && cur === n && n.length > 0;
+  if (ok) delete m[v]; // single-use
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
 // Flag capture beacon. The victim page's own JavaScript fires it once the
 // template actually evaluated (labs 1, 2, 4, 5 auto-beacon when the rendered
 // output contains the attacker's expected result; lab 3's payload beacons
-// manually after achieving code execution).
+// manually after achieving code execution). Every beacon must also echo the
+// page-bound token.
 // ---------------------------------------------------------------------------
 router.get('/beacon', (req, res) => {
   const v = String(req.query.v || '');
   const d = String(req.query.d || '');
+  const n = String(req.query.n || '');
   let ok = false;
   if (VULN_IDS.includes(v)) {
     ok = (v === 'constructor') ? d.length > 0 : d === '49';
+    ok = ok && cstiConsumeNonce(req, v, n);
   }
   if (ok) {
     const flag = award(req, 'csti', v);
@@ -64,7 +93,9 @@ router.get('/beacon', (req, res) => {
     <h2>No flag</h2>
     <p>This endpoint only awards a flag when the template engine really evaluated
     your expression (<code>v</code> = basic, filter-bypass, constructor, attr, or stored,
-    with the expected result data). Work through the lab page in your browser.</p>
+    with the expected result data) <b>and</b> the beacon echoes the page-bound token
+    (<code>n</code> = <code>CSTI_NONCE</code> rendered into the lab page). Work through
+    the lab page in your browser.</p>
     <p><a href="/csti">Back to the CSTI module</a></p>
   `));
 });
@@ -88,12 +119,14 @@ router.get('/basic', (req, res) => {
     <div id="out" style="border:1px dashed #888; padding:1em; min-height:2em;"></div>
     <script>
       ${RENDER_JS}
+      // Page-bound token: the beacon must echo it back.
+      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'basic'))};
       var TPL = ${JSON.stringify(tpl)};
       var html = cstiRender(TPL);
       // VULN: rendered template output is injected as HTML.
       document.getElementById('out').innerHTML = html;
       if (html.indexOf('49') !== -1) {
-        fetch('/csti/beacon?v=basic&d=' + encodeURIComponent('49'));
+        fetch('/csti/beacon?v=basic&d=' + encodeURIComponent('49') + '&n=' + encodeURIComponent(CSTI_NONCE));
       }
     </script>
     <p class="note">Goal: make the preview show <b>49</b>. The engine evaluates
@@ -126,11 +159,13 @@ router.get('/filter-bypass', (req, res) => {
     <div id="out" style="border:1px dashed #888; padding:1em; min-height:2em;"></div>
     <script>
       ${RENDER_JS}
+      // Page-bound token: the beacon must echo it back.
+      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'filter-bypass'))};
       var TPL = ${JSON.stringify(tpl)};
       var html = cstiRender(TPL);
       document.getElementById('out').innerHTML = html;
       if (html.indexOf('49') !== -1) {
-        fetch('/csti/beacon?v=filter-bypass&d=' + encodeURIComponent('49'));
+        fetch('/csti/beacon?v=filter-bypass&d=' + encodeURIComponent('49') + '&n=' + encodeURIComponent(CSTI_NONCE));
       }
     </script>
     <p class="note">Goal: make the preview show <b>49</b> without using
@@ -172,13 +207,17 @@ router.get('/constructor', (req, res) => {
     <div id="out" style="border:1px dashed #888; padding:1em; min-height:2em;"></div>
     <script>
       ${RENDER_JS}
+      // Page-bound token: your manual beacon must echo it back.
+      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'constructor'))};
       var TPL = ${JSON.stringify(tpl)};
       document.getElementById('out').innerHTML = cstiRender(TPL);
     </script>
     <p class="note">Goal: execute JavaScript through the template. The engine exposes
     <code>constructor</code> (which is <code>Object</code>) to every expression, and
     <code>Object.constructor</code> is <code>Function</code>. From there you can compile
-    and run any string as code, then beacon the flag yourself.</p>
+    and run any string as code, then beacon the flag yourself - your beacon must echo the
+    page-bound token, e.g.
+    <code>{{constructor.constructor("fetch('/csti/beacon?v=constructor&amp;d='+document.cookie+'&amp;n='+CSTI_NONCE)")()}}</code>.</p>
   `));
 });
 
@@ -212,6 +251,8 @@ router.get('/attr', (req, res) => {
     <p id="msg"></p>
     <script>
       ${RENDER_JS}
+      // Page-bound token: the beacon must echo it back.
+      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'attr'))};
       // VULN: getAttribute() decodes the entities back, and then the raw
       // template is evaluated client-side. Server-side encoding cannot stop
       // client-side evaluation.
@@ -220,7 +261,7 @@ router.get('/attr', (req, res) => {
       document.getElementById('badge').value = html;
       document.getElementById('msg').textContent = 'Evaluated inside the value attribute: ' + html;
       if (html.indexOf('49') !== -1) {
-        fetch('/csti/beacon?v=attr&d=' + encodeURIComponent('49'));
+        fetch('/csti/beacon?v=attr&d=' + encodeURIComponent('49') + '&n=' + encodeURIComponent(CSTI_NONCE));
       }
     </script>
     <p class="note">Goal: make the badge show <b>49</b>. View source: your payload sits
@@ -252,6 +293,8 @@ router.get('/stored', (req, res) => {
     <div id="profiles"></div>
     <script>
       ${RENDER_JS}
+      // Page-bound token: the beacon must echo it back.
+      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'stored'))};
       var NAMES = ${JSON.stringify(names)};
       var box = document.getElementById('profiles');
       var hit = false;
@@ -265,7 +308,7 @@ router.get('/stored', (req, res) => {
         if (html.indexOf('49') !== -1) hit = true;
       });
       if (hit) {
-        fetch('/csti/beacon?v=stored&d=' + encodeURIComponent('49'));
+        fetch('/csti/beacon?v=stored&d=' + encodeURIComponent('49') + '&n=' + encodeURIComponent(CSTI_NONCE));
       }
     </script>
     <p class="note">Goal: store a display name that renders as <b>49</b> for everyone
@@ -350,7 +393,7 @@ module.exports = {
       name: 'Constructor Breakout to Code Execution',
       difficulty: 'Medium',
       hint: 'Expressions can see constructor (which is Object), and Object.constructor is Function. Compile a string that beacons the flag.',
-      how: 'Submit {{constructor.constructor("fetch(...)")()}} with a fetch to /csti/beacon?v=constructor.',
+      how: 'Submit {{constructor.constructor("fetch(...)")()}} with a fetch to /csti/beacon?v=constructor that echoes the page token CSTI_NONCE.',
     },
     {
       id: 'attr',

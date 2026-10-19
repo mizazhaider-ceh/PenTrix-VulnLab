@@ -47,14 +47,18 @@ function runPing(host, done) {
 }
 
 // Decide whether the injection actually went through.
-// v1: any shell metacharacter present means the extra command ran inside exec.
-function awardCheckV1(host) {
-  return /[;&|`]|\$\(/.test(host);
-}
-
-// v2: the naive filter only strips one ';', so &&, || or a real newline still chain.
-function awardCheckV2(host) {
-  return /&&|\|\||\n/.test(host);
+// Verification model: the flag is awarded only when the shell output proves a
+// second command really ran. The student's own input is scrubbed from the
+// output first, so merely echoing a marker (e.g. ?host=uid= with no injection)
+// cannot award. Markers are outputs real commands produce: id (uid=/gid=),
+// cat /etc/passwd (root:/daemon:), ls -la (total ). The old input-pattern
+// checks awarded on metacharacters alone (?host=127.0.0.1; with an empty second
+// command used to award); they are gone.
+const EXEC_EVIDENCE = ['uid=', 'gid=', 'root:', 'daemon:', 'total '];
+function executedSomething(out, inputs) {
+  let s = String(out || '');
+  for (const i of inputs) if (i) s = s.split(i).join('');
+  return EXEC_EVIDENCE.some((m) => s.includes(m));
 }
 
 // v1: no filtering at all
@@ -68,9 +72,10 @@ router.get('/ping', (req, res) => {
       ${hintBox('What does the server do with your text? It drops it straight into a shell command. Characters like <code>;</code> end one command and start another.')}
     `));
   }
-  runPing(host, (outputHtml) => {
+  runPing(host, (outputHtml, out) => {
     let extra = '';
-    if (awardCheckV1(host)) {
+    // Award only when the command output shows an injected command ran.
+    if (executedSomething(out, [host])) {
       const flag = award(req, 'cmdi', 'basic');
       extra = flagBox(flag);
     }
@@ -98,9 +103,10 @@ router.get('/ping2', (req, res) => {
   }
   // VULN: weak blacklist that only removes a single ';' instead of proper escaping.
   const filtered = host.replace(';', '');
-  runPing(filtered, (outputHtml) => {
+  runPing(filtered, (outputHtml, out) => {
     let extra = '';
-    if (awardCheckV2(host)) {
+    // Award only when the command output shows an injected command ran.
+    if (executedSomething(out, [host, filtered])) {
       const flag = award(req, 'cmdi', 'bypass');
       extra = flagBox(flag);
     }

@@ -1,6 +1,7 @@
 // PenTrix VulnLab - CSRF & Open Redirect module (csrf)
 // Intentionally vulnerable training module. Local lab use only.
 const express = require('express');
+const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
 const { page, esc, flagBox, hintBox, brief } = require('../../lib/page');
 const { award } = require('../../lib/flags');
@@ -45,8 +46,8 @@ const VULNS = [
     id: 'clickjacking',
     name: 'Clickjacking (missing X-Frame-Options)',
     difficulty: 'Easy',
-    hint: 'The VIP action page sends no X-Frame-Options header, so any site can embed it in an invisible iframe and trick clicks into landing on its buttons.',
-    how: 'Visit /csrf/framedemo to see the page framed in an iframe - proof that any attacker site could overlay and hijack clicks.',
+    hint: 'The VIP action page sends no X-Frame-Options header, so any site can embed it in an invisible iframe and trick clicks into landing on its buttons. Open /csrf/framedemo and click the decoy prize button: your click lands on the hidden "Delete my account" button, and the framed form submission captures the flag.',
+    how: 'Open /csrf/framedemo and click the decoy button layered over the nearly-invisible framed page. The click submits the framed form, which carries the one-time framing token.',
   },
   {
     id: 'json-csrf',
@@ -230,15 +231,25 @@ router.get('/go', (req, res) => {
 // ---------------------------------------------------------------------------
 // v3: clickjacking target. The "dangerous" button is deliberately harmless -
 // the vulnerability under test is the missing framing protection.
+//
+// Verification model: merely visiting /csrf/framedemo awards nothing (that was
+// the old Rule 2 violation). The flag is awarded only when the server observes
+// the full framing chain: (1) the framing demo issues a one-time frame token,
+// (2) the victim page is actually loaded inside the frame carrying that token,
+// (3) the framed form is submitted back with the token. A bare page visit or a
+// bare POST with no token earns no flag.
 // ---------------------------------------------------------------------------
-function vipPage(message) {
+function vipPage(message, frameToken) {
   return page('VIP Action', `
     <h1>Account Settings</h1>
     <p class="dim">This page has no <code>X-Frame-Options</code> header, so it can be embedded anywhere.</p>
     ${message || ''}
-    <form method="post" action="/csrf/vip-action">
-      <button type="submit">Delete my account</button>
-    </form>
+    <div style="margin-top:60px; text-align:center;">
+      <form method="post" action="/csrf/vip-action">
+        ${frameToken ? `<input type="hidden" name="frame" value="${esc(frameToken)}" />` : ''}
+        <button type="submit" style="font-size:16px; padding:10px 24px;">Delete my account</button>
+      </form>
+    </div>
   `);
 }
 
@@ -246,25 +257,54 @@ router.get('/vip-action', (req, res) => {
   // Deliberately no X-Frame-Options (and no CSP frame-ancestors): this missing
   // header is the vulnerability, so any site can frame this page.
   res.removeHeader('X-Frame-Options');
-  res.send(vipPage(''));
+  // A frame token proves this load came through the framing demo; record it so
+  // the later form submission can be tied to a real framed load.
+  const f = String(req.query.frame || '');
+  const frameToken = (f && req.session.frameNonce === f) ? f : null;
+  if (frameToken) req.session.frameSeen = frameToken;
+  res.send(vipPage('', frameToken));
 });
 
 router.post('/vip-action', (req, res) => {
   res.removeHeader('X-Frame-Options');
+  const f = String(req.body.frame || '');
+  // Award only when the submission carries the one-time token AND the token was
+  // previously seen on a framed load of the victim page: evidence the click
+  // actually landed on the framed button.
+  const ok = f.length > 0 && req.session.frameNonce === f && req.session.frameSeen === f;
+  if (ok) {
+    req.session.frameSeen = null; // single-use: the token cannot award twice
+    const flag = award(req, 'csrf', 'clickjacking');
+    return res.send(vipPage(`
+      <p><b>Demo only:</b> your account was <u>not</u> deleted. But the click you
+      just made landed on this framed button through the attacker's overlay -
+      that is a successful clickjacking.</p>
+      ${flagBox(flag)}
+    `, null));
+  }
   res.send(vipPage(`
     <p><b>Demo only:</b> your account was <u>not</u> deleted. This page exists to
     demonstrate clickjacking framing, not to do anything destructive.</p>
-  `));
+    <p class="dim">No flag: the flag is awarded only when this form is submitted
+    from inside the framing demo (with its one-time framing token), proving a
+    framed click actually happened.</p>
+  `, null));
 });
 
 // ---------------------------------------------------------------------------
-// Framing demo: embeds /csrf/vip-action in an iframe to prove framing works.
+// Framing demo: the in-lab attacker page. It layers a decoy "prize" button
+// under a nearly-invisible iframe of /csrf/vip-action, so a click on the
+// decoy lands on the hidden "Delete my account" button. Visiting this page
+// alone awards nothing; the flag comes from the framed submission.
 // ---------------------------------------------------------------------------
 router.get('/framedemo', (req, res) => {
-  const flag = award(req, 'csrf', 'clickjacking');
+  // VULN: the demo issues the framing token, but the token alone is worthless:
+  // it only becomes evidence when the framed page loads with it and posts back.
+  req.session.frameNonce = crypto.randomBytes(16).toString('hex');
+  req.session.frameSeen = null;
+  const nonce = req.session.frameNonce;
   res.send(page('Framing Demo', `
     <h1>Clickjacking Demo</h1>
-    ${flagBox(flag)}
     ${brief('What is clickjacking?', `
       <b>Clickjacking</b> tricks a user into clicking something different from
       what they think they are clicking. The attacker embeds a legitimate page in
@@ -273,13 +313,24 @@ router.get('/framedemo', (req, res) => {
       actually lands on the hidden page - for example on a "Delete my account"
       button.
       <br><br>The fix is a single header: <code>X-Frame-Options: DENY</code> (or
-      <code>SAMEORIGIN</code>). This page sends <b>neither</b>, so the frame below
-      loads fine - that is the vulnerability.
+      <code>SAMEORIGIN</code>). The framed page below sends <b>neither</b>, so it
+      loads fine inside the attacker's frame - that is the vulnerability.
+      <br><br><b>Try it:</b> click the shiny "prize" button. It sits <i>under</i>
+      a nearly-invisible iframe, so your click passes through and hits the hidden
+      "Delete my account" button. The framed form carries a one-time token, and
+      only that framed submission captures the flag.
     `)}
-    <h2>The framed page (proof it can be embedded)</h2>
-    <iframe src="/csrf/vip-action" width="600" height="320" style="border:2px solid #ccc;"></iframe>
-    ${hintBox('An attacker would make the iframe invisible and place a fake button exactly over the real one. The victim clicks "Win a prize" but hits "Delete my account".')}
-    <p><a href="/csrf/vip-action">Open the framed page directly</a></p>
+    <h2>The attacker's page (live demo)</h2>
+    <div style="position:relative; width:600px; height:340px; border:2px solid #ccc; overflow:hidden; background:#fff;">
+      <div style="position:absolute; left:185px; top:140px; z-index:1;">
+        <button type="button" tabindex="-1" style="font-size:20px; padding:14px 28px; background:#ffd54a; border:3px solid #c90; border-radius:10px; cursor:pointer;">Claim your FREE prize</button>
+      </div>
+      <iframe src="/csrf/vip-action?frame=${nonce}" width="600" height="320" style="position:absolute; left:0; top:0; z-index:2; opacity:0.07; border:0;"></iframe>
+    </div>
+    <p class="dim">The iframe is rendered at 7% opacity - almost invisible, but the
+    real "Delete my account" button is in there, sitting over your prize button.</p>
+    ${hintBox('An attacker would make the iframe fully invisible and place a fake button exactly over the real one. The victim clicks "Win a prize" but hits "Delete my account".')}
+    <p><a href="/csrf/vip-action">Open the framed page directly</a> (no token: submitting here earns no flag)</p>
     <p><a href="/csrf">Back to the CSRF module</a></p>
   `));
 });
