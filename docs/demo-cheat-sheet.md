@@ -14,7 +14,7 @@ Keep the terminal visible. Do not run `git pull` during the demo.
 ## The demo (live)
 
 **1. Home page (30 sec)**
-Show the module grid. Say: "29 modules, 235 challenges, every one a small real website with a real bug."
+Show the module grid. Say: "29 modules, 201 challenges, every one a small real website with a real bug."
 
 **2. SQL Injection module (30 sec)**
 Open the SQL Injection module. Point at the challenge list and the hint ladder.
@@ -28,7 +28,7 @@ Open the Login Bypass challenge. Say: "This login builds its SQL query by pastin
 The page shows **"Flag captured"** with a `PENTRIX{...}` flag, and it is saved to the scoreboard.
 
 **4. Scoreboard (30 sec)**
-Open Scoreboard. It shows 1/235. Say: "Every flag is generated fresh on each install, so students cannot copy flags from GitHub or each other. And shortcuts earn nothing: only a real exploit gets a flag."
+Open Scoreboard. It shows 1/201. Say: "Every flag is generated fresh on each install, so students cannot copy flags from GitHub or each other. And shortcuts earn nothing: only a real exploit gets a flag."
 
 **5. Close (30 sec)**
 Quick scroll of another module (XSS). Say: "Same pattern across all 29 modules. The roadmap adds break-then-fix mode, kill-chain scenarios, and guided career paths."
@@ -41,4 +41,4 @@ Quick scroll of another module (XSS). Say: "Same pattern across all 29 modules. 
 
 ## One-line summary
 
-"PenTrix VulnLab is a training platform with 235 intentionally vulnerable web challenges where every flag must be earned by real exploitation, nothing can be cheated, and nothing leaks from the source code."
+"PenTrix VulnLab is a training platform with 201 intentionally vulnerable web challenges where every flag must be earned by real exploitation, nothing can be cheated, and nothing leaks from the source code."

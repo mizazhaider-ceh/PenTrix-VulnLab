@@ -54,6 +54,6 @@
   <g>
     <rect x="60" y="300" width="1080" height="90" rx="24" fill="#ffffff" stroke="#F59E0B" stroke-width="2" stroke-dasharray="10 8"/>
     <text x="100" y="338" font-size="20" font-weight="800" fill="#332F3A">What GitHub sees: <tspan fill="#DC2626">nothing</tspan></text>
-    <text x="100" y="366" font-size="17" fill="#635F69">No flag literal exists in any tracked file. Delete data/vulnlab.db and reboot for a fresh set of 235.</text>
+    <text x="100" y="366" font-size="17" fill="#635F69">No flag literal exists in any tracked file. Delete data/vulnlab.db and reboot for a fresh set of 201.</text>
   </g>
 </svg>

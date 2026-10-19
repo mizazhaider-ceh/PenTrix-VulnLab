@@ -1,6 +1,6 @@
 # PenTrix VulnLab – Solutions
 
-Full walkthroughs for all 235 challenges. **Try each one yourself first** – the hints on each module page are there to nudge you, not to hand you the answer.
+Full walkthroughs for all 201 challenges. **Try each one yourself first** – the hints on each module page are there to nudge you, not to hand you the answer.
 
 > **Flags are random per deployment.** Every challenge flag is generated when the app first boots and stored only in the local database (which is gitignored). The walkthroughs below show `PENTRIX{...}` as a placeholder wherever a flag appears: they teach you *how* to earn it, and your lab will award the real one when your exploit succeeds.
 

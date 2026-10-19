@@ -32,7 +32,7 @@
     <rect x="840" y="140" width="300" height="110" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="990" cy="172" r="16" fill="#F59E0B"/>
     <text x="990" y="178" font-size="18" fill="#ffffff">✦</text>
-    <text x="990" y="214" fill="#332F3A">235 challenge pages</text>
+    <text x="990" y="214" fill="#332F3A">201 challenge pages</text>
     <text x="990" y="238" font-size="15" font-weight="600" fill="#635F69">one file each, real-app feel</text>
   </g>
   <g stroke="#8B7CF6" stroke-width="3" fill="none" marker-end="url(#arr)">

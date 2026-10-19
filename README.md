@@ -1,7 +1,7 @@
 ![PenTrix VulnLab](docs/assets/hero.svg)
 
 ![modules](https://img.shields.io/badge/modules-29-7C3AED?style=for-the-badge)
-![challenges](https://img.shields.io/badge/challenges-235-DB2777?style=for-the-badge)
+![challenges](https://img.shields.io/badge/challenges-201-DB2777?style=for-the-badge)
 ![node](https://img.shields.io/badge/node-20%2B-10B981?style=for-the-badge)
 ![status](https://img.shields.io/badge/status-intentionally%20vulnerable-F59E0B?style=for-the-badge)
 
@@ -29,7 +29,7 @@ I built it for students like me: people who learn by doing, late at night, with 
 
 - **Students** meeting web security for the first time and wanting real practice, not slides.
 - **Self-learners** grinding toward pentesting certifications or their first CTF.
-- **CTF players** who want 235 warm-up challenges with honest, uncheatable flags.
+- **CTF players** who want 201 warm-up challenges with honest, uncheatable flags.
 - **Instructors** who need a one-command lab for a classroom (event mode is on the way).
 - **Career switchers** who want proof of skill: solve paths, earn certificates, show your work.
 
@@ -63,7 +63,7 @@ Set `SESSION_SECRET` to a private value for any graded or shared use. The app fa
 
 ![Flag lifecycle](docs/assets/flags.svg)
 
-- On first boot the app generates its own **235 flags**: `PENTRIX{` + 32 random hex characters.
+- On first boot the app generates its own **201 flags**: `PENTRIX{` + 32 random hex characters.
 - They live only in the local SQLite database (`data/vulnlab.db`), which is gitignored and mounted as a Docker volume.
 - **No flag literal exists in any tracked file.** Reading the source on GitHub reveals nothing.
 - Delete the database and reboot for a fresh set. Your flags and everyone else's are different, so sharing them proves nothing.
@@ -102,7 +102,7 @@ Most labs stop at "find the bug". PenTrix is being built to train complete secur
 
 | | **PenTrix VulnLab** | Juice Shop | WebGoat | PortSwigger Academy |
 |---|---|---|---|---|
-| Challenges | 235 | 100+ | Lesson-based | Extensive |
+| Challenges | 201 | 100+ | Lesson-based | Extensive |
 | Flags random per install | Yes | No | No | N/A |
 | Shortcut exploits rejected | Yes | Partial | No | Yes |
 | Break-then-fix mode | In development | No | No | No |
@@ -116,43 +116,43 @@ Most labs stop at "find the bug". PenTrix is being built to train complete secur
 ![Architecture](docs/assets/architecture.svg)
 
 - **Express + SQLite**, zero build step, plain CSS and JS. Clone it, read it, run it.
-- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each of the **235 challenges lives in its own file** under `modules/<id>/challenges/`, owning its page, its routes, and its vulnerability.
+- **29 module routers** (`/sqli`, `/xss`, `/idor`, …). Each of the **201 challenges lives in its own file** under `modules/<id>/challenges/`, owning its page, its routes, and its vulnerability.
 - **`lib/flags.js`** looks up the per-deployment flag and verifies the exploit before awarding. Challenge code never touches flag values.
 - **Scoreboard** tracks progress from session state. It never displays secrets.
 - Every vulnerability is marked in the source with `// VULN:` comments (280 across the codebase) so you can study the code *after* solving.
 
 ## The lab catalog
 
-235 intentionally vulnerable challenges across 29 modules:
+201 intentionally vulnerable challenges across 29 modules:
 
 | Module | Highlights |
 |--------|------------|
-| **xss** – Cross-Site Scripting (11) | Reflected · Stored (guestbook, profile bio, SVG upload) · DOM XSS · Attribute and JS-string breakouts · DOM clobbering · Naive Markdown links |
-| **sqli** – SQL Injection (12) | Auth bypass · UNION injection · Blind boolean · Error-based · ORDER BY · Second-order · LIKE wildcards · LIMIT/OFFSET · INSERT injection |
-| **auth** – Broken Authentication (11) | No rate limiting · JWT `alg=none` · Predictable reset tokens · Username enumeration · Remember-me tampering · OTP brute force · API key in HTML comment |
-| **idor** – Broken Access Control (11) | Profile and order IDOR · Invoice download · Cart and address IDOR · API key regeneration · Forced browsing · Comment deletion |
-| **ssrf** – Server-Side Request Forgery (10) | Basic SSRF · Blocklist bypasses (decimal, hex, octal, integer IP, userinfo) · Open-redirect chain · Cloud metadata · `file://` |
-| **upload** – File Upload (10) | Stored XSS via SVG/HTML · Extension blacklist bypasses (double ext, case, strip-once) · MIME spoofing · Path traversal · Polyglot |
-| **cmdi** – Command Injection (10) | Unfiltered ping gadget · Blacklist-bypass series (`$IFS`, `${IFS}`, newline, backticks, glob wildcards, tab, pipe) |
+| **xss** – Cross-Site Scripting (9) | Reflected · Stored (guestbook, profile bio, SVG upload) · DOM XSS · Attribute and JS-string breakouts · DOM clobbering · Naive Markdown links |
+| **sqli** – SQL Injection (11) | Auth bypass · UNION injection · Blind boolean · Error-based · ORDER BY · Second-order · LIKE wildcards · LIMIT/OFFSET · INSERT injection |
+| **auth** – Broken Authentication (8) | No rate limiting · JWT `alg=none` · Predictable reset tokens · Username enumeration · Remember-me tampering · OTP brute force · API key in HTML comment |
+| **idor** – Broken Access Control (7) | Profile and order IDOR · Invoice download · Cart and address IDOR · API key regeneration · Forced browsing · Comment deletion |
+| **ssrf** – Server-Side Request Forgery (9) | Basic SSRF · Blocklist bypasses (decimal, hex, octal, integer IP, userinfo) · Open-redirect chain · Cloud metadata · `file://` |
+| **upload** – File Upload (8) | Stored XSS via SVG/HTML · Extension blacklist bypasses (double ext, case, strip-once) · MIME spoofing · Path traversal · Polyglot |
+| **cmdi** – Command Injection (9) | Unfiltered ping gadget · Blacklist-bypass series (`$IFS`, `${IFS}`, newline, backticks, glob wildcards, tab, pipe) |
 | **xxe** – XXE Injection (8) | File read · SSRF via XXE · Billion laughs · External DTD exfiltration · XXE in SVG/SOAP · XInclude · Parameter-entity OOB |
-| **ssti** – Server-Side Template Injection (10) | Basic `{{7*7}}` · Filter-bypass series (words, underscores, brackets, dots, braces, quotes) · SSTI to RCE |
-| **lfi** – Path Traversal / LFI (10) | Basic traversal · Filter bypasses (nested, double-encoded) · Absolute paths · Log poisoning · `/proc/self/environ` · Config read |
-| **csrf** – CSRF & Open Redirect (11) | State-changing GETs · Login CSRF · JSON CSRF via `text/plain` · Referer/Content-Type bypasses · Method override · 2FA disable via GET |
-| **api** – API Security Flaws (11) | Mass assignment · Excessive data exposure · BOLA · Rate-limit bypass via `X-Forwarded-For` · Version bypass · ID enumeration |
-| **misconfig** – Security Misconfiguration (11) | Verbose errors · Exposed `.git`/`.env`/backup/swap files · Directory listing · HTTP TRACE · Debug param · Default creds · HTTP PUT |
+| **ssti** – Server-Side Template Injection (9) | Basic `{{7*7}}` · Filter-bypass series (words, underscores, brackets, dots, braces, quotes) · SSTI to RCE |
+| **lfi** – Path Traversal / LFI (9) | Basic traversal · Filter bypasses (nested, double-encoded) · Absolute paths · Log poisoning · `/proc/self/environ` · Config read |
+| **csrf** – CSRF & Open Redirect (5) | State-changing GETs · Login CSRF · JSON CSRF via `text/plain` · Referer/Content-Type bypasses · Method override · 2FA disable via GET |
+| **api** – API Security Flaws (5) | Mass assignment · Excessive data exposure · BOLA · Rate-limit bypass via `X-Forwarded-For` · Version bypass · ID enumeration |
+| **misconfig** – Security Misconfiguration (10) | Verbose errors · Exposed `.git`/`.env`/backup/swap files · Directory listing · HTTP TRACE · Debug param · Default creds · HTTP PUT |
 | **jwt** – JWT Attacks (8) | `alg=none` · Weak HMAC secret · `kid` SQL injection · Untrusted `jku` · RS256/HS256 confusion · Missing expiry/audience checks |
 | **session** – Session Management (6) | Fixation · Logout without destruction · Predictable IDs · Session ID in URL · Never-expiring sessions · IDs in debug logs |
 | **race** – Race Conditions (8) | Double coupon redeem · Double-spend · Double vote/registration · AV-scan TOCTOU · Rate-limit burst · Stock oversell |
 | **bizlogic** – Business Logic Flaws (8) | Negative quantity · Price tampering · Coupon stacking · Client-side OTP · Workflow skipping · Currency confusion · Refund tampering |
-| **redirect** – Open Redirect (6) | Protocol-relative `//evil.com` · `javascript:`/`data:` schemes · Backslash bypass · OAuth code theft · Parameter pollution |
-| **hostheader** – Host Header Injection (6) | Reset-link poisoning · Cache poisoning · SSRF via Host · `X-Forwarded-Host`/`X-Host-Override` trust |
+| **redirect** – Open Redirect (5) | Protocol-relative `//evil.com` · `javascript:`/`data:` schemes · Backslash bypass · OAuth code theft · Parameter pollution |
+| **hostheader** – Host Header Injection (5) | Reset-link poisoning · Cache poisoning · SSRF via Host · `X-Forwarded-Host`/`X-Host-Override` trust |
 | **cors** – CORS Misconfiguration (6) | Reflected origin with credentials · `null` origin · Regex bypass · Wildcard on sensitive data · Exposed headers |
 | **proto** – Prototype Pollution (6) | Query-string pollution · JSON body pollution · `constructor` bypass · `toString` DoS · Unicode-escape bypass |
 | **crypto** – Cryptographic Failures (8) | Predictable PIN · ECB decryption oracle · CBC bit-flipping · Hash length extension · MD5 cracking · XOR crib dragging |
 | **oauth** – OAuth Flaws (8) | Redirect-URI bypass · Code leakage · Missing `state` (login CSRF) · Implicit flow · Scope tampering · Code replay · PKCE skip |
 | **postmsg** – postMessage Flaws (5) | Missing origin check · Wildcard `targetOrigin` leak · Unsanitized data to HTML · Substring origin bypass · Forged actions |
 | **csti** – Client-Side Template Injection (5) | Basic `{{7*7}}` evaluation · Delimiter filter bypass · Constructor breakout · Attribute context · Stored template |
-| **http** – HTTP Layer Flaws (6) | CRLF log injection · Method override · Verb tampering · `X-Forwarded-For` trust · Cache deception · Referer auth |
+| **http** – HTTP Layer Flaws (3) | CRLF log injection · Method override · Verb tampering · `X-Forwarded-For` trust · Cache deception · Referer auth |
 | **jsonp** – JSONP Injection (5) | Callback XSS · JSONP data theft · Callback filter bypass · Array-constructor hijack · MIME sniffing |
 | **formula** – CSV Formula Injection (4) | Classic `=cmd` · DDE execution · `HYPERLINK` exfiltration · Pipe prefix |
 | **redos** – ReDoS (4) | Catastrophic email/URL regexes · Nested-quantifier username · Regex-injection search |
@@ -167,7 +167,7 @@ This repo went through a full engineering transformation:
 - **Claymorphism redesign.** A light-only, candy-colored, soft-3D interface: super-rounded cards, squishy buttons, floating blobs, Nunito + DM Sans.
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
 - **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
-- **One file per challenge.** Each of the 235 challenges owns its file, its page, and its code. No monolithic module files.
+- **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
 - **In progress:** real-website feel for every challenge page, motion polish, curriculum depth pass, and the three pillars above (break-then-fix, kill-chain scenarios, career paths). The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 ## Project layout
@@ -210,7 +210,7 @@ Yes, on your own machine. The container binds to `127.0.0.1` only, drops Linux c
 No. Never. It is a practice target, not a hardened app. If you want a shared event, run it on an isolated lab network you fully control.
 
 **How do flags work?**
-Every install generates its own 235 random flags on first boot, stored in a gitignored local database. The source on GitHub contains zero flags, so nothing can be spoiled by reading code.
+Every install generates its own 201 random flags on first boot, stored in a gitignored local database. The source on GitHub contains zero flags, so nothing can be spoiled by reading code.
 
 **I solved a challenge but got no flag. Why?**
 Because the lab only awards flags for genuine exploitation. A request that does not actually trigger the vulnerability earns nothing. Re-read the briefing, check the hint, and make the exploit real.

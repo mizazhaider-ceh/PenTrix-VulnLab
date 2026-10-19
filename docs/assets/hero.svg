@@ -26,7 +26,7 @@
     <rect x="268" y="225" width="226" height="52" rx="26" fill="#ffffff"/>
     <rect x="268" y="225" width="226" height="52" rx="26" fill="none" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="300" cy="251" r="10" fill="#DB2777"/>
-    <text x="318" y="258" fill="#332F3A">235 challenges</text>
+    <text x="318" y="258" fill="#332F3A">201 challenges</text>
     <rect x="506" y="225" width="182" height="52" rx="26" fill="#ffffff"/>
     <rect x="506" y="225" width="182" height="52" rx="26" fill="none" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="538" cy="251" r="10" fill="#10B981"/>
