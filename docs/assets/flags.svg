@@ -16,31 +16,31 @@
   <g font-size="18" font-weight="700" text-anchor="middle">
     <rect x="60" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="150" cy="166" r="18" fill="#0EA5E9"/>
-    <text x="150" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">▶</text>
+    <text x="150" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">●</text>
     <text x="150" y="208" fill="#332F3A">First boot</text>
     <text x="150" y="232" font-size="14" font-weight="600" fill="#635F69">docker compose up</text>
 
     <rect x="290" y="130" width="180" height="130" rx="24" fill="url(#genBtn)"/>
     <circle cx="380" cy="166" r="18" fill="#ffffff" opacity="0.25"/>
-    <text x="380" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">⚄</text>
+    <text x="380" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">◆</text>
     <text x="380" y="208" fill="#ffffff">Generate</text>
     <text x="380" y="232" font-size="14" font-weight="600" fill="#EDE9FE">crypto.randomBytes</text>
 
     <rect x="520" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="610" cy="166" r="18" fill="#7C3AED"/>
-    <text x="610" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">▤</text>
+    <text x="610" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">■</text>
     <text x="610" y="208" fill="#332F3A">SQLite store</text>
     <text x="610" y="232" font-size="14" font-weight="600" fill="#635F69">gitignored, local only</text>
 
     <rect x="750" y="130" width="180" height="130" rx="24" fill="#ffffff" stroke="#E4E0F2" stroke-width="2"/>
     <circle cx="840" cy="166" r="18" fill="#DB2777"/>
-    <text x="840" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">⚒</text>
+    <text x="840" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">▲</text>
     <text x="840" y="208" fill="#332F3A">You exploit</text>
     <text x="840" y="232" font-size="14" font-weight="600" fill="#635F69">real technique, real tools</text>
 
     <rect x="980" y="130" width="160" height="130" rx="24" fill="#10B981"/>
     <circle cx="1060" cy="166" r="18" fill="#ffffff" opacity="0.25"/>
-    <text x="1060" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">⚑</text>
+    <text x="1060" y="173" font-size="18" font-weight="800" fill="#ffffff" text-anchor="middle">★</text>
     <text x="1060" y="208" fill="#ffffff">Flag awarded</text>
     <text x="1060" y="232" font-size="14" font-weight="600" fill="#D1FAE5">PENTRIX{…}</text>
   </g>

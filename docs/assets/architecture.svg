@@ -61,8 +61,7 @@
     <text x="1050" y="428" font-size="15" font-weight="600" fill="#635F69">progress, never secrets</text>
   </g>
   <g stroke="#8B7CF6" stroke-width="3" fill="none" marker-end="url(#arr)">
-    <line x1="990" y1="250" x2="990" y2="300" stroke-dasharray="1 0"/>
-    <path d="M 990 250 C 990 300, 500 300, 470 322"/>
+    <path d="M 990 250 C 990 315, 450 315, 450 324"/>
     <line x1="580" y1="390" x2="632" y2="390"/>
     <line x1="900" y1="390" x2="952" y2="390"/>
   </g>
