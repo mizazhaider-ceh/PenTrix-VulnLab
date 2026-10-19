@@ -17,11 +17,11 @@ const vuln = {
   name: 'Blocklist bypass',
   difficulty: 'Hard',
   hint: 'The blocklist is a naive substring check. Loopback has more than one spelling.',
-  hints: ["The fetcher blocks '127.0.0.1' as a substring. But an IP address is just a number. How else can you write 127.0.0.1?", "The blocklist is a naive string check on the raw URL text. The URL parser, however, also accepts loopback written as a single decimal number, with hex octets, or with leading-zero octal octets, and normalizes each of those forms back to 127.0.0.1.", "Rebuild the internal fetch URL using one of the alternate loopback spellings. The string check will wave it through while the URL parser still delivers the request to loopback."],
-  tools: "C",
-  how: 'Fetch the internal secret via /ssrf/fetch2 using http://2130706433:PORT/... or http://0.0.0.0:PORT/....',
+  hints: ["The fetcher blocks '127.0.0.1' as a substring. But an IP address is just a number, and it has more than one spelling. In Burp, send your fetch request to Intruder and prepare a small payload list of alternate loopback spellings to fuzz the url parameter.", "The blocklist is a naive string check on the raw URL text. The URL parser, however, also accepts loopback written as a single decimal number, with hex octets, or with leading-zero octal octets, and normalizes each of those forms back to 127.0.0.1. Try one spelling at a time in Repeater until the blocklist waves it through.", "Rebuild the internal fetch URL using one of the alternate loopback spellings. The string check will wave it through while the URL parser still delivers the request to loopback. Keep fuzzing in Intruder if the first spelling fails."],
+  tools: "BZ, C",
+  how: 'Reach the internal secret through /ssrf/fetch2 by rebuilding the fetch URL with an alternate loopback spelling (decimal, hex octets, or leading-zero octal octets). In Burp Repeater send one request per spelling, or in Intruder fuzz the url parameter with a short payload list of alternate spellings.',
   link: '/ssrf#bypass',
-  start: 'curl -s "http://localhost:3000/ssrf/fetch2?url=http://example.com/"',
+  start: 'Browse to http://localhost:3000/ssrf/fetch2 through Burp Proxy, use the Fetch a link form once with any URL, then send the request to Repeater.',
 };
 
 // Fetch a URL server-side with a hard timeout. Resolves with the raw body
@@ -92,7 +92,7 @@ function resultPage(title, req, url, body, err, modId, vulnId, opts = {}) {
   </div>`;
   const bodyHtml = appShell('FetchBox Pro', form + `<div class="card">${inner}</div>
     ${hintLadder(vuln)}
-    ${toolsPill(vuln.tools)}
+    ${toolsPill(vuln)}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssrf">&larr; Back to the SSRF module</a></p>`, { mark: '🔗', nav: ['Preview', 'History', 'API'] });
   return page(title, bodyHtml);
 }

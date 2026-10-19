@@ -18,11 +18,11 @@ const vuln = {
   name: 'Basic Template Injection',
   difficulty: 'Medium',
   hint: 'The greeting is built with a naive template engine: anything you put inside {{ }} gets evaluated. Start by proving it with simple arithmetic, like a multiplication the page could only echo back if it really ran your expression.',
-  hints: ["The greeting echoes your name back. What happens if your name looks like a template expression instead, double curly braces around some arithmetic?", "The engine evaluates anything between {{ }} as server-side code. Send an arithmetic expression whose computed answer the page could only echo back if it really ran your expression.", "Prove the engine evaluates templates: send an arithmetic expression inside {{ }} as your name. If the page echoes the computed result instead of your literal text, you have SSTI and the flag is yours."],
-  tools: 'B, C',
-  how: 'Submit name={{7*7}} so the evaluated expression (49) appears in the greeting.',
+  hints: ["The greeting echoes your name back. Capture the form request in Burp Proxy and send it to Repeater, then try typing your name as a template expression instead.", "In Repeater, anything between {{ }} in the name value is evaluated server side. Tweak the expression and watch the rendered greeting change in the response.", "Prove the engine evaluates templates: in Repeater, place a small arithmetic expression between {{ }} in the name parameter. If the page echoes the computed answer instead of your literal text, you have SSTI and the flag is yours."],
+  tools: 'BZ, B',
+  how: 'In Repeater, set name={{7*7}}; the evaluated expression (49) appears in the greeting.',
   link: '/ssti#basic',
-  start: 'curl -g "http://localhost:3000/ssti/greet?name={{7*7}}"',
+  start: 'With Burp Proxy on, open /ssti/greet in the browser, submit a name, and send the request to Repeater. Set the name parameter to {{7*7}} and read the rendered greeting in the response.',
 };
 
 // GET /ssti/greet -> greeting card rendered by the naive template engine.

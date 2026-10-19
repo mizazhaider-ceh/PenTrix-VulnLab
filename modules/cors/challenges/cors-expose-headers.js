@@ -17,11 +17,11 @@ const vuln = {
   name: 'Exposed Admin Token Header',
   difficulty: 'Easy',
   hint: 'The response carries X-Admin-Token and the endpoint lists it in Access-Control-Expose-Headers.',
-  hints: ["The API exposes X-Admin-Token via ACAO: *. Can JS read response headers cross-origin?", "Only if listed in Access-Control-Expose-Headers. It is.", "From your own page, fetch the token endpoint and read the response headers. The key insight: cross-origin scripts can only read headers named in Access-Control-Expose-Headers, and one of those carries the prize."],
-  tools: "B",
-  how: 'Prove it: /cors/prove?vuln=cors-expose-headers&origin=https://evil.com',
+  hints: ["Replay /cors/api/token in Burp Repeater and read the response headers. Can a script on another origin read those headers?", "Only if a header is named in Access-Control-Expose-Headers. Check whether the response names one.", "The browser trusts that whitelist, so a page on an attacker origin can read the whitelisted header with fetch. Run the proof through /cors/prove and take the flag."],
+  tools: "BZ, B",
+  how: 'Confirm /cors/api/token answers any Origin with Access-Control-Allow-Origin: * and lists X-Admin-Token in Access-Control-Expose-Headers, then prove it in the browser at /cors/prove?vuln=cors-expose-headers&origin=https://evil.com.',
   link: '/cors#cors-expose-headers',
-  start: 'curl -si http://localhost:3000/cors/api/token',
+  start: 'Open http://localhost:3000/cors/expose through the Burp proxy browser, click "Check session status" to capture the session API request, then send it to Repeater and replay it with an attacker Origin to read the response headers.',
 };
 
 // GET /cors/api/token -> admin session status. A sensitive response header is
@@ -57,7 +57,7 @@ router.get('/expose', (req, res) => {
     <div class="clay-card">
       <h2>API and origin checker</h2>
       <p>Raw endpoint: <a href="/cors/api/token"><code>/cors/api/token</code></a></p>
-      ${payloadBlock('Try it raw', 'curl -si http://localhost:3000/cors/api/token')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/token HTTP/1.1\nHost: localhost:3000\n\n')}
       <p>The checker sends a real request to the endpoint with the Origin you
       type and shows the exact response headers, the same check a browser
       performs before allowing a cross-origin read.</p>

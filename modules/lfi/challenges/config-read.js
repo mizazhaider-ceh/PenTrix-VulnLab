@@ -45,11 +45,11 @@ module.exports = {
   vuln: {
     id: 'config-read', name: 'Secret Config Read', difficulty: 'Easy',
     hint: 'A config file with secrets sits one directory above the docs folder, and the config viewer filters nothing. Climb one level and name the planted config file.',
-    hints: ["A config file sits one directory above docs/. No filter blocks it.", "You already know the target filename from the page. Climb one level out of docs/ and append that filename.", "The planted config file sits exactly one directory above docs/ and nothing filters your input. Climb one level and name that config file."],
-    tools: "B",
-    how: 'Read the planted lfi_secret.conf via /lfi/config.',
+    hints: ["A config file sits one directory above docs/. No filter blocks it.", "Proxy the Read config form in Burp, send the request to Repeater, then edit the file parameter to climb one level out of docs/.", "The planted config file sits exactly one directory above docs/ and nothing filters your input. In Repeater, climb one level and name that config file (the challenge card names it)."],
+    tools: "BZ, B",
+    how: 'Intercept the Read config request in Burp and, in Repeater, climb one level out of docs/ to read the planted config.',
     link: '/lfi/config',
-    start: 'curl "http://localhost:3000/lfi/config?file=readme.txt"',
+    start: 'In Burp, browse to /lfi/config with Proxy on, submit the Read config form, and send the captured request to Repeater.',
   },
   router,
 };

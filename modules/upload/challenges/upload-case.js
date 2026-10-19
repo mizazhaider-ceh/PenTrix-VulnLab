@@ -61,14 +61,14 @@ module.exports = {
     difficulty: 'Easy',
     hint: 'The v3 blacklist compares the extension exactly as written. Filesystems and browsers do not care about case.',
     hints: [
-      "The blacklist has '.svg' but the check is case-sensitive. What about '.SVG'?",
+      "Intercept the upload request in Burp Proxy and forward it to Repeater. Then try changing only the case of the filename extension.",
       "Path.extname returns the case as-is. '.SVG' !== '.svg', so it passes, but the file is still served as SVG.",
       "KEY INSIGHT: a case-sensitive check can be beaten by changing the case of the blocked extension, since the viewer still recognises it as SVG. Upload a file whose extension is a case-variant of the blacklisted one, carrying SVG plus script, to the ext-blacklist endpoint.",
     ],
-    tools: "C",
-    how: 'Upload evil.SVG (uppercase) to POST /upload/ext-blacklist?filename=... so the ".svg" entry misses it.',
+    tools: "BZ",
+    how: 'In Burp Proxy, intercept the upload POST to /upload/ext-blacklist?filename=..., then send it to Repeater and change the filename case to a blocked-extension variant like evil.SVG. The ".svg" entry misses it and the file is served as active content.',
     link: '/upload#upload-case',
-    start: 'curl --data-binary @evil.SVG "http://localhost:3000/upload/ext-blacklist?filename=evil.SVG"',
+    start: 'Proxy the site in Burp, open the upload form, intercept the upload request in the Proxy, then right-click and send it to Repeater.',
   },
   router,
 };

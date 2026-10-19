@@ -25,11 +25,11 @@ const vuln = {
   name: 'Email Change Without Re-Authentication',
   difficulty: 'Medium',
   hint: 'You can change the account email with no password confirmation. Then "forgot password" sends the reset to the new address: yours.',
-  hints: ["Change your email without re-entering your password. Then request a password reset.", "The reset link goes to the new email. No re-auth means account takeover.", "Point the account at an email address you control, then run the forgot-password flow. The reset link follows the email, not the password."],
-  tools: 'B',
-  how: 'Change the email at /bizlogic/account, trigger forgot-password, and use the reset link to take over the account.',
+  hints: ["Proxy /bizlogic/account and send the email-change POST to Repeater. Try changing the email without touching the password field.", "The reset link follows the account email, not your session. Run forgot-password in Repeater against the address you just set.", "Copy the demo token from the response page, then POST it to /bizlogic/account/reset with a new password. Check which address the reset link went to."],
+  tools: 'BZ, B',
+  how: 'In Burp: Proxy /bizlogic/account, send the email-change POST to Repeater and point the account at an address you control, then run forgot-password for that address and replay the reset-token POST with your own password. The reset link follows the email, not the password.',
   link: '/bizlogic#biz-email-noreauth',
-  start: 'curl -s -b jar -c jar http://localhost:3000/bizlogic/account\ncurl -s -b jar -X POST http://localhost:3000/bizlogic/account/email -d \'new_email=attacker@evil.com\'\ncurl -s -b jar -X POST http://localhost:3000/bizlogic/account/forgot -d \'email=attacker@evil.com\'',
+  start: 'Open Burp with your browser proxied and visit the shop account page. Watch the Proxy history while you use the "Change email" form, then send that request to Repeater and try a new email address you control. Next, send the "Forgot password" form to Repeater for that same address and read the reset token off the demo page.',
 };
 
 const cardTop = (label) => `

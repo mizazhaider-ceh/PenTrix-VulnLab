@@ -92,8 +92,8 @@ router.get('/csrf-action/attacker', (req, res) => {
         <li>The victim's own script deletes the lab account and calls the beacon, which awards the flag.</li>
         <li>The widget below polls the claim endpoint and flips when the server has captured the flag.</li>
       </ol>
-      <p class="dim">A bare <code>curl</code> of the beacon gets a 400: the flag only lands when the victim page's
-      script fires it after a real account deletion in your session.</p>
+      <p class="dim">A bare Repeater request to the beacon with no page token gets a 400: the flag only lands
+      when the victim page's script fires it after a real account deletion in your session.</p>
       <p id="claim-status-csrf-action" class="status status-missing" role="status" data-status-url="/postmsg/claim-status?v=csrf-action"><span class="dot" aria-hidden="true"></span><span class="claim-text">Checking claim status...</span></p>
     </div>
     <script>
@@ -112,11 +112,11 @@ module.exports = {
     name: 'Privileged Action via Forged Message',
     difficulty: 'Medium',
     hint: 'The victim handler runs a state-changing action when it sees a matching message, and it never checks the origin. Inspect the handler in the victim page source to find which message property and value it reacts to.',
-    hints: ["A forged postMessage can trigger actions in the victim. Which action?", "The delete action. Send the right message shape.", "postMessage the delete command. The server-side state changes."],
-    tools: "B, DT",
-    how: 'Post that message from the attacker page into the victim iframe.',
+    hints: ["Proxy the victim settings page in Burp and read the message listener in the response to learn which message shape it acts on.", "The attacker page posts a forged message into the victim iframe; fire it with Proxy running and watch the resulting POST to the delete endpoint.", "Repeater can replay the delete POST, but the flag beacon only fires after a real account deletion in your session, so drive the real flow."],
+    tools: "BZ, B, DT",
+    how: 'Forge the message into the victim iframe from the attacker page; the victim page\'s own script then deletes the account and fires the beacon that awards the flag.',
     link: '/postmsg#csrf-action',
-    start: 'curl -s -b jar -c jar "http://localhost:3000/postmsg/csrf-action" | grep -i "account"\ncurl -s -b jar "http://localhost:3000/postmsg/csrf-action/reset" -o /dev/null -w "%{http_code}\\n"',
+    start: 'Set your browser to use Burp Proxy, then visit /postmsg/csrf-action/attacker and fire the payload while Proxy watches. In Proxy history, find the victim page\'s POST to /postmsg/csrf-action/delete and the beacon call that awards the flag.',
   },
   router,
 };

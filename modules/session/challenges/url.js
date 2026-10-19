@@ -22,14 +22,14 @@ const vuln = {
   difficulty: 'Easy',
   hint: 'Session ids in URLs get logged, bookmarked, and shared. The corporate proxy log records every URL, including the admin\'s.',
   hints: [
-    'The sid is in the URL. Where do URLs end up?',
+    'The sid is in the URL. Where do URLs end up? Open the proxy log page through Burp.',
     'Proxy logs, browser history, referer headers. The sid leaks.',
-    "Find the sid in the 'proxy log' page, then replay it.",
+    "Copy the leaked home?sid= URL from the proxy log into Repeater and send it.",
   ],
-  tools: 'B, DT',
-  how: 'Find the admin\'s sid in the proxy log and open their home URL with it.',
+  tools: 'BZ, B, DT',
+  how: 'Find the admin\'s sid in the proxy log and replay their home URL with it in Burp Repeater.',
   link: '/session#url',
-  start: 'curl -s -c jar -b jar http://localhost:3000/session/urldemo\ncurl -s -b jar http://localhost:3000/session/urldemo/proxy-log',
+  start: 'Point your browser at Burp, visit http://localhost:3000/session/urldemo, then open the proxy log link shown on that page.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).

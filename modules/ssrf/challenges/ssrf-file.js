@@ -15,12 +15,12 @@ const vuln = {
   id: 'ssrf-file',
   name: 'file:// scheme SSRF',
   difficulty: 'Medium',
-  hint: 'This fetcher allows an extra URL scheme that reads from the local disk.',
-  hints: ["The fetcher accepts URLs. Are http(s) the only schemes that fetch data?", "The file:// scheme turns the fetcher into a local file reader. Aim it at a classic world-readable system file, like the Unix user database.", "Point the file scheme at the Unix user database and look for the root account entry in the response."],
-  tools: 'C',
-  how: 'Fetch file:///etc/passwd via /ssrf/fetch-file.',
+  hint: 'Proxy the FetchKit form in Burp and watch what the fetcher accepts: it is not limited to http(s) URLs. Which scheme turns the fetcher into a local file reader?',
+  hints: ["With Burp Proxy on, submit the FetchKit form and watch the fetch request. The server fetches the URL in the url parameter and shows the response body. Which URL schemes can fetch data besides http and https?", "Send the /ssrf/fetch-file request to Burp Repeater. A certain scheme makes the fetcher read the local disk with the server's privileges. Try a classic world-readable system file, like the Unix user database.", "In Repeater, aim the url parameter at the Unix user database and look for the root account entry in the response. That entry earns the flag."],
+  tools: 'BZ, C',
+  how: 'In Burp Repeater, set the url parameter to file:///etc/passwd and send. The root account line in the response earns the flag.',
   link: '/ssrf#ssrf-file',
-  start: 'curl -s "http://localhost:3000/ssrf/fetch-file?url=file:///etc/hostname"',
+  start: 'With Burp Proxy on, open the FetchKit form (/ssrf/fetch-file), submit a harmless URL, then send the request to Repeater and change the url parameter to a local file path.',
 };
 
 // Clay-styled fetcher form page. Shown when no ?url= is given; it reads like

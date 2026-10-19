@@ -55,11 +55,11 @@ module.exports = {
   vuln: {
     id: 'traversal', name: 'Basic Path Traversal', difficulty: 'Easy',
     hint: 'The viewer joins your input to the docs path with no checks at all. Ask for a file in the parent directory with ../ sequences (encoding the slashes can help), and adjust the depth until the secret marker appears.',
-    hints: ["The docs viewer takes a filename. What if the filename contains ../?", "../ escapes the docs directory. The secret marker proves the read.", "The viewer joins your filename to the docs path with zero checks. Climb out of docs/ with ../ sequences, adjust the depth until the secret marker appears, and try encoding the slashes if the plain form fails."],
-    tools: "B, C",
-    how: 'Use ../ sequences to escape docs/ and read secret.txt.',
+    hints: ["Proxy a normal document request in Burp and look at the file parameter in Repeater. What if the filename contains ../?", "In Repeater, start with one ../ and add more depth until the secret marker shows up in the response. The marker proves the read.", "Send the request to Intruder to fuzz depth: payloads like ..%2f, ....//, and double-encoded variants beat common filters. Watch for the secret marker in responses."],
+    tools: "BZ, B, C",
+    how: 'Intercept the viewer request in Burp Proxy, forward it to Repeater, and escape docs/ with ../ sequences (or an encoded variant) in the file parameter until secret.txt shows its marker.',
     link: '/lfi/view?file=readme.txt',
-    start: 'curl "http://localhost:3000/lfi/view?file=../secret.txt"',
+    start: 'In Burp Proxy, intercept a request to the Document Viewer, send it to Repeater, and change the file parameter to climb out of docs/ with ../ sequences.',
   },
   router,
 };

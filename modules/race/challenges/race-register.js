@@ -16,11 +16,11 @@ const vuln = {
   name: 'Duplicate Username Registration',
   difficulty: 'Medium',
   hint: 'Usernames must be unique: the code checks, then inserts. Two registrations of the same name racing each other both pass the check.',
-  hints: ["Usernames must be unique. But the uniqueness check can be raced.", "Two parallel registrations with the same name both pass the check.", "Send several registrations for the same username at the same instant, then check whether the name appears more than once. A duplicate proves the check lost the race."],
-  tools: 'P, C',
-  how: 'Register the same username with parallel POSTs at /race/register so two accounts exist with one name.',
+  hints: ["Usernames must be unique. But the uniqueness check can be raced. Confirm in Burp Repeater that one signup with a fresh name works and shows the accounts table.", "Repeater sends one request at a time, and a race needs many at once. Send the signup request to Intruder and raise the concurrent request count.", "The await between the check and the insert is the window. Fire a burst of parallel signups with the same username, then reload the signup page and count how many times the name appears: more than once proves the check lost the race."],
+  tools: 'BZ, C',
+  how: 'Fire a burst of parallel signups for the same username at /race/register so both pass the uniqueness check before either insert lands, leaving two accounts with one name.',
   link: '/race#race-register',
-  start: 'curl -s http://localhost:3000/race/register | head -c 600',
+  start: 'Capture one POST /race/register in Burp, then send it to Intruder and run the attack with concurrent requests enabled.',
 };
 
 // Challenge-local presentation: a clay app shell for the signup screens.
@@ -61,7 +61,7 @@ router.get('/register', (req, res) => {
       <h2>Try it yourself</h2>
       <p>One signup at a time behaves. Two signups for the same username, fired
       at the same instant, may not:</p>
-      ${payloadBlock('Parallel signup', `seq 1 2 | xargs -P2 -I{} curl -s -X POST http://localhost:3000/race/register -d 'username=racer&password=hunter2'`)}
+      ${payloadBlock('Burp Intruder', 'Send the signup POST to Intruder (Ctrl+I), set payloads/threads for 2 parallel requests, start the attack and watch the responses.')}
     </section>
     ${hintLadder(vuln)}
     ${backLinks()}

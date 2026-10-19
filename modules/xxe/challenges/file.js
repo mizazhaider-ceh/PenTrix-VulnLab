@@ -20,13 +20,13 @@ const vuln = {
   hint: "Declare an external entity with a file:// URI pointing at the module's secret.txt (absolute path), then reference &name; inside <data>.",
   hints: [
     "The app parses your XML. Does it resolve external entities?",
-    "A DOCTYPE can declare a general entity whose SYSTEM identifier is a local file URI. The parser reads that file and substitutes the entity reference wherever it appears in the output.",
-    "Your DOCTYPE must declare an external file-reading entity, then plant the entity reference where the import result renders. Key insight: the file path must be absolute, and the success response shows you exactly where injected content echoes back. Find that echo location first, then aim the reference there.",
+    "Proxy the importer in Burp and send the POST to Repeater. A DOCTYPE can declare a general entity whose SYSTEM identifier is a local file URI, and the parser reads that file and substitutes the entity reference wherever it appears in the output.",
+    "Your DOCTYPE must declare an external file-reading entity, then plant the entity reference where the import result renders. Key insight: the file path must be absolute, and the success response shows you exactly where injected content echoes back. In Repeater, change only the xml form field, submit, and find that echo location first, then aim the reference there.",
   ],
-  tools: 'B, C',
-  how: 'Inject an XML external entity (SYSTEM "file://...") and get the server to read a local file into the import result.',
+  tools: 'BZ, B, C',
+  how: 'In Repeater, inject an XML external entity (SYSTEM "file://...") and get the server to read a local file into the import result.',
   link: '/xxe#file',
-  start: 'curl -s http://localhost:3000/xxe/import\ncurl -s --data-urlencode "xml=<data>hello</data>" http://localhost:3000/xxe/import',
+  start: 'Open Burp, proxy your browser to it, and visit the XML importer at /xxe/import. Submit the form once with plain XML like <data>hello</data>, send that POST to Repeater, then replace only the xml form field with your DOCTYPE payload and submit again.',
 };
 
 // Fictional app chrome for the shared importer (neutral: no mention of flaws).

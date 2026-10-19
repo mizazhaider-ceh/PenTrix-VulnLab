@@ -13,11 +13,11 @@ const vuln = {
   name: 'Base64 "Encryption"',
   difficulty: 'Easy',
   hint: 'Look closely at the "encrypted" cookie. Does it look random, or does it look like something you can decode?',
-  hints: ["The 'encrypted' cookie is just base64. Decode it.", "It is base64-encoded JSON with a role field. Decode it, set role to admin, re-encode.", "Decode your cookie, edit role to admin in the JSON, re-encode, and present it."],
-  tools: 'B, DT',
-  how: 'Decode the cookie, change role to admin in the JSON, re-encode, and submit it.',
+  hints: ["The 'encrypted' cookie is just base64. Send the login request to Repeater, then send the vlab_b64 value to the Burp Decoder.", "Decode it as Base64 in the Decoder tab. It is JSON with a role field, so think about what value role needs to hold.", "Edit the JSON, re-encode it in the Decoder, and submit your forged cookie through the forge form or a Repeater request."],
+  tools: 'BZ, B, DT',
+  how: 'Decode the cookie, change role to admin in the JSON, re-encode it, and submit the forged cookie via the form or Burp Repeater.',
   link: '/crypto#crypto-b64-cookie',
-  start: 'curl -s -c jar -b jar -X POST http://localhost:3000/crypto/b64/login\ncurl -s -b jar http://localhost:3000/crypto/b64',
+  start: 'Browse to /crypto#crypto-b64-cookie with Burp Proxy on. Click "Get a session cookie", send the login POST to Repeater, copy the vlab_b64 value into Burp Decoder, decode as Base64, then forge your own cookie and POST it to /crypto/b64/check.',
 };
 
 // In-app chrome: the challenge reads as a small real product, not a harness.

@@ -18,12 +18,11 @@ const vuln = {
   name: 'Open-redirect SSRF',
   difficulty: 'Medium',
   hint: 'The blocklist only sees the first URL; the fetcher follows 302 redirects without re-checking.',
-  hints: ["The blocklist checks the URL you submit. But what happens after the server follows a redirect?", "The check runs on the initial URL only. Point the fetcher at a URL that 302-redirects to the internal target.", "Point the fetcher at the app's own redirect endpoint so the submitted URL passes the check; the 302 response then pulls the fetcher to the internal target without a second check."],
-  tools: "C",
-  how: 'Fetch http://localhost:PORT/ssrf/jump?to=<internal secret URL> via /ssrf/fetch3 so the redirect lands on the blocked host.',
+  hints: ["The blocklist checks the URL you submit. In Burp Repeater, confirm the fetch3 form submission goes out as a plain GET you can edit.", "The check runs on the initial URL only. In Repeater, point the url parameter at the app's own redirect endpoint; the 302 answer is your proof the redirect works.", "In Repeater, set the url parameter to the full /ssrf/jump address so the submitted URL passes the check; the 302 response then pulls the fetcher to the internal target without a second check."],
+  tools: "BZ, C",
+  how: 'In Burp Repeater, GET /ssrf/fetch3 with the url parameter set to the app\'s own /ssrf/jump address aimed at the internal secret URL, so the redirect lands on the blocked host.',
   link: '/ssrf#ssrf-redirect',
-  start: 'curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\\n" "http://localhost:3000/ssrf/jump?to=/ssrf/internal/status"\n'
-    + 'curl -s "http://localhost:3000/ssrf/fetch3?url=http://localhost:3000/ssrf/jump?to=/ssrf/internal/status"',
+  start: 'Browse to http://localhost:3000/ssrf/fetch3 through Burp Proxy, submit any URL in the form, and send the intercepted request to Repeater. In Repeater, confirm /ssrf/jump?to=/ssrf/internal/status answers 302, then change the url parameter to the full /ssrf/jump address aimed at the internal secret and send again; the page shows the flag.',
 };
 
 const APP_NAME = 'HopFetch';

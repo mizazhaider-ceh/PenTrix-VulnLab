@@ -55,11 +55,11 @@ module.exports = {
   vuln: {
     id: 'double-encode', name: 'Encoding Bypass', difficulty: 'Medium',
     hint: 'The filter decodes your input once and rejects it if it sees <code>..</code>. But the value is decoded a second time after the check. Encode the dots and slashes twice, so the check sees harmless text while the final decode rebuilds the traversal. The same idea works when a filter checks before decoding at all: then encoding once is enough to slip through.',
-    hints: ["The filter decodes once and checks for ... But the value is decoded again on use.", "The check decodes your input before inspecting it. Encode your dots and slashes so that after this first decode the check sees only harmless text, while a second decode on use rebuilds the traversal.", "Decode once is the filter, decode twice is the truth. Encode your dots and slashes so the first decode leaves only harmless text for the check, then let the second decode rebuild the traversal you actually need."],
-    tools: "C",
-    how: 'Slip %252e%252e%252fdocs%252fsecret.txt past the one-decode filter on /lfi/double.',
+    hints: ["The filter decodes once and checks for ... But the value is decoded again on use. Intercept a normal request in Burp Proxy and send it to Repeater so you can edit the raw page parameter.", "In Repeater, try the traversal with different levels of encoding: plain, encoded once, encoded twice. Watch which one the filter rejects and which one the page actually reads.", "Encode twice with Burp Decoder (encode once, then encode the result again), paste the result into the page parameter in Repeater, and compare the 'Blocked' response with the decoded content the page shows."],
+    tools: "BZ, C",
+    how: 'Slip a twice-encoded traversal past the one-decode filter on /lfi/double. The page shows the final decoded path and its contents, so Repeater reveals when the filter sees harmless text while the read rebuilds the traversal.',
     link: '/lfi/double',
-    start: 'curl "http://localhost:3000/lfi/double?page=readme.txt"',
+    start: 'In Burp, browse to /lfi/double, intercept the request in the Proxy, send it to Repeater, and inspect how the filter treats the page parameter.',
   },
   router,
 };

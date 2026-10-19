@@ -17,12 +17,12 @@ const vuln = {
   id: 'implicit',
   name: 'Implicit Flow Token in URL Fragment',
   difficulty: 'Medium',
-  hint: 'response_type=token puts the access token in the URL fragment. The in-lab browser history records full URLs, fragments included.',
-  hints: ["The token is in the URL fragment. Where do fragments end up?", "Browser history, logs, referer. The token leaks.", "Use the leaked fragment token at the userinfo endpoint."],
-  tools: 'B, DT',
-  how: 'Run the implicit flow, find the token in /oauth/client/history, and call userinfo with it.',
+  hint: 'response_type=token puts the access token in the URL fragment. Drive the flow in a Burp-proxied browser: the simulated victim browser records the full URL, fragment included, and userinfo awards the flag when an implicit token belonging to someone else is presented.',
+  hints: ["Fragments never reach the server, so Repeater cannot fetch one directly. Which in-lab page records the victim's full URL, fragment included, and through which Burp Proxy history entry does that record travel?", "In Proxy history, find the POST to /oauth/client/history-log. Its JSON body carries the victim's URL with the fragment still attached. Lift the access_token out of it.", "Open Repeater on GET /oauth/idp/userinfo and present the stolen token using a session that is not alice's. A token that belongs to someone else earns the flag."],
+  tools: 'BZ, B, DT',
+  how: 'Run the implicit flow in a Burp-proxied browser as alice, let the simulated victim browser record the fragment-bearing URL in /oauth/client/history, then call userinfo in Repeater with the stolen token as a different session.',
   link: '/oauth#implicit',
-  start: 'curl -s -c alice.jar http://localhost:3000/oauth/login/alice\ncurl -s -b alice.jar "http://localhost:3000/oauth/idp/authorize?client_id=pentrix-spa&redirect_uri=http%3A%2F%2Fapp.pentrix.lab%2Fcallback&response_type=token&scope=read"',
+  start: 'Proxy your browser through Burp and open /oauth#implicit. Log in as alice, click "Run the implicit flow" and approve the consent. The browser lands on the callback URL with #access_token=... in the fragment. Then open /oauth/client/implicit-callback with that fragment so the simulated victim browser records the full URL, and watch Burp Proxy history for where the token resurfaces.',
 };
 
 router.get('/implicit', (req, res) => {
@@ -42,7 +42,11 @@ router.get('/implicit', (req, res) => {
         <li>Simulate the victim browser: open <a href="/oauth/client/implicit-callback">the implicit callback page</a> with that fragment (paste it after the <code>#</code>), so the URL is recorded.</li>
         <li>As the attacker, open <a href="/oauth/client/history">the browser history</a>, steal the token, and call the userinfo endpoint with it.</li>
       </ol>
-      ${payloadBlock('Call userinfo with the stolen token (replace TOKEN)', 'curl -s "http://localhost:3000/oauth/idp/userinfo?access_token=TOKEN"')}
+      ${payloadBlock('Burp Repeater (call userinfo with the stolen token)', `GET /oauth/idp/userinfo?access_token=<TOKEN> HTTP/1.1
+Host: localhost:3000
+Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
+
+`)}
       <p class="dim">The flag is awarded when userinfo is called with an implicit-flow token that belongs to someone else.</p>
     </div>` +
     hintLadder(vuln) +

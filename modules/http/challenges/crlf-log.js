@@ -24,11 +24,11 @@ const vuln = {
   name: 'CRLF Log Injection',
   difficulty: 'Medium',
   hint: 'The ?ref= value is written raw into the access log. What do %0d and %0a become after URL decoding?',
-  hints: ["The ?ref= parameter is logged raw. What are %0d and %0a?", "CR/LF bytes. They split the log line and forge new entries.", "The server URL-decodes your ref before logging, so encoded carriage return and line feed characters become real line breaks in the log file. Put them inside a ref value so text after them lands on new forged lines, then open the log viewer and confirm your forged entry actually renders there."],
-  tools: 'C',
-  how: 'Send CR/LF bytes in ref so a forged line appears in the admin log view.',
+  hints: ["The ?ref= parameter is logged raw. In Burp Repeater, request /http/track with a ref value, then open the log viewer and see exactly what lands there.", "What do %0d and %0a become after the server URL-decodes them? In Repeater, add those encoded bytes inside the ref value in the request line.", "CR/LF bytes split the log line, so text after them renders on forged lines. Encode them in the ref, send via Repeater, then open the log viewer and confirm your forged entry actually renders there."],
+  tools: 'BZ, B, C',
+  how: 'Send CR/LF bytes inside the ref value (Burp Repeater request line) so a forged line renders in the admin log viewer.',
   link: '/http#crlf-log',
-  start: 'curl -s -c jar -b jar "http://localhost:3000/http/track?ref=homepage"\ncurl -s -c jar -b jar http://localhost:3000/http/admin/log',
+  start: 'Send your browser through Burp Proxy. 1) Visit /http/track?ref=homepage and send the request to Repeater. 2) In Repeater, edit the ref value so it carries encoded carriage-return and line-feed bytes (%0d %0a) followed by your forged log text, then send it. 3) Request /http/admin/log in the same session and confirm your forged line renders in the log viewer.',
 };
 
 // GET /http/track -> records this visit in the access log.

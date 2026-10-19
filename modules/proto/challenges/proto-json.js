@@ -15,12 +15,12 @@ const vuln = {
   id: 'proto-json',
   name: 'JSON Body Pollution',
   difficulty: 'Medium',
-  hint: 'The merge endpoint accepts a JSON body. JSON.parse happily creates an own property literally named __proto__.',
-  hints: ["The JSON body is deep-merged with no key filtering. Same idea as query, different vector.", "Send a JSON body whose top-level key targets the prototype, with a nested object setting the property the admin check reads.", "POST that JSON body to the merge endpoint, then open the admin check."],
-  tools: "C",
-  how: 'POST {"__proto__":{"role":"admin"}} to the merge endpoint, then open the admin check.',
+  hint: 'Capture the merge POST in Burp Proxy and replay it in Repeater. The endpoint accepts a JSON body, and JSON.parse happily creates an own property literally named __proto__.',
+  hints: ["On the merge console page, click Merge with Burp Proxy intercepting, then send the POST to Repeater. The JSON body is deep-merged with no key filtering, same idea as query-string pollution, different vector.", "In Repeater, change the request body to a JSON object whose top-level key targets the prototype, with a nested object setting the property the admin check reads.", "After Repeater confirms the merge, open the admin check URL in the browser to claim the flag."],
+  tools: "BZ, C",
+  how: 'Use Burp Repeater to POST a polluting JSON body to /proto/json/merge that sets the admin-check property through the prototype, then open the admin check.',
   link: '/proto#proto-json',
-  start: 'curl -s -X POST http://localhost:3000/proto/json/merge -H "Content-Type: application/json" -d \'{"__proto__":{"role":"admin"}}\'\ncurl -s http://localhost:3000/proto/json/admin',
+  start: 'In Burp, open the merge console (/proto/json), click Merge so the POST lands in the proxy history, send it to Repeater, replay it with a polluting JSON body, then open the admin check in the browser.',
 };
 
 // GET /proto/json -> the JSON merge console.
@@ -39,8 +39,8 @@ router.get('/json', (req, res) => {
       <button class="clay-btn clay-btn-primary" onclick="fetch('/proto/json/merge', {method:'POST', headers:{'Content-Type':'application/json'}, body: document.getElementById('jb').value}).then(r => r.text()).then(t => document.getElementById('out').innerHTML = t);">Merge JSON</button>
       <div id="out"></div>
       <hr />
-      <p>Or with curl:</p>
-      ${payloadBlock('curl', 'curl -X POST http://localhost:3000/proto/json/merge \\\n  -H \'Content-Type: application/json\' \\\n  -d \'{"__proto__": {"role": "admin"}}\'')}
+      <p>Or in Burp Repeater:</p>
+      ${payloadBlock('Burp Repeater', 'POST /proto/json/merge HTTP/1.1\nHost: localhost:3000\nContent-Type: application/json\n\n{"__proto__": {"role": "admin"}}')}
       <p>Step 2: <a class="clay-btn clay-btn-secondary" href="/proto/json/admin">Open admin check</a></p>
     `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > JSON import' })}
     ${hintLadder(vuln)}

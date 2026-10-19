@@ -15,11 +15,11 @@ const vuln = {
   name: 'Double-Spend the Balance',
   difficulty: 'Medium',
   hint: 'The balance check and the debit are two separate steps with a gap between them. Two transfers of the full balance, at the same time...',
-  hints: ["Transfers check the balance, then debit. What if the check and debit are separated by time?", "The await between check and debit is the window. Parallel transfers both pass the check.", "Run parallel transfers that together exceed the balance. The balance goes negative."],
-  tools: 'P, C',
-  how: 'Send parallel transfers that together exceed the $100 balance and drive it negative.',
+  hints: ["The balance check and the debit happen in two separate steps. Confirm in Burp Repeater that one transfer of $100 works and shows the new balance.", "Repeater sends one request at a time, and a race needs many at once. Send the request to Intruder and raise the concurrent request count.", "The await between the check and the debit is the window, roughly 150 to 250 ms. Fire a burst of parallel transfers of $100 so every one passes the check against the same balance before any debit lands."],
+  tools: 'BZ, C',
+  how: 'Fire a burst of parallel transfers that together exceed the $100 balance so every one passes the check before any debit lands, driving the balance negative.',
   link: '/race#race-balance',
-  start: 'curl http://localhost:3000/race/transfer',
+  start: 'Capture one POST /race/transfer in Burp, then send it to Intruder and run the attack with concurrent requests enabled.',
 };
 
 // Challenge-local presentation: a clay card hero for this wallet screen.
@@ -58,7 +58,7 @@ router.get('/transfer', (req, res) => {
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
     <p>The balance is $100. Send 20 parallel transfers of $100 and watch the balance go negative:</p>
-    ${payloadBlock('Parallel transfers', "seq 1 20 | xargs -P20 -I{} curl -s -X POST http://localhost:3000/race/transfer -d 'to=attacker&amount=100'")}
+    ${payloadBlock('Burp Intruder', 'Send the transfer POST to Intruder (Ctrl+I), set payloads/threads for 20 parallel requests, start the attack and watch the responses.')}
     ${backLinks()}
   `)));
 });

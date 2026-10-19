@@ -5,3 +5,7 @@ uploads/*
 npm-debug.log
 .playwright-mcp/
 modules/**/*.log
+
+# Burp-first audit: scratch files written by PUT exploit tests
+modules/misconfig/public-files/pwn-*.txt
+modules/misconfig/public-files/sb-*.txt

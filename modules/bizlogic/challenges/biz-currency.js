@@ -26,8 +26,9 @@ router.get('/currency', (req, res) => {
         <button class="clay-btn clay-btn-primary" type="submit">Pay $50</button>
       </form>
       <p class="note">The amount is denominated in USD, but the currency label is
-      yours to choose. The gateway accepts any code. Try it with curl:</p>
-      <pre><code>curl -s -X POST http://localhost:3000/bizlogic/currency/pay -d 'amount=50&amp;currency=JPY'</code></pre>
+      yours to choose. The gateway accepts any code. Intercept the form submit
+      in Burp Proxy, send it to Repeater, and see what happens when the label
+      changes.</p>
     `, { nav: ['Catalog', 'Cart', 'Checkout', 'Account'], crumb: 'Checkout' })}
     ${shared.backLink(s)}
   `));
@@ -72,11 +73,11 @@ const vuln = {
   name: 'Currency Confusion',
   difficulty: 'Easy',
   hint: 'The $50 total is denominated in USD, but the server accepts any currency label for that number. 50 JPY is not 50 USD.',
-  hints: ["The currency parameter changes the unit. What is 50 USD in JPY?", "The server converts wrong: 50 JPY is ~$0.34 but it's charged as $50 worth. Or vice versa.", "Checkout in a currency where the number 50 is worth almost nothing in dollars. The server treats the raw number the same under any currency label."],
+  hints: ["Submit the hoodie payment with Burp Proxy running and send the POST to Repeater. The currency field decides the unit that the number 50 is priced in.", "Replay the request in Repeater with a currency where 50 units are worth almost nothing in dollars, then read the receipt: how much did the server really charge?", "The flag lands when the receipt shows a USD-denominated order settling under a foreign currency label for pennies."],
   tools: "BZ, B",
-  how: 'Pay at /bizlogic/currency with currency=JPY so a $50 order settles for about $0.34.',
+  how: 'Intercept the checkout POST in Burp Proxy, send it to Repeater, and replay it under a cheap-currency label so a $50 order settles for about $0.34.',
   link: '/bizlogic#biz-currency',
-  start: 'curl -s -b jar -c jar http://localhost:3000/bizlogic/currency',
+  start: 'Open /bizlogic/currency in your browser with Burp Proxy on, submit the payment form, and send the POST to Repeater.',
 };
 
 module.exports = { vuln, router };

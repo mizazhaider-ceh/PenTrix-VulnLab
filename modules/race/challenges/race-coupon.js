@@ -14,11 +14,11 @@ const vuln = {
   name: 'Single-Use Coupon Redeemed Twice',
   difficulty: 'Medium',
   hint: 'The coupon is marked "used" only after an async gap. What happens when 20 requests check "is it used?" at the same moment?',
-  hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. Parallel redeems double-spend.", "Fire a burst of parallel redeems using the same coupon code, then count how many succeeded. More than one success means the coupon was double-spent."],
-  tools: 'P, C',
-  how: 'Fire parallel POSTs at /race/coupon/redeem so the coupon is redeemed more than once.',
+  hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. Parallel redeems double-spend.", "Send the redeem request to Burp Intruder and run a parallel attack with concurrent requests, then count how many succeeded. More than one success means the coupon was double-spent."],
+  tools: 'BZ, P, C',
+  how: 'Send POST /race/coupon/redeem to Burp Intruder and run a concurrent-request attack so the one-use coupon is redeemed more than once.',
   link: '/race#race-coupon',
-  start: 'curl http://localhost:3000/race/coupon',
+  start: 'Redeem the coupon once in the browser with Burp proxying, send POST /race/coupon/redeem to Intruder, and run a parallel attack with concurrent requests.',
 };
 
 // Challenge-local presentation: a clay card hero for this shop screen.
@@ -44,8 +44,8 @@ router.get('/coupon', (req, res) => {
     </section>
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
-    <p>One click redeems it once. Twenty parallel requests redeem it more than once:</p>
-    ${payloadBlock('Parallel redeems', 'seq 1 20 | xargs -P20 -I{} curl -s -X POST http://localhost:3000/race/coupon/redeem')}
+    <p>One click redeems it once. A burst of parallel Intruder requests redeems it more than once:</p>
+    ${payloadBlock('Parallel redeems in Burp', '1. Redeem once in the browser with Burp proxying.\n2. In Proxy history, send the POST /race/coupon/redeem request to Intruder.\n3. Positions: clear all, or keep the request as-is with Null payloads.\n4. Payloads: Null payloads, generate 20 payloads.\n5. Resource pool: create a pool with concurrent requests set to 20.\n6. Start the attack and count the "Coupon redeemed" responses: more than one means double-spend.')}
     ${backLinks()}
   `)));
 });

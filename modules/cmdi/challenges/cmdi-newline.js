@@ -14,14 +14,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: 'The characters ; & and | are all stripped. But a shell treats more than those as command separators. In a URL, %0a becomes one of them. The same gap appears when a value is dropped into the command line with no quotes and the blacklist forgets newline.',
   hints: [
-    "The filter strips ; & |. But the shell treats newlines as command separators too.",
-    "%0a in a URL decodes to a newline. Each line runs as its own command.",
-    "Place a URL-encoded newline between a valid host and a command that prints output. Each line then runs as its own statement, so the second line just needs to be a command whose result you can spot in the response.",
+    "Open the page in Burp's browser and submit a normal host, then send the request to Repeater. Try a classic separator in the host value first and watch the filter strip it.",
+    "The shell treats more than ; & | as command separators. In a URL, %0a decodes to one of them. Try placing that between a valid host and a second command.",
+    "In Repeater, place a URL-encoded newline between a valid host and a command that prints recognizable output, so each line runs as its own statement. Send it and read the response body: the flag is awarded only when the second command's real output shows up.",
   ],
-  tools: 'B, C',
-  how: 'Inject a newline (%0a) to start a second command, e.g. ?host=127.0.0.1%0acat /etc/passwd',
+  tools: 'BZ, B',
+  how: 'In Repeater, inject a URL-encoded newline between a valid host and a second command so the shell runs each line as its own statement, then confirm the response body carries that command real output before claiming the flag.',
   link: '/cmdi/ping5',
-  start: 'curl "http://localhost:3000/cmdi/ping5?host=127.0.0.1"',
+  start: 'Open the ping5 gadget in your browser (with Burp Proxy on), submit a plain host like 127.0.0.1, then push the request to Repeater.',
 };
 
 // GET /cmdi/ping5 -> v5 gadget: ; & and | are stripped, newline is not.

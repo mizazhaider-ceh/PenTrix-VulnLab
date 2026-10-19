@@ -23,13 +23,13 @@ const vuln = {
   hint: 'v9 validates only the 6 GIF magic bytes, then serves the file as text/html. A file can be a valid GIF header and valid HTML at once.',
   hints: [
     "The uploader checks magic bytes. What are the first 6 bytes of a GIF?",
-    "GIF89a. A file starting with GIF89a but containing HTML is a polyglot: it passes the sniffing but renders as HTML.",
-    "KEY INSIGHT: a polyglot must satisfy both parsers at once. The magic-byte check only reads the first bytes, so build a file that passes that check while the browser parses the rest as HTML with script, then get it served as HTML.",
+    "In Burp Repeater, send a raw request body that starts with those 6 magic bytes and continues with HTML containing script.",
+    "KEY INSIGHT: a polyglot must satisfy both parsers at once. The magic-byte check only reads the first bytes (the 6-byte GIF header), so build a file that passes that check while the browser parses the rest as HTML with script, then open its render URL.",
   ],
-  tools: 'C',
-  how: 'Upload bytes starting with GIF89a followed by HTML/JS (e.g. GIF89a<script>alert(1)</script>) to POST /upload/polyglot?filename=..., then open its /upload/poly/ link.',
+  tools: 'BZ, C',
+  how: 'Build a GIF/HTML polyglot (the 6 GIF magic bytes, then scriptable HTML) and POST the raw bytes to /upload/polyglot?filename=... from Burp Repeater, then open its /upload/poly/ render URL in the browser.',
   link: '/upload#upload-polyglot',
-  start: `printf 'GIF89a<script>alert(1)</script>' | curl --data-binary @- "http://localhost:3000/upload/polyglot?filename=x.gif"`,
+  start: 'In Burp Repeater: POST to /upload/polyglot?filename=x.gif with a raw body that opens with the 6 GIF magic bytes and continues with HTML/JS, then visit the returned /upload/poly/x.gif render link.',
 };
 
 const APP_NAME = 'GifCheck';

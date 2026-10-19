@@ -18,14 +18,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: 'Expressions can see constructor (which is Object), and Object.constructor is Function. Compile a string that beacons the flag.',
   hints: [
-    "You need code execution. What's the path from a string to a function?",
-    "constructor.constructor is the Function constructor. Build it from a string.",
-    "Reach the Function constructor through the exposed constructor reference, then compile a string that fetches the beacon endpoint and echoes the page-bound token. The code inside the compiled string is the one part you must write yourself.",
+    "You need code execution. Find the page-bound token first: it is rendered into the lab page, and Burp Proxy history shows it on the intercepted GET.",
+    "constructor.constructor is the Function constructor. Build it from a string, then send the crafted template through Burp Repeater.",
+    "Load the preview page in the browser so the engine actually executes the compiled string: it must fetch the beacon endpoint and echo the page-bound token. The code inside the compiled string is the one part you must write yourself.",
   ],
-  tools: 'B, DT',
-  how: 'Submit {{constructor.constructor("fetch(...)")()}} with a fetch to /csti/beacon?v=constructor that echoes the page token CSTI_NONCE.',
+  tools: 'BZ, B, DT',
+  how: 'Craft a template expression that reaches the Function constructor through the exposed constructor reference and compiles a string whose code beacons /csti/beacon?v=constructor with the page token. Submit it through Burp Repeater, then let the browser render the preview so the engine executes it.',
   link: '/csti#constructor',
-  start: 'curl -s -c jar http://localhost:3000/csti/constructor\n# Browser lab: open http://localhost:3000/csti/constructor, read the page-bound token, then work the template.',
+  start: 'Route your browser through Burp Proxy and open the Constructor breakout lab. Read the page-bound token from the intercepted GET response, save your template via Repeater, then reload the preview in the browser so the engine runs your expression and beacons.',
 };
 
 // The naive client-side template engine, served to the lab page.

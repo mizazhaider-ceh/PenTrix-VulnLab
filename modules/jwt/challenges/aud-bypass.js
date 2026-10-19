@@ -48,11 +48,11 @@ const vuln = {
   name: 'Audience Not Validated',
   difficulty: 'Medium',
   hint: 'A token minted for billing-service is still a validly signed token. This service never checks who the token was minted for.',
-  hints: ["The token has an aud claim for 'billing-service'. Does this app check aud?", "No. A token for another service works here.", "Present the billing-service token at this app's endpoint."],
-  tools: "B, C",
-  how: 'Submit the partner token (aud "billing-service", admin role) to this service\'s login.',
+  hints: ["The partner token's payload carries an aud claim for 'billing-service'. Does this app ever compare aud?", "Decode the token in Burp's Decoder (JWT tab): the aud says 'billing-service', yet the signature verifies under this app's key.", "Copy the partner token out of the page, then forward this app's own login form to Repeater and submit that token there."],
+  tools: "BZ, N",
+  how: 'Submit the partner token (aud "billing-service", admin role) at this service\'s own login form, where the aud claim is never validated.',
   link: '/jwt#aud-bypass',
-  start: 'curl -s http://localhost:3000/jwt/aud\ncurl -s -X POST --data-urlencode "token=<partner-token>" http://localhost:3000/jwt/aud/login',
+  start: 'In Burp Proxy, browse to http://localhost:3000/jwt/aud and copy the partner admin token from the page. Submit the login form once, send the POST to Repeater (Ctrl+R), then replace the token field with the partner token and send. (Node is handy if you want to forge your own tokens with jsonwebtoken instead of copying the page\'s.)',
 };
 
 // --------------------------------------------------------------- challenge

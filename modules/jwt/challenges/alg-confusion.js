@@ -16,11 +16,11 @@ const vuln = {
   name: 'RS256 / HS256 Algorithm Confusion',
   difficulty: 'Hard',
   hint: 'The server verifies RS256 but also accepts HS256. For HS256 it needs a shared secret. Which "secret" does it use, and who else can read it?',
-  hints: ["The server has an RSA public key. What if you use it as an HMAC secret?", "RS256 public key -> HS256 secret. Sign with HS256 using the public key bytes.", "Pull the published RSA public key, switch your token to alg HS256, and use the public key bytes themselves as the HMAC secret while minting admin claims. The server will verify your forgery against its own public key."],
-  tools: 'N',
-  how: 'Take the published RSA public key, use it as the HMAC secret to sign an HS256 admin token, and submit it.',
+  hints: ["Proxy the challenge pages through Burp and open the RSA public key page. Copy the PEM text; that is the raw material.", "Send the POST /jwt/confusion request to Repeater. The token field is yours to rewrite: decode a token in Burp Decoder and try switching the header alg.", "The server uses its own RSA public key bytes as the HMAC secret for HS256. Mint an HS256 token with role admin using those bytes as the signing secret (the node/jwt CLI does this), then drop the token into the Repeater request and send."],
+  tools: 'BZ, N',
+  how: 'Fetch the published RSA public key, use its bytes as the HMAC secret to mint an HS256 token with role admin, and submit the token through the challenge form or a Burp Repeater POST to /jwt/confusion.',
   link: '/jwt#alg-confusion',
-  start: 'curl -s http://localhost:3000/jwt/confusion\ncurl -s http://localhost:3000/jwt/confusion-pubkey',
+  start: 'Set your browser to proxy through Burp (127.0.0.1:8080) and open http://localhost:3000/jwt/confusion\nOpen the RSA public key link in the same browser and copy the PEM text\nMint an HS256 token with role admin signed with those PEM bytes (the node/jwt CLI is the quickest way), then paste it into the token form or replay the POST in Repeater',
 };
 
 // GET /jwt/confusion -> admin panel. Tokens are verified with RS256, and for

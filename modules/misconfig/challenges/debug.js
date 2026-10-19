@@ -13,11 +13,11 @@ const vuln = {
   name: 'Verbose Debug Errors',
   difficulty: 'Easy',
   hint: 'The debug page reacts when you trigger its error path through a query parameter. The page offers a way to simulate an error, so inspect what that link does. Debug switches also hide behind other obvious parameter names.',
-  hints: ["The debug page says 'off'. But there's a link to 'Simulate an error'. What does ?err=1 do?", "The err parameter triggers a verbose stack trace with a full config dump, including secrets.", "Make the debug page misbehave so it dumps its configuration. Find the parameter that switches error simulation on, trigger it, and read the leaked configuration text carefully."],
-  tools: 'B',
-  how: 'Request /misconfig/debug?err=1 to trigger a verbose stack trace with a config dump.',
+  hints: ["The status page says debug is 'off', but there is a 'Simulate an error' link. In Burp Proxy, browse the page, click the link, then check the Proxy history entry to see which query parameter it set.", "With the debug switch flipped, the page prints a verbose stack trace plus a full config dump. Send the request to Repeater, replay it with the error-simulation parameter, and read the whole response body.", "Leaked config dumps often hold secrets. Scan the dumped config text for tokens and keys: the flag is printed right there in the output."],
+  tools: 'BZ, B',
+  how: 'Send GET /misconfig/debug with the error-simulation query parameter (err=1) turned on, for example in Burp Repeater, and read the leaked config dump in the response.',
   link: '/misconfig#debug',
-  start: 'curl -s "http://localhost:3000/misconfig/debug?err=1"',
+  start: 'In Burp Proxy, open http://localhost:3000/misconfig/debug, click the "Simulate an error" link, then send the request to Repeater and inspect the response body.',
 };
 
 // GET /misconfig/debug -> service status page for the (fictional) NovaPay
@@ -70,7 +70,7 @@ sessionSecret: 'keyboard-cat-do-not-use-in-prod'`;
         defaults and error details are hidden from visitors.</p>
         ${hintLadder(vuln)}
         <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/misconfig/debug?err=1">Simulate an error</a></p>
-        ${payloadBlock('Try from your terminal', 'curl -s "http://localhost:3000/misconfig/debug?err=1" | head -30')}
+        ${payloadBlock('Try in Burp Repeater', 'GET /misconfig/debug?err=1 HTTP/1.1\nHost: localhost:3000')}
       `, { nav: ['Dashboard', 'Payments', 'Support'], crumb: 'Support / System status' })
     )
   );

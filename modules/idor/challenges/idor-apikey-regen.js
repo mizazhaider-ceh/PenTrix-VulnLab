@@ -97,13 +97,13 @@ module.exports = {
     hint: 'The regenerate form on /idor/apikey trusts the user_id you submit. Make it rotate another account\'s key (the admin\'s is a strong target), then present the fresh key where the app accepts API keys.',
     hints: [
       'You can regenerate YOUR api key. The request carries an account id. Whose key could you regenerate?',
-      'The regenerate endpoint trusts the submitted user_id. Rotate the admin\'s key, then use the fresh value.',
-      'Submit the regeneration request for a different account by changing the user_id you send, capture the fresh key from the response, then present it where the app accepts API keys.',
+      'Click Regenerate in the browser with Burp intercepting, then send that POST to Repeater. The user_id parameter decides whose key rotates. Try another account, the admin is id 1.',
+      'In Repeater, change user_id to the admin\'s id and send. Copy the fresh key from the response, then present it to /idor/apikey/use, either in the browser or in a new Repeater request.',
     ],
-    tools: 'B, C',
-    how: 'Regenerate another user\'s API key via their id, then use the new key at /idor/apikey/use.',
+    tools: 'BZ, B',
+    how: 'Intercept the key-regeneration POST, edit the user_id to another account\'s id, then use the fresh key at /idor/apikey/use.',
     link: '/idor#idor-apikey-regen',
-    start: 'curl -s -c jar -L http://localhost:3000/idor/login/alice\ncurl -s -b jar http://localhost:3000/idor/apikey',
+    start: 'Point your browser at Burp\'s proxy, then visit http://localhost:3000/idor/login/alice to log in and open /idor/apikey.',
   },
   router,
 };

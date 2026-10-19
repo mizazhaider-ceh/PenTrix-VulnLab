@@ -18,14 +18,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: 'When ?next= appears twice, the server silently honors the last value. The first one is just camouflage.',
   hints: [
-    'The endpoint takes ?next=. What if next appears twice?',
-    'Duplicate parameters: the validator checks the first, but the redirect uses the last.',
-    'Supply the parameter twice, once with a value that looks safe and once with an external URL. The key insight: the server validates one value and redirects on another, honoring the last while reviewers see the first.',
+    'Open /redirect/polluted in Burp Proxy, send the GET request to Repeater, and study the query string.',
+    'Duplicate the next parameter in Repeater: give the first copy a value that looks safe and see what changes in the response when you add a second copy.',
+    'Watch the Location header in the Repeater response while you experiment with two copies of next. The validator checks one value and redirects on the other: the server silently honors the last one while reviewers see the first.',
   ],
-  tools: 'C',
-  how: 'Request /redirect/polluted?next=safe&next=https://evil.com and check which value lands in the Location header.',
+  tools: 'BZ, B, C',
+  how: 'In Burp Repeater, issue GET /redirect/polluted with two next parameters: the first carrying a value that looks safe and the second pointing at an external URL. Check the Location header to see which value the server honored.',
   link: '/redirect#redirect-pollution',
-  start: 'curl -s http://localhost:3000/redirect/polluted | head -c 400\ncurl -i "http://localhost:3000/redirect/polluted?next=safe&next=https://evil.com" | grep -i location',
+  start: 'In Burp, browse to http://localhost:3000/redirect/polluted through the proxy, send the request to Repeater, and add a second next parameter to the query string. Compare the Location header before and after.',
 };
 
 // ----------------------------------------------- v6: parameter pollution

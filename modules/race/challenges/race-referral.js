@@ -16,11 +16,11 @@ const vuln = {
   name: 'Referral Bonus Claimed Twice',
   difficulty: 'Medium',
   hint: 'The referral code REF2026 pays 50 points once. The "already claimed" check has a gap before the claim is recorded.',
-  hints: ["The referral bonus is once per user. What if you claim twice at once?", "Parallel claims both see 'not claimed' and both award the bonus.", "Fire parallel claims. Bonus lands twice."],
-  tools: 'P, C',
-  how: 'Claim the referral code with parallel POSTs at /race/referral so the bonus lands twice.',
+  hints: ["Claim REF2026 once in the browser with Burp Proxy on, then send that claim POST to Intruder.", "In Intruder, put the code parameter in the payload position and run the attack with concurrent requests enabled.", "Every request must land inside the check gap, so each one still sees 'not claimed' when it arrives."],
+  tools: 'BZ, C, P',
+  how: 'Claim the referral code with parallel POSTs at /race/referral (Burp Intruder, concurrent requests) so the bonus lands twice.',
   link: '/race#race-referral',
-  start: 'curl http://localhost:3000/race/referral\nseq 1 10 | xargs -P10 -I{} curl -s -X POST http://localhost:3000/race/referral -d \'code=REF2026\'',
+  start: 'Browse to /race/referral with Burp Proxy on and claim REF2026 once, then send that POST to Intruder and launch it with concurrent requests enabled so the parallel claims all land before the first claim is recorded.',
 };
 
 // Challenge-local presentation: a clay card hero for the rewards screen.
@@ -52,7 +52,7 @@ router.get('/referral', (req, res) => {
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
     <p>Claim it with parallel requests before the first claim is recorded:</p>
-    ${payloadBlock('Parallel claims', `seq 1 10 | xargs -P10 -I{} curl -s -X POST http://localhost:3000/race/referral -d 'code=REF2026'`)}
+    ${payloadBlock('Burp Intruder', 'Send the claim POST to Intruder (Ctrl+I), set payloads/threads for 10 parallel requests, start the attack and watch the responses.')}
     ${backLinks()}
   `)));
 });

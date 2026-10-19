@@ -22,11 +22,11 @@ const vuln = {
   name: 'OTP Verified by JavaScript',
   difficulty: 'Medium',
   hint: 'The page JavaScript checks the OTP and sets a hidden otp_ok flag. The server trusts that flag. What if you set it yourself?',
-  hints: ["The OTP check happens client-side. What does the server trust?", "The server trusts a client-side 'otp_ok' flag. Set it to true.", "The server trusts the browser's claim that the OTP was checked. Forge that claim in your request instead of guessing the real code."],
-  tools: 'BZ, C',
-  how: 'POST to /bizlogic/otp/verify with otp_ok=1 and a wrong OTP, skipping the client-side check entirely.',
+  hints: ["The OTP check happens client-side. Check the Proxy history in Burp: which field does the server actually trust?", "The server trusts the client-side 'otp_ok' field. Send the POST to Repeater and tamper with that one field.", "In Repeater, flip the flag field your browser sends to its verified value, then send the request. The OTP value itself can stay wrong."],
+  tools: 'BZ, B, DT',
+  how: 'In Burp Repeater, take the intercepted POST to /bizlogic/otp/verify and forge the client-side otp_ok claim so the server accepts it, using a wrong OTP. The JavaScript check never runs on the server side.',
   link: '/bizlogic#biz-otp-client',
-  start: 'curl -s http://localhost:3000/bizlogic/otp | grep -o "otp_ok"\ncurl -s -X POST http://localhost:3000/bizlogic/otp/verify -d \'otp=000000&otp_ok=1\'',
+  start: 'Open /bizlogic/otp in the browser with Burp Proxy on and submit any wrong OTP. Find the POST to /bizlogic/otp/verify in Proxy > HTTP history, send it to Repeater, and experiment with the hidden field the JavaScript normally sets.',
 };
 
 router.get('/otp', (req, res) => {
@@ -54,8 +54,15 @@ router.get('/otp', (req, res) => {
         }
       </script>
       <p class="note">The JavaScript above is the only thing checking the code.
-      What does the server check? Try it with curl:</p>
-      <div class="payload"><div class="payload-head"><span>Curl starter</span></div><pre class="payload-body">curl -s -X POST http://localhost:3000/bizlogic/otp/verify -d 'otp=000000&amp;otp_ok=1'</pre></div>
+      What does the server check? Try it in Burp Repeater: submit any wrong OTP
+      with Proxy intercepting, send the request to Repeater with Ctrl+R, flip
+      <code>otp_ok</code> to <code>1</code>, and send.</p>
+      <div class="payload"><div class="payload-head"><span>Burp Repeater</span></div><pre class="payload-body">POST /bizlogic/otp/verify HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 19
+
+otp=000000&amp;otp_ok=1</pre></div>
     </div>
     ${backLink(s)}
   `));

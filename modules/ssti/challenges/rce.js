@@ -18,12 +18,12 @@ const vuln = {
   id: 'rce',
   name: 'Scope Leak (Data Exposure, Not RCE)',
   difficulty: 'Medium',
-  hint: 'Once you know {{ }} is evaluated, ask yourself: what server-side variables are in scope when the expression runs? Probe for a variable that holds the flag: its name is the most obvious one you would pick for this job.',
-  hints: ["Once {{ }} evaluates, what variables are in scope when it runs?", "The template runs with server variables in scope. Probe for the one holding the flag: its name is the most obvious one you would pick for this job.", "Read the in-scope flag variable directly: you only need its conventional name, and the template will echo its value. (This is a scope leak, not RCE.)"],
-  tools: 'B, C',
-  how: 'Submit name={{secretFlag}} to evaluate the in-scope variable holding the flag.',
+  hint: 'In Burp Repeater, once you know {{ }} is evaluated, ask yourself: what server-side variables are in scope when the expression runs? Probe for a variable that holds the flag: its name is the most obvious one you would pick for this job.',
+  hints: ["Send the /ssti/greet request to Burp Repeater and first confirm {{ }} evaluates by trying a harmless arithmetic expression; the module page tells you the answer to expect.", "In Repeater, change the name parameter and think about which server-side variables the template engine can see while it runs. Probe for the one holding the flag: its name is the most obvious one you would pick for this job.", "Read that in-scope variable directly in Repeater: you only need its conventional name, and the template echoes its value into the greeting. (This is a scope leak, not RCE.)"],
+  tools: 'BZ, B, C',
+  how: 'In Burp Repeater, send /ssti/greet with the name parameter set to a {{ }} expression that reads the flag variable from the template scope; the rendered greeting echoes its value.',
   link: '/ssti#rce',
-  start: 'curl -g "http://localhost:3000/ssti/greet?name={{secretFlag}}"',
+  start: 'Open /ssti/greet in the browser with Burp Proxy intercepting, send the request to Repeater, then change the name parameter to probe which server-side variables the template can see.',
 };
 
 // GET /ssti/greet -> greeting card rendered by the naive template engine.

@@ -13,11 +13,15 @@ const vuln = {
   name: 'Guessable Security Question',
   difficulty: 'Easy',
   hint: 'The reset asks for the mother\'s maiden name, and alice printed hers in her public bio. Read the bio, answer the question, reset her password.',
-  hints: ["The security question asks for something 'only you know'. But the user's bio is public. What does the bio say?", "The 'secret' answer is in the public bio. Security questions are just weak passwords when the answer is public.", "Read the bio, answer the question with the public info, and reset the password."],
-  tools: 'B',
-  how: 'Read alice\'s public bio for the maiden name, then reset her password via the security question.',
+  hints: [
+    "The security question asks for something 'only you know', but the bio is public. Browse /auth/bio/alice through Burp Proxy and read it.",
+    'Security questions are just weak passwords when the answer is printed on a public page.',
+    "Send the reset POST to Burp's Repeater, fill in the public answer, and set a new password.",
+  ],
+  tools: 'BZ, B',
+  how: 'Read alice\'s public bio for the maiden name, then answer the security question at /auth/question-reset to reset her password. Proxy and Repeater carry the whole chain.',
   link: '/auth/question-reset',
-  start: 'curl http://localhost:3000/auth/question-reset',
+  start: 'With Burp Proxy on your browser, open http://localhost:3000/auth/question-reset and read alice\'s public bio at http://localhost:3000/auth/bio/alice.',
 };
 
 const MAIDEN_NAMES = { alice: 'Smith', bob: 'Jones', admin: 'Blackwood' };

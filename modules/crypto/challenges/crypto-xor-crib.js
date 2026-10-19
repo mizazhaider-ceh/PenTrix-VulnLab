@@ -17,12 +17,12 @@ const vuln = {
   id: 'crypto-xor-crib',
   name: 'XOR Crib Dragging',
   difficulty: 'Medium',
-  hint: 'The key repeats every few bytes and you know the plaintext header {"user":". XOR crib against ciphertext to recover the key, trying lengths 1-12.',
-  hints: ["Repeating-key XOR with a known plaintext (crib). What does that give you?", "XOR the crib with the ciphertext to recover the key stream, then decrypt.", "Try key lengths 1 to 12: derive each candidate key from the known header {\"user\":\" and keep the one that decrypts to valid JSON."],
-  tools: 'P',
-  how: 'Recover the repeating key with the known header, decrypt the full ciphertext, and submit the plaintext.',
+  hint: 'The key repeats every few bytes and you know the plaintext header {"user":". Copy the ciphertext from the page via Proxy, crib-drag against it to recover the key, trying lengths 1-12.',
+  hints: ["Repeating-key XOR with a known plaintext (crib). What does that give you?", "XOR the crib with the ciphertext to recover the key stream, then decrypt.", "Try key lengths 1 to 12: derive each candidate key from the known header {\"user\":\" and keep the one that decrypts to valid JSON. Submit the plaintext through Repeater."],
+  tools: 'BZ, P',
+  how: 'Copy the ciphertext via Burp, recover the repeating key with the known header in Python, decrypt the full ciphertext, and submit the plaintext through Repeater.',
   link: '/crypto#crypto-xor-crib',
-  start: 'curl -s http://localhost:3000/crypto/xor',
+  start: 'Open Burp, proxy your browser, and browse to /crypto/xor. Copy the ciphertext hex from the payload block. Do the crib-drag offline in Python, then send POST /crypto/xor/solve through Repeater with the recovered plaintext.',
 };
 
 // --- local clay UI helpers (self-contained; no crypto shared module yet) ---

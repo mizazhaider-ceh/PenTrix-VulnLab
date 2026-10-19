@@ -12,11 +12,11 @@ const vuln = {
   name: 'Username Enumeration',
   difficulty: 'Easy',
   hint: 'The login says "user not found" for bad usernames but "wrong password" for real ones. Probe names like alice, bob, admin, or anything else, then submit the confirmed username on the submit page.',
-  hints: ["Try logging in with a wrong username vs a wrong password. Does the error message change?", "Different errors for 'bad username' vs 'bad password' reveal which usernames exist. That's an oracle.", "Enumerate usernames by comparing error messages, then submit a valid one."],
-  tools: 'B, C',
-  how: 'Enumerate a valid username through the different error messages and submit it.',
+  hints: ["Log in once with a made-up username, then once with a real-sounding one and a wrong password. Compare the two responses in Burp: what changes?", "The different error messages are an oracle for which usernames exist. Send the login POST to Intruder and set a sniper payload position on the username field.", "In Intruder, mark only the username parameter with the payload marker, load a short candidate wordlist, and add grep-match rules for the two error phrases so the valid usernames stand out in the results. Submit one you confirmed, in the same browser session."],
+  tools: 'BZ, B',
+  how: 'Sniper through candidate usernames at /auth/enum-login in Burp Intruder, spot the valid ones by their different response, then submit a confirmed username in the same session.',
   link: '/auth/enum-login',
-  start: 'curl -c jar -b jar -d "username=nosuchuser&password=x" http://localhost:3000/auth/enum-login',
+  start: 'Open http://localhost:3000/auth/enum-login through the Burp proxy browser, submit the form once with a guess, then send that POST to Intruder.',
 };
 
 function loginView(req, opts) {

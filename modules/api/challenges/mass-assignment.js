@@ -45,11 +45,15 @@ module.exports = {
     name: 'Mass Assignment',
     difficulty: 'Medium',
     hint: 'PATCH /api/me builds its SQL SET clause from Object.keys(req.body). Nothing stops you from adding fields the form never showed you; think about which column in the users table decides what you are allowed to do.',
-    hints: ["The PATCH /me endpoint updates your profile. What happens if you send fields the form never showed you?", "There is no allowlist: every key in the JSON body becomes a column in the UPDATE.", "Send a PATCH with a JSON body containing an extra field that raises your privilege level. Check GET /me first: it shows exactly which column decides your role."],
-    tools: 'C',
-    how: 'Log in as alice, then send a JSON body with an extra field that escalates your privilege.',
+    hints: [
+      "Log in as alice with Burp's Proxy on, then browse to /api/me and send that request to Repeater (Ctrl+R) to read your profile columns.",
+      "PATCH /me builds its SQL SET clause from Object.keys(req.body). There is no allowlist, so every key in the JSON body becomes a column in the UPDATE, even fields the form never showed you.",
+      "In Repeater, add one extra key to the PATCH body that raises your privilege level, then send it. GET /me shows you which column decides your role."
+    ],
+    tools: 'BZ, C',
+    how: 'Log in as alice, send a GET /api/me to Repeater to read your columns, then replay the PATCH /api/me in Repeater with one extra JSON key that raises your privilege and collect the flag.',
     link: '/api#mass-assignment',
-    start: 'curl -s -b jar -c jar http://localhost:3000/api/login/alice\ncurl -s -b jar http://localhost:3000/api/me',
+    start: 'Route your browser through Burp Proxy, visit http://localhost:3000/api/login/alice to log in, then browse to http://localhost:3000/api/me and send that request to Repeater (Ctrl+R) to see your profile columns.',
   },
   router,
 };

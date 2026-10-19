@@ -21,13 +21,14 @@ const vuln = {
   hint: "The same expander also fetches http:// URLs. Point an entity at the SSRF module's internal secret endpoint and chain it: XXE \u2192 SSRF \u2192 internal secret.",
   hints: [
     "Entities can have http:// URLs too. What happens when the parser fetches one?",
+    "In Burp, submit the XML importer form with Proxy intercept on, then send the captured POST to Repeater so you can edit and re-send the xml parameter freely.",
     "An external entity with SYSTEM \"http://127.0.0.1:PORT/...\" makes the server request that URL. It's SSRF via XML.",
-    "You need an external entity whose SYSTEM identifier is an http:// URL aimed at an internal-only endpoint, referenced where the output appears. Key insight: the server makes the request, not your browser, so addresses only reachable from inside the lab are in play. Probe the module's internal endpoints and see which one returns secret data.",
+    "In Repeater, point the SYSTEM value at an internal-only endpoint of the lab's own SSRF module, reference the entity inside <data>, and remember the server makes the request, not your browser. URL-encode the xml value so characters like & and \" do not break the form field, then send and look for SSRF-INTERNAL-9921 in the parsed output.",
   ],
-  tools: 'C',
-  how: 'Use an XML external entity with an http:// SYSTEM URI to make the server request an internal endpoint and leak its response.',
+  tools: 'BZ, C',
+  how: 'In Burp Repeater, submit the XML import with an external entity whose http:// SYSTEM URI targets an internal endpoint; the server fetches it and splices the secret response into the parsed output.',
   link: '/xxe#ssrf',
-  start: 'curl -s http://localhost:3000/xxe/import\ncurl -s --data-urlencode "xml=<data>hello</data>" http://localhost:3000/xxe/import',
+  start: 'Browse to the XML Importer (/xxe/import) with Burp Proxy intercepting, submit the form once, and send the captured POST request to Repeater. Replace the xml parameter with your own XML document containing a DOCTYPE and an external entity that points at an http:// URL, URL-encode the parameter value, send, and read the parsed content.',
 };
 
 // Fictional app chrome for the shared importer (neutral: no mention of flaws).

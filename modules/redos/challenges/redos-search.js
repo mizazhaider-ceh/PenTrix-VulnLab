@@ -24,12 +24,12 @@ const vuln = {
   hints: [
     'Your search term becomes a regex atom. Can you inject a catastrophic pattern?',
     'The text you type becomes the atom that the server wraps in its own nested quantifiers. Build that atom from the haystack\'s repeated character so the nesting has something to chew on.',
-    'The catastrophic pattern only explodes because the last character can never match. Submit the haystack\'s repeated character as your query and let that trailing mismatch do the work. Time the response.',
+    'The catastrophic pattern only explodes because the last character can never match. Capture the search request in Burp Proxy, push it to Repeater, set q to the haystack\'s repeated character, and watch the response time Repeater reports for each send.',
   ],
-  tools: 'B, C',
-  how: 'Search for the haystack\'s character so the compiled pattern becomes ^((a)+)+$.',
+  tools: 'BZ, B, C',
+  how: 'In Burp, capture /redos/search in Proxy, push the request to Repeater, and submit the haystack\'s repeated character as q so the compiled pattern becomes ^((a)+)+$. The claim fires when the response takes over 1000 ms.',
   link: '/redos#redos-search',
-  start: 'curl -s "http://localhost:3000/redos/search"\ntime curl -s "http://localhost:3000/redos/search?q=test" | grep -o "Time: <b>[0-9]* ms</b>"',
+  start: 'Proxy on, open /redos/search in the Burp browser and submit the search form once with a harmless query (for example test). In Proxy history, send the request to Repeater. Start tweaking the q parameter and watch the response time.',
 };
 
 function searchHandler(req, res) {

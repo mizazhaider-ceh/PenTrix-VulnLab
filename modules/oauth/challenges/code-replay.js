@@ -14,12 +14,12 @@ const vuln = {
   id: 'code-replay',
   name: 'Authorization Code Replay',
   difficulty: 'Medium',
-  hint: 'Codes are supposed to be single-use. This IdP counts uses but never invalidates the code. Exchange the same code twice.',
-  hints: ["Are authorization codes single-use? Try using one twice.", "They're not. Exchange the same code twice and compare tokens.", "The IdP counts uses but never marks the code as spent, so a replayed exchange is treated like the first. Redeem the same code again and hold two live tokens."],
-  tools: 'C',
-  how: 'POST the same code to /oauth/idp/token two times and compare the two valid tokens.',
+  hint: 'Codes are supposed to be single-use. This IdP counts uses but never invalidates the code. Send the token exchange in Repeater, then send it again.',
+  hints: ["Are authorization codes single-use? Capture the exchange in Repeater and watch what the IdP does on the second send.", "Resend the identical exchange request in Repeater and compare the two token responses.", "The IdP counts uses but never marks the code as spent, so a replayed exchange mints another fresh token. Two sends, two live tokens, the flag rides in the second response."],
+  tools: 'BZ, C',
+  how: 'Exchange the same authorization code at /oauth/idp/token twice and compare the two valid tokens. In Repeater, send the exchange, then resend the identical request: the second exchange returns a fresh token with the flag.',
   link: '/oauth#code-replay',
-  start: 'curl -s -b jar -c jar http://localhost:3000/oauth/login/bob',
+  start: 'Proxy /oauth/login/bob through Burp, authorize pentrix-spa (response_type=code), then send the token exchange to Repeater and resend it.',
 };
 
 // Same authorization URL the module index uses for the SPA code flow.
@@ -46,8 +46,13 @@ router.get('/code-replay', (req, res) => {
           two times in a row:</li>
         </ol>
       </div>
-      ${payloadBlock('Token exchange (run twice)', "curl -s -b jar -X POST http://localhost:3000/oauth/idp/token \\\n  -d 'client_id=pentrix-spa&code=PASTE_YOUR_CODE_HERE'")}
-      <p class="note">The exchange identifies you by the IdP session cookie: create the jar first with <code>curl -s -b jar -c jar http://localhost:3000/oauth/login/bob</code>, then send both exchanges with <code>-b jar</code>.</p>
+      ${payloadBlock('Burp Repeater (send it twice)', `POST /oauth/idp/token HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
+
+client_id=pentrix-spa&code=<CODE>`)}
+      <p class="note">The exchange identifies you by the IdP session cookie: log in through the proxied browser (or copy the session cookie from Proxy into Repeater's Cookie header), then send the exchange and resend the identical request.</p>
       <p>Compare the two responses: both return valid, different access tokens. The
       flag is awarded on the second successful exchange of the same code and arrives
       inside the token response JSON, in the <code>flag</code> field.</p>

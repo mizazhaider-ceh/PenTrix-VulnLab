@@ -49,11 +49,11 @@ const vuln = {
   name: 'Classic Formula Injection',
   difficulty: 'Easy',
   hint: 'Spreadsheets execute cells starting with =. The classic payload calls cmd through the pipe syntax.',
-  hints: ["The CSV export includes your input raw. What happens when Excel opens =cmd|...?", "Quoting does not neutralize a formula cell. Think about which characters at the very start of a cell make a spreadsheet treat it as a formula instead of plain text.", "Use the classic cmd pipe trick: a formula cell that pipes a Windows shell command through the pipe operator, with a cell reference to anchor it. You know the pieces, assemble them as one cell value."],
-  tools: "B",
-  how: 'Put =cmd|... style payload in the name field and download the CSV export.',
+  hints: ["Intercept the add-contact POST in Burp Proxy. The CSV export later includes your input raw. What does a spreadsheet do when it opens a cell that starts with =?", "Send the POST to Burp Repeater so you can iterate on the payload quickly. Think about which characters at the very start of a cell make a spreadsheet treat it as a live formula instead of plain text.", "Request /formula/export.csv in Repeater after each change and watch the X-Flags response header. Quoting does not neutralize a formula cell: a classic cmd pipe cell that pipes a Windows shell command through the pipe operator still evaluates."],
+  tools: "BZ, B",
+  how: 'Add a contact whose name cell is a live spreadsheet formula, then request the CSV export in Repeater and read the X-Flags response header.',
   link: '/formula#formula-csv',
-  start: 'curl -s -b jar -c jar http://localhost:3000/formula/ > /dev/null\ncurl -s -b jar --data-urlencode "name==cmd|\' /C calc\'!A0" --data-urlencode "note=test" http://localhost:3000/formula/add\ncurl -s -b jar -D - http://localhost:3000/formula/export.csv -o /dev/null | grep -i x-flags',
+  start: 'Open the lab in Burp with Intercept on and browse to ContactBase. Add a contact through the form, letting Proxy capture the POST /formula/add request, then send it to Repeater. Iterate on a formula payload in the name field, then GET /formula/export.csv and inspect the X-Flags response header for the flag.',
 };
 
 function contactRows() {

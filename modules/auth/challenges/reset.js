@@ -13,11 +13,15 @@ const vuln = {
   name: 'Predictable Password Reset Tokens',
   difficulty: 'Easy',
   hint: 'The reset link is displayed on screen and the token is just base64(username). Request a reset for alice to see the pattern, then mint a token for admin yourself and confirm it with a new password.',
-  hints: ["The password reset asks for a username and gives you a token. What does the token look like?", "The token is just base64(username) with no randomness. Anyone can compute it for any user.", "Request a reset for admin, decode the pattern (base64 of 'admin'), forge the token, and set a new password."],
-  tools: 'B, C',
-  how: 'Forge a reset token for admin (base64 of "admin") and use it at /auth/reset/confirm to change admin\'s password.',
+  hints: [
+    "Request a reset for alice and paste the token into Burp's Decoder. What does it turn out to be?",
+    'The token carries no randomness and nothing binds it to a real email. Think about what a token minted for a different username would look like.',
+    "Mint that token yourself and replay the confirm POST for it in Burp's Repeater, with a new password.",
+  ],
+  tools: 'BZ, B',
+  how: 'Forge a reset token for admin (base64 of "admin") and submit it at /auth/reset/confirm to change admin\'s password. The whole chain runs through Burp Decoder and Repeater.',
   link: '/auth/reset',
-  start: 'curl "http://localhost:3000/auth/reset?user=alice"',
+  start: 'With Burp Proxy on your browser, open http://localhost:3000/auth/reset, request a reset for alice, follow the confirm link, and send its POST to Repeater.',
 };
 
 // VULN: the reset token is just base64(username), fully predictable and

@@ -17,11 +17,11 @@ const vuln = {
   name: 'Login CSRF (Missing state Parameter)',
   difficulty: 'Medium',
   hint: 'The client callback exchanges any code it is given and never validates state. Mint a code for YOUR account, then get the victim to visit the callback with it.',
-  hints: ["There's no state parameter. What attack does that enable?", "Login CSRF: the attacker starts the flow, the victim finishes it logged in as the attacker.", "Craft the authorize URL with your client_id, have the 'victim' open it. Their session binds to your account."],
-  tools: 'B',
-  how: 'Use the attacker link generator as bob, then open the generated link in a session whose IdP user is alice.',
+  hints: ["There's no state parameter. What attack does that enable?", "Login CSRF: the attacker starts the flow, the victim finishes it logged in as the attacker.", "In Burp Proxy history, find the attacker link generator response and lift the malicious callback link. Then send it to Repeater in a session whose IdP user is alice."],
+  tools: 'BZ, B',
+  how: 'In Burp, mint the code as bob, then replay the malicious callback link in a session whose IdP user is alice.',
   link: '/oauth#no-state',
-  start: 'curl -s -c bob.jar http://localhost:3000/oauth/login/bob\ncurl -s -b bob.jar http://localhost:3000/oauth/no-state/attacker',
+  start: 'Route your browser through Burp Proxy. Log in to the IdP as bob (/oauth/login/bob), open the attacker link generator (/oauth/no-state/attacker), and copy the malicious callback link from the response.',
 };
 
 router.get('/no-state', (req, res) => {

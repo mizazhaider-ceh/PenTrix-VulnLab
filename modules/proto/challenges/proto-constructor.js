@@ -85,11 +85,11 @@ const vuln = {
   name: 'Blacklist Bypass via constructor',
   difficulty: 'Medium',
   hint: 'Keys containing the literal string __proto__ are dropped. But the prototype chain has more than one entrance.',
-  hints: ["The filter blocks __proto__. But there's another path to the prototype.", "constructor.prototype. __proto__ is just one spelling.", "Reach Object.prototype through constructor and prototype in the query string, setting the role property the admin check tests. Then open the admin check."],
-  tools: 'C',
-  how: 'Reach Object.prototype through constructor/prototype instead, then open the admin check.',
+  hints: ["The filter blocks __proto__. In Repeater, look for the other entrance to the prototype chain: every object reaches its constructor, and the constructor reaches its prototype.", "Intercept the merge request in Burp Proxy and send it to Repeater. In the query string, spell the path through constructor and prototype to reach the property the admin check tests. The blacklist never sees __proto__.", "In Repeater, add the constructor[prototype] segments to the query string, setting the role property the admin check reads, then open the admin check in the browser and watch the fresh object inherit it."],
+  tools: 'BZ, B, C',
+  how: 'In Repeater, send a query string that reaches Object.prototype through constructor/prototype instead of the blacklisted __proto__ key, then open the admin check so the fresh object inherits role=admin.',
   link: '/proto#proto-constructor',
-  start: 'curl -s "http://localhost:3000/proto/constructor?constructor[prototype][role]=admin" -o /dev/null\ncurl -s http://localhost:3000/proto/constructor/admin | grep -o "Flag captured"',
+  start: 'Open the merge console in your browser with Burp Proxy on, submit a harmless query string, intercept the GET /proto/constructor request in Proxy, then push it to Repeater and experiment with the key names.',
 };
 
 // GET /proto/constructor -> config merge console with a __proto__ blacklist.

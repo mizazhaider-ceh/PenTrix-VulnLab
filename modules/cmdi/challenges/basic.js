@@ -14,14 +14,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: 'The host value is pasted straight into a shell command. What happens when you add a second command after it?',
   hints: [
-    "The ping tool takes a host and runs ping. Where does your input go in the command?",
-    "Your input is concatenated into a shell command with no escaping. A semicolon ends the ping and starts a new command.",
-    "End the ping statement with a command separator after a valid host, then add a second command of your choosing. The award only fires when the second command's output actually appears in the response, so pick a command that prints something unmistakable.",
+    "Open the page in Burp's browser and submit a normal host. In Proxy history, find the request and send it to Repeater.",
+    "In Repeater, look at the host parameter value and think about where it lands in the shell command the server builds.",
+    "Edit the host value in Repeater and append a command separator after a valid host, followed by a second command of your choosing. Send it and read the response body: the flag is awarded only when the second command's real output shows up in the response, so pick a command that prints something unmistakable.",
   ],
-  tools: 'B, C',
-  how: 'Inject an extra shell command through the host field, e.g. ?host=127.0.0.1;id',
+  tools: 'BZ, B',
+  how: 'In Repeater, modify the host parameter so the shell command runs your second command after the ping, then confirm the response body carries its real output before claiming the flag.',
   link: '/cmdi/ping',
-  start: 'curl "http://localhost:3000/cmdi/ping?host=127.0.0.1"',
+  start: 'Open the ping gadget in your browser (with Burp Proxy on), submit a plain host like 127.0.0.1, then push the request to Repeater.',
 };
 
 // GET /cmdi/ping -> v1 gadget, zero filtering.

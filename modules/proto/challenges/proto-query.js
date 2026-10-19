@@ -16,11 +16,11 @@ const vuln = {
   name: 'Query-String Pollution',
   difficulty: 'Medium',
   hint: 'The merge endpoint folds every query parameter into the app config with no key checks. Think about which parameter name could reach the shared prototype.',
-  hints: ["Query params are deep-merged into the app config. Which parameter name could climb from a normal key to the shared prototype?", "The merge pollutes Object.prototype. Every object now has role=admin.", "Use bracket notation to reach Object.prototype through the magic key, setting the role property the admin check tests. Then open the admin check."],
-  tools: "B, C",
-  how: 'Pollute Object.prototype.role via the query string, then open the admin check.',
+  hints: ["Proxy /proto/query in Burp and look at the raw query string the browser sends. The merge folds every parameter into the app config. Which parameter name could climb from a normal key to the shared prototype?", "Replay the merge in Repeater with that prototype-climbing parameter name, setting the role the admin check tests. The 'Keys merged this request' line confirms the merge ran.", "Reload the admin check in the proxied browser: a fresh {} now reads the polluted role."],
+  tools: "BZ, B",
+  how: 'Pollute Object.prototype.role through the query-string merge, then verify it with the admin check.',
   link: '/proto#proto-query',
-  start: 'curl -s "http://localhost:3000/proto/query?__proto__[role]=admin"\ncurl -s http://localhost:3000/proto/query/admin',
+  start: 'Set Burp as your browser proxy and open /proto/query in the browser. Type the query string that climbs from a normal key to the shared prototype into the merge field and click Merge, then open /proto/query/admin and reload it.',
 };
 
 // GET /proto/query -> the merge console. Parses the raw query string into

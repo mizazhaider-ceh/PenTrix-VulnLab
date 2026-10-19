@@ -18,14 +18,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: "Session ids are sequential integers. The demo page shows your id and the admin's id right next to each other. Do the math.",
   hints: [
-    "Session ids are sequential. If you're user 5, what is the admin's sid?",
+    "Session ids are sequential. Open the demo page through Burp Proxy and read your sid and the admin's sid in the response.",
     "Predictable ids: read the pattern, compute the admin's sid, replay it.",
-    "Your sid is a plain number, and the admin's sits right next to it. Try the neighboring values in both directions, then present the working one as your cookie.",
+    "In Burp, send the admin panel request to Repeater, replace the lab_sid cookie with the admin's sid, and re-send. Intruder with a small numeric range around your sid also works.",
   ],
-  tools: 'B, DT',
-  how: 'Read the admin\'s session id off the demo page, set it as your lab_sid cookie, and open the admin panel.',
+  tools: 'BZ, B, DT',
+  how: 'Read the admin\'s sid off the demo page, set it as your lab_sid cookie in Burp (Repeater or a Match and Replace rule), and open the admin panel.',
   link: '/session#predictable',
-  start: 'curl -s -c jar -b jar http://localhost:3000/session/predictable',
+  start: 'Point your browser at Burp, visit http://localhost:3000/session/predictable, and read your sid and the admin\'s sid on the demo page.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).

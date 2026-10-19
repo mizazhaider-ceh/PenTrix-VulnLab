@@ -11,12 +11,12 @@ const vuln = {
   id: 'trace',
   name: 'HTTP TRACE Enabled (XST)',
   difficulty: 'Easy',
-  hint: 'TRACE echoes the request back to the sender. Browsers cannot send it, but a command-line HTTP client can: ask it to use a custom request method.',
-  hints: ["The TRACE method echoes your request. Why is that dangerous?", "TRACE reflects headers, enabling XST (cross-site tracing) to steal HttpOnly cookies via XSS.", "Send an HTTP request using the TRACE method to the challenge's own endpoint (/misconfig/trace) and inspect the response: the server reflects your request back, which is exactly the primitive an attacker abuses to read HttpOnly cookies through XSS."],
-  tools: 'C',
-  how: 'Send a TRACE request to /misconfig/trace and read the reflected request.',
+  hint: 'TRACE echoes the request back to the sender. Browsers cannot send it, but Burp Repeater can: change the method verb to TRACE.',
+  hints: ["The TRACE method echoes your request. Why is that dangerous?", "TRACE reflects headers, enabling XST (cross-site tracing) to steal HttpOnly cookies via XSS.", "From Burp Repeater, send a request using the TRACE method to the challenge's own endpoint (/misconfig/trace) and inspect the response: the server reflects your request back, which is exactly the primitive an attacker abuses to read HttpOnly cookies through XSS."],
+  tools: 'BZ, C',
+  how: 'Send a TRACE request to /misconfig/trace from Burp Repeater and read the reflected request.',
   link: '/misconfig/trace',
-  start: 'curl -s -X TRACE -H "Cookie: session=abc123" http://localhost:3000/misconfig/trace',
+  start: 'In Burp: send a request to http://localhost:3000/misconfig/trace in Repeater, change the method verb to TRACE, add a Cookie header, and read the reflection.',
 };
 
 // GET /trace -> explainer page: browsers cannot send TRACE, curl can.
@@ -29,8 +29,8 @@ router.get('/trace', (req, res) => {
       back, headers included. That is the setup for a cross-site tracing (XST)
       attack: trick a victim's browser into sending one, and the reflected
       <code>Cookie</code> header leaks their session.</p>
-      <p class="dim">Browsers cannot send TRACE; use curl:</p>
-      <pre><code>curl -X TRACE http://localhost:3000/misconfig/trace -H "Cookie: session=abc123"</code></pre>
+      <p class="dim">Browsers cannot send TRACE. In Burp Repeater, change the method verb to TRACE and send this:</p>
+      <pre><code>TRACE /misconfig/trace HTTP/1.1</code></pre>
       ${hintBox('Send the TRACE request and watch your headers come back at you.')}`
     )
   );

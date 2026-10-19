@@ -44,7 +44,7 @@ function renderListing(res) {
       `<div class="card"><h2>Index of /misconfig/files/</h2>
       <p class="dim">Everything in this folder is served as-is. Probably fine, right?</p>
       <table class="tbl"><tr><th>Name</th><th>Size</th></tr>${rows}</table>
-      ${hintBox(esc('The file endpoint accepts PUT with no authentication at all. Upload a file with a raw content type (curl -H "Content-Type: text/plain" --data-binary), then fetch it back with GET to prove the write.'))}</div>`
+      ${hintBox(esc('The file endpoint accepts PUT with no authentication at all. In Burp Repeater, send a PUT request with a raw text body and a Content-Type: text/plain header, then GET the file back to prove the write.'))}</div>`
     )
   );
 }
@@ -85,7 +85,7 @@ router.put('/files/:name', express.raw({ type: '*/*', limit: '1mb' }), (req, res
   const name = path.basename(String(req.params.name || ''));
   if (!name || !Buffer.isBuffer(req.body)) {
     return res.status(400).type('text/plain')
-      .send('bad upload: send a raw body, e.g. curl -X PUT -H "Content-Type: text/plain" --data-binary @file\n');
+      .send('bad upload: send a raw body. In Burp Repeater, change the method to PUT, add a Content-Type: text/plain header, and put your text in the request body.\n');
   }
   const full = path.join(FILES_DIR, name);
   try {
@@ -106,11 +106,11 @@ module.exports = {
     name: 'Unauthenticated HTTP PUT',
     difficulty: 'Medium',
     hint: 'The file endpoint accepts PUT with no authentication at all. Upload a file with a raw content type (curl -H "Content-Type: text/plain" --data-binary), then fetch it back with GET to prove the write.',
-    hints: ["The server accepts unauthenticated PUT requests on its file endpoint. Can you write a file into the folder it serves back publicly?", "The server lets anyone PUT a file into its writable uploads area, and anything written there is readable again over HTTP. That turns a raw write primitive into a visible readback.", "Use an unauthenticated PUT to place a file in the writable path, then GET the same file back to confirm the write and claim the flag."],
-    tools: 'C',
-    how: 'PUT a file to /misconfig/files/<name> with Content-Type: text/plain, then read it back via GET.',
+    hints: ["The server accepts unauthenticated PUT requests on its file endpoint. Can you write a file into the folder it serves back publicly?", "The server lets anyone PUT a file into its writable uploads area, and anything written there is readable again over HTTP. That turns a raw write primitive into a visible readback.", "In Burp Repeater, change the request line method to PUT, add Content-Type: text/plain, type a short body, and send it. Then GET the same file path back in your browser to confirm the write and claim the flag."],
+    tools: 'BZ, C',
+    how: 'In Burp Repeater, PUT a raw text body to /misconfig/files/<name> with Content-Type: text/plain, then GET the same path back to prove the write.',
     link: '/misconfig#put',
-    start: 'curl -s -X PUT -H "Content-Type: text/plain" --data-binary "hello pentrix" http://localhost:3000/misconfig/files/pwn.txt\ncurl -s http://localhost:3000/misconfig/files/pwn.txt',
+    start: 'In Burp Proxy, send any request to /misconfig/files/ to Repeater. Change the method line to PUT, set the path to /misconfig/files/<yourname>.txt, add Content-Type: text/plain, and put a short text body in the message body. Send it, then GET the same path back in your browser.',
   },
   router,
 };

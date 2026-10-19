@@ -14,11 +14,11 @@ const vuln = {
   name: 'Expiry Never Checked',
   difficulty: 'Easy',
   hint: 'The leaked admin token expired an hour ago. The verifier never looks at the exp claim. Replay it.',
-  hints: ["The token has an exp claim. Does the server check it?", "No. An expired admin token still works. Replay it.", "Present the expired admin token. It's accepted."],
-  tools: 'B',
-  how: 'Copy the expired admin token from the challenge page and submit it as-is.',
+  hints: ["Proxy on, open the /jwt/noexpiry page and copy the expired admin token straight from the response. It expired an hour ago, so it should be useless.", "Submit that token in the page form, or send the POST to Repeater and replay it there. Watch the response: does the server check the exp claim?", "It does not. Replay the leaked token as-is: the Proxy keeps the exact token string intact, so the expired token is accepted."],
+  tools: 'BZ, B',
+  how: 'Copy the expired admin token from the challenge page and submit it unchanged through the browser or Repeater.',
   link: '/jwt#no-expiry',
-  start: 'curl -s http://localhost:3000/jwt/noexpiry',
+  start: 'Open http://localhost:3000/jwt/noexpiry in the Burp browser with Proxy on and copy the leaked token from the page.',
 };
 
 // GET /jwt/noexpiry -> admin panel. Tokens carry an exp claim; the one shown

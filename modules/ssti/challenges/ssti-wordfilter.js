@@ -55,7 +55,7 @@ router.get('/wordfilter', (req, res) => {
     </div>
     ${result}
     ${awardHtml}
-    ${hintBox('The filter is plain string matching. Build the blocked word at run time instead of typing it: <code>{{eval("vaultSec"+"ret")}}</code>.')}
+    ${hintBox('The filter is plain string matching. In Burp Repeater, build the blocked variable name at run time instead of typing it: evaluate a concatenation of harmless fragments so the filter never sees the whole word in your raw input.')}
     <p><a href="/ssti">Back to SSTI module</a></p>
   `));
 });
@@ -66,11 +66,11 @@ module.exports = {
     name: 'Word Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'The words flag, secret and config are deleted from your input. Build the blocked word at run time instead of typing it.',
-    hints: ["The filter blocks words like 'secret'. But strings can be built without typing the word.", "Split the blocked word into innocent-looking fragments and join them at runtime with concatenation or eval, so the filter never sees the whole word in your raw input.", "Assemble the blocked word from fragments you CAN type, inside an evaluated string. Work out how the variable name splits into harmless pieces and the flag variable becomes reachable."],
-    tools: 'B, C',
-    how: 'Use nested eval with string concatenation, e.g. input={{eval("vaultSec"+"ret")}}, to read the filtered variable name.',
+    hints: ["Capture the form request in Burp Proxy and send it to Repeater. First prove the engine still evaluates templates: put a small arithmetic expression between {{ }} in the input parameter.", "The brief says the flag variable's name contains a blocked word. In Repeater, type the full variable name and watch the filter delete it in the response, then think about how to assemble that name at run time instead of typing it.", "Send the request to Intruder and fuzz ways to build the blocked word without typing it whole: split it into innocent fragments inside an evaluated string and join them at runtime, then try case tricks and encoding variants until the rendered note shows the flag."],
+    tools: 'BZ, B',
+    how: 'In Burp Repeater, wrap an expression in {{ }} that builds the filtered variable name at run time (concatenate harmless string fragments and evaluate the result), so the filter never sees the whole blocked word in the raw input.',
     link: '/ssti#ssti-wordfilter',
-    start: 'curl -s "http://localhost:3000/ssti/wordfilter?input={{7*7}}"\ncurl -s "http://localhost:3000/ssti/wordfilter?input={{eval(\"vaultSec\"+\"ret\")}}"',
+    start: 'With Burp Proxy on, open /ssti/wordfilter in the browser, submit a note, and send the request to Repeater. Set the input parameter to {{7*7}} to prove the engine evaluates templates, then type the flag variable name and watch the filter strip it before it reaches the engine.',
   },
   router,
 };

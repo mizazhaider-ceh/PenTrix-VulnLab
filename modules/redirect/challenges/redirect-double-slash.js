@@ -70,11 +70,11 @@ const vuln = {
   name: 'Protocol-Relative Redirect',
   difficulty: 'Easy',
   hint: 'The ?next= parameter is passed straight to the redirect with no validation. What does a URL starting with // mean to a browser?',
-  hints: ["The redirector checks whether the URL starts with '/'. What does a browser do with a URL that starts with two slashes?", "Protocol-relative URLs start with //. The check sees a leading slash and allows it, but the browser resolves the whole thing to an external host you control.", "Make the browser keep the current scheme but navigate to a host you control. The key insight: the check only sees a leading slash, while the browser resolves the whole URL, and a protocol-relative target resolves to an external host."],
-  tools: 'B, C',
-  how: 'Request /redirect/go?next=//evil.com and confirm the Location header points at evil.com.',
+  hints: ["Submit the form through Burp Proxy, send the request to Repeater, and change the value of next to something unusual. What does the response Location header do with it?", "The check only sees a leading slash. In Repeater, try a value that starts with two slashes and watch the Location header in the response.", "Make the browser keep the current scheme but navigate to a host you control. The key insight: the check only sees a leading slash, while the browser resolves the whole URL, and a protocol-relative target resolves to an external host."],
+  tools: 'BZ, B',
+  how: 'In Repeater, send /redirect/go with next set to a protocol-relative target and confirm the Location header points at an external host.',
   link: '/redirect#redirect-double-slash',
-  start: 'curl -i "http://localhost:3000/redirect/go?next=//evil.com"',
+  start: 'Load the form at /redirect/go in the browser, capture the GET in Burp Proxy, and send it to Repeater.',
 };
 
 module.exports = { vuln, router };

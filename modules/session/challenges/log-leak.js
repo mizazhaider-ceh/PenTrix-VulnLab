@@ -12,12 +12,12 @@ const vuln = {
   id: 'log-leak',
   name: 'Session ID in Debug Log',
   difficulty: 'Easy',
-  hint: 'Verbose debug logs print session ids. The log viewer is one click away, and the admin\'s sid is in there.',
-  hints: ["The debug log writes session ids. Can you read the log?", "Verbose logs include the sid. Read the log, extract the admin's sid, replay it.", "Open the debug log, find the admin sid, and present it."],
-  tools: 'B, DT',
-  how: 'Read the admin\'s sid from the debug log, replay it as your cookie, and open the admin panel.',
+  hint: 'Verbose debug logs print session ids. Browse the log viewer through Burp Proxy: the admin sid is in there.',
+  hints: ["The debug log writes session ids. Read it through Burp Proxy and find the admin session line.", "Spot the admin sid in the log viewer, then send the admin panel request to Repeater.", "In Repeater, replay the admin panel request with the admin sid set as your lab_sid cookie."],
+  tools: 'BZ, B',
+  how: 'Read the admin sid from the debug log, replay it as your lab_sid cookie in Repeater, and open the admin panel.',
   link: '/session#log-leak',
-  start: 'curl -s http://localhost:3000/session/logleak',
+  start: 'With Burp Proxy on, open the verbose logging page (/session/logleak), follow the link to the debug log viewer, and read the admin session line.',
 };
 
 // Lab-scoped session store and verbose debug log, seeded once at load

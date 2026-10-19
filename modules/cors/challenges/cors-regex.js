@@ -12,11 +12,11 @@ const vuln = {
   name: 'Regex Allowlist Bypass',
   difficulty: 'Medium',
   hint: 'The regex is ^https://.*pentrix\\.lab with no subdomain boundary and no end anchor. It matches strings, not domain boundaries.',
-  hints: ["The allowlist is the regex ^https://.*pentrix\\.lab. What strings does it match?", "No subdomain boundary and no end anchor: any https:// origin merely containing 'pentrix.lab' passes.", "Build an origin that merely contains the expected string instead of sitting under it. The regex checks characters, not domain boundaries, so the endpoint echoes whatever you send."],
-  tools: "B",
-  how: 'Prove it with origin https://pentrix.lab.evil.com, which passes the regex but is not under pentrix.lab.',
+  hints: ["The allowlist is the regex ^https://.*pentrix\\.lab. In Burp Repeater, request /cors/api/data with an Origin header and watch which origins come back echoed.", "No subdomain boundary and no end anchor: the check matches strings, not domain boundaries. Fire up Intruder (Sniper) over the Origin header with a small list of origins.", "An origin that merely contains the expected string instead of sitting under it passes. The endpoint echoes whatever you send, and the reflected winner earns the flag."],
+  tools: "BZ, B",
+  how: 'Burp Repeater: GET /cors/api/data and fuzz the Origin header (Intruder Sniper with a list of origins). Origin https://pentrix.lab.evil.com passes the regex and is reflected with credentials; or prove via /cors/prove?vuln=cors-regex&origin=https://pentrix.lab.evil.com',
   link: '/cors#cors-regex',
-  start: 'curl -si -H "Origin: https://pentrix.lab.evil.com" http://localhost:3000/cors/api/data',
+  start: 'Burp: send GET /cors/api/data to Repeater, mark the Origin header value in Intruder (Sniper), and fuzz it with origins like https://evil.com, https://pentrix.lab, and https://pentrix.lab.evil.com.',
 };
 
 // GET /cors/api/data -> weekly security metrics. The CORS check is a naive
@@ -57,7 +57,7 @@ router.get('/regex', (req, res) => {
     <div class="clay-card">
       <h2>API and origin checker</h2>
       <p>Raw endpoint: <a href="/cors/api/data"><code>/cors/api/data</code></a></p>
-      ${payloadBlock('Try it raw', 'curl -si -H "Origin: https://pentrix.lab.evil.com" http://localhost:3000/cors/api/data')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/data HTTP/1.1\nHost: localhost:3000\nOrigin: https://pentrix.lab.evil.com\n\n')}
       <p>The checker sends a real request to the endpoint with the Origin you
       type and shows the exact response headers, the same check a browser
       performs before allowing a cross-origin read.</p>

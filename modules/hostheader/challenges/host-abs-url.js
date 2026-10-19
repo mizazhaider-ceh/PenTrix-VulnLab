@@ -59,8 +59,9 @@ router.get('/login', (req, res) => {
       ${payloadBlock('Continue URL', absolute)}
       ${loginForm(cont)}
       <p class="dim"><b>Demo accounts:</b> alice / alice123, bob / bob123.
-      Tip: sign in with a poisoned <code>Host</code> header and watch where the
-      302 goes (<code>curl -i</code>).</p>
+      Tip: poison the <code>Host</code> header on the login request in
+      Repeater, log in, and read the 302 <code>Location</code> header in the
+      response to see where it points.</p>
     `)}
     ${hintLadder(vuln)}
     ${navRow([])}
@@ -108,11 +109,15 @@ const vuln = {
   name: 'Absolute Continue URL',
   difficulty: 'Easy',
   hint: 'The login page renders an absolute continue URL built from Host, and the post-login 302 uses it too.',
-  hints: ["After login, the continue URL is absolute and built from Host.", "The 302 Location is built from your Host header with no allowlist. Claim a host you control and watch where the post-login redirect sends the browser.", "Sign in with a Host header naming a domain you control. The key insight: the app never checks your Host against any allowlist, so whatever host you claim becomes the destination of the post-login 302."],
-  tools: 'B, C',
-  how: 'Log in at /hostheader/login with Host: evil.com and watch the 302 Location point at evil.com.',
+  hints: [
+    "In Repeater, POST /hostheader/login and change only the Host header before sending.",
+    "The 302 Location is built from your Host header with no allowlist. Claim a host you control and watch where the post-login redirect points.",
+    "The key insight: the app never checks your Host against any allowlist, so the 302 destination becomes whatever host you name.",
+  ],
+  tools: 'BZ, B',
+  how: 'In Burp Repeater, POST /hostheader/login with the Host header set to a domain you control, then read the 302 Location in the response.',
   link: '/hostheader#host-abs-url',
-  start: 'curl -i -d "username=alice&password=alice123" http://localhost:3000/hostheader/login',
+  start: 'Open Burp, proxy the login page in your browser, send the sign-in request to Repeater, edit the Host header, and log in as alice / alice123.',
 };
 
 module.exports = { vuln, router };

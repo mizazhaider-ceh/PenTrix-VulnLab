@@ -18,11 +18,11 @@ const vuln = {
   name: 'JSONP Data Theft',
   difficulty: 'Medium',
   hint: 'Classic script tags ignore the Same-Origin Policy. Open the attacker page and watch it steal the feed.',
-  hints: ["JSONP is cross-origin by design. The feed has a per-session secret.", "Include the feed via <script> on your attacker page. The callback gets the secret.", "Beacon the secret to prove the cross-origin read."],
-  tools: "B, DT",
-  how: 'Visit /jsonp/attacker so its script tag pulls /jsonp/data and beacons the secret to /jsonp/beacon.',
+  hints: ["Proxy your browser through Burp and open /jsonp/attacker. In Proxy history you will see a script tag pull the victim feed cross-origin.", "Open the /jsonp/data response in Proxy: the callback argument carries the user's data, including the per-session secret.", "Find the POST to /jsonp/beacon in Proxy history, send it to Repeater, and replay it: the response carries the flag."],
+  tools: "BZ, B",
+  how: 'Load /jsonp/attacker in a browser proxied through Burp: the page pulls /jsonp/data with a script tag and beacons the stolen secret to /jsonp/beacon. The beacon response awards the flag, and replaying it in Repeater works too.',
   link: '/jsonp#csrf-data',
-  start: 'curl -s "http://localhost:3000/jsonp/data?callback=show"\n# then open http://localhost:3000/jsonp/attacker in a browser and watch the feed get stolen',
+  start: 'Browse to /jsonp/attacker through Burp Proxy and watch Proxy history: the page pulls /jsonp/data with a script tag and beacons the stolen secret to /jsonp/beacon. Send that beacon request to Repeater and replay it to see the flag in the response.',
 };
 
 // JSONP feed carrying the victim's data, including the per-session secret.

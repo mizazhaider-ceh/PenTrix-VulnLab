@@ -14,11 +14,11 @@ const vuln = {
   name: 'XXE in SOAP Endpoint',
   difficulty: 'Easy',
   hint: 'A second XML endpoint with the same naive parser, this time expecting a SOAP envelope. The DOCTYPE rides along the same way.',
-  hints: ["SOAP messages are XML envelopes. Does this SOAP endpoint parse entities?", "Same XXE as the basic lab, wrapped in a SOAP envelope. The parser doesn't care about the wrapper.", "Send the file-read entity payload inside a SOAP <Envelope>."],
-  tools: "C",
-  how: 'Send a SOAP envelope whose DOCTYPE declares a file:// entity for secret.txt and references it inside <soap:Body>.',
+  hints: ["Proxy your browser through Burp and open the SOAP console at /xxe/soap. Submit the form once, find POST /xxe/soap in Proxy HTTP history, and send it to Repeater so you have a baseline you can replay.", "SOAP messages are XML envelopes, but the parser does not care about the wrapper: your DOCTYPE rides along the same way. In Repeater, add a DOCTYPE that declares a file-reading entity for the module's secret.txt (absolute file:// path).", "Reference the new entity inside <soap:Body> and send. The response page echoes the Body content back; when the secret shows up there, the flag box appears. Key insight: change only the xml form field, and keep the SOAP envelope structure intact."],
+  tools: "BZ, B, C",
+  how: 'In Burp Repeater, send a SOAP envelope whose DOCTYPE declares an external entity with a file:// URI for secret.txt, and reference that entity inside <soap:Body>.',
   link: '/xxe#xxe-soap',
-  start: 'curl -s http://localhost:3000/xxe/soap\ncurl -s -X POST --data-urlencode "xml=<soap:Envelope><soap:Body><GetStatus>hi</GetStatus></soap:Body></soap:Envelope>" http://localhost:3000/xxe/soap',
+  start: 'Proxy your browser through Burp and open the SOAP console at /xxe/soap. Click "Call service" once with the sample envelope, find the POST /xxe/soap request in Proxy HTTP history, send it to Repeater, then replace the xml form field with your SOAP payload and send.',
 };
 
 const chrome = (crumb) => ({

@@ -12,11 +12,11 @@ const vuln = {
   name: 'Null Origin Trusted',
   difficulty: 'Medium',
   hint: 'Only one origin value is trusted here, and it is the one sandboxed iframes and file:// pages send.',
-  hints: ["The API trusts Origin: null with credentials. When is the origin null?", "Sandboxed iframes and file:// pages send Origin: null.", "Give your attacker page a null origin, then fetch with credentials. The key detail: an iframe with a plain sandbox attribute (no allow-same-origin) loses its real origin, which is exactly what the API trusts."],
-  tools: 'B',
-  how: 'Prove it: /cors/prove?vuln=cors-null&origin=null',
+  hints: ["In Repeater, add an Origin header to GET /cors/api/settings and send a few values. Watch the response headers: only one literal value earns Access-Control-Allow-Origin plus Access-Control-Allow-Credentials.", "The winning value is the string null. Real browsers send it from sandboxed iframes (no allow-same-origin) and file:// pages.", "Send Origin: null in Repeater, confirm the Access-Control-Allow-Origin: null response header, then collect the flag in the Burp proxy browser at /cors/prove?vuln=cors-null&origin=null."],
+  tools: 'BZ, B',
+  how: 'Burp proxy browser: open /cors/prove?vuln=cors-null&origin=null; the header check awards the flag',
   link: '/cors#cors-null',
-  start: 'curl -si -H "Origin: null" http://localhost:3000/cors/api/settings',
+  start: 'Repeater: send GET /cors/api/settings with a literal Origin: null header and read the response headers',
 };
 
 // VULN: Origin "null" (sandboxed iframes, file:// pages, redirects) is trusted
@@ -46,7 +46,7 @@ router.get('/null-origin', (req, res) => {
     <div class="vuln-card">
       <h3>Live endpoint</h3>
       <p><a href="/cors/api/settings"><code>/cors/api/settings</code></a></p>
-      ${payloadBlock('Try it raw', 'curl -si -H "Origin: null" http://localhost:3000/cors/api/settings')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/settings HTTP/1.1\nHost: localhost:3000\nOrigin: null\n\n')}
     </div>
     <p>Only <code>Origin: null</code> is trusted here (with credentials). Prove
     it with exactly that origin.</p>

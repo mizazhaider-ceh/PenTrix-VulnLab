@@ -20,11 +20,11 @@ const vuln = {
   name: 'Cache Deception',
   difficulty: 'Medium',
   hint: 'The cache key is the path only. Cache the victim\'s personalized CSS, then fetch it as someone else.',
-  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. What happens?", "Log in as alice, visit the CSS (caches her version), then fetch it as someone else. You get her data.", "Prime the cache with alice's version of the stylesheet, then request the same path from a fresh session that is not logged in. The key insight: the cache key is the path alone, so the second request is served her personalized copy, and the flag rides in its response headers, not the body."],
-  tools: 'B, C',
-  how: 'As alice, visit /http/account.css; then fetch it again in a fresh session to read her data.',
+  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. In Burp Repeater, request the CSS twice in different sessions and compare the raw responses.", "Use Burp Proxy with a browser: log in as alice in one window and open the stylesheet to prime the cache, then fetch the same path from a fresh session (a private window or a cookie-less Repeater tab).", "The cache key is the path alone, so the second request is served alice's personalized copy. The flag rides in the X-Flag response header, not the body, so inspect the response headers in Repeater."],
+  tools: 'BZ, B, C',
+  how: 'Poison the cache as alice (log in, then GET /http/account.css), then fetch /http/account.css from a fresh Burp session and read the X-Flag response header.',
   link: '/http#cache-deception',
-  start: 'curl -s -c alice.jar http://localhost:3000/http/cache-login?user=alice\ncurl -s -b alice.jar -c alice.jar http://localhost:3000/http/account.css\ncurl -s -i http://localhost:3000/http/account.css | grep -i x-flag',
+  start: 'Send your browser through Burp Proxy. 1) Log in as alice and visit /http/account.css to cache her personalized stylesheet. 2) Open a fresh session with no cookies (private window, or a cookie-less Repeater tab) and request /http/account.css again. 3) Read the X-Flag response header.',
 };
 
 // GET /cache -> the CDN demo dashboard: who you are, the two-step attack
@@ -64,10 +64,10 @@ router.get('/cache', (req, res) => {
       <li>As the <b>victim</b>: log in as alice, then open
         <a href="/http/account.css" target="_blank" rel="noopener"><code>/http/account.css</code></a>.
         The CDN caches her personalized response.</li>
-      <li>As the <b>attacker</b>: in a fresh session (private window, or <code>curl</code>
-        without her cookie), request the same URL.</li>
+      <li>As the <b>attacker</b>: in a fresh session (a private window, or a
+        cookie-less Repeater tab), request the same URL.</li>
     </ol>
-    ${payloadBlock('Attack flow (curl)', 'curl -s -c alice.jar http://localhost:3000/http/cache-login?user=alice\ncurl -s -b alice.jar -c alice.jar http://localhost:3000/http/account.css\ncurl -s -i http://localhost:3000/http/account.css | grep -i x-flag')}
+    ${payloadBlock('Attack flow (Burp)', '1. Burp Proxy: log in as alice, then visit /http/account.css to poison the cache.\n2. Repeater: GET /http/account.css from a fresh cookie-less session.\n3. Read the X-Flag header in the Repeater response.')}
   </div>`;
 
   const cacheCard = `<div class="card">
@@ -82,7 +82,7 @@ router.get('/cache', (req, res) => {
         <div class="card-top"><b>Capture</b></div>
         <p class="note">When you pull someone else's cached stylesheet, the flag is returned in the
         <code>X-Flag</code> response header and saved to your scoreboard. (The response is CSS, not HTML,
-        so the header only shows in devtools or with <code>curl -i</code>.)</p>
+        so the header only shows in devtools or in the Repeater response headers.)</p>
       </div>`;
 
   res.send(page('CDN cache demo', appShell('SpeedEdge CDN', `

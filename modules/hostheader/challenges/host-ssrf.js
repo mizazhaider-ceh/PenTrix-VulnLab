@@ -101,11 +101,11 @@ const vuln = {
   name: 'SSRF via Host Header',
   difficulty: 'Medium',
   hint: 'The health check fetches http://<Host>/hostheader/internal/metrics server-side. A loopback-only agent on 127.0.0.1:13919 holds secrets.',
-  hints: ["The health check builds a URL from the Host header. What URL?", "The fetch target is http://<Host>/hostheader/internal/metrics, and the page tells you where the loopback-only agent listens. Make the server's fetch reach that agent by choosing Host accordingly.", "Point the Host header at the loopback address and port the internal agent listens on, so the server-side fetch reaches it. The key insight: the fetch runs from the server's network position, so an address your browser could never reach becomes reachable when the server fetches it."],
-  tools: 'C',
-  how: 'GET /hostheader/status with Host: 127.0.0.1:13919 so the server fetches the internal agent for you.',
+  hints: ["The health check builds a URL from the Host header. Send the request to Repeater in Burp and check which URL the page says the server will fetch.", "The fetch target is http://<Host>/hostheader/internal/metrics, and the page names the loopback-only agent's address. In Repeater, edit the Host header so the server's fetch reaches that agent instead of the public site.", "Think about whose network the fetch runs from: the server's. Set the Host header in Repeater so the server-side fetch targets the internal agent. The key insight: an address your browser could never reach becomes reachable when the server fetches it."],
+  tools: 'BZ, C',
+  how: 'In Burp Repeater, send GET /hostheader/status with Host: 127.0.0.1:13919 so the server fetches the loopback-only internal agent for you.',
   link: '/hostheader#host-ssrf',
-  start: 'curl -s http://localhost:3000/hostheader/status\ncurl -s -H "Host: 127.0.0.1:13919" http://localhost:3000/hostheader/status',
+  start: 'Open /hostheader/status in the browser with Burp Proxy on, send the request to Repeater, then edit the Host header in Repeater and re-send until the upstream response shows the internal agent secrets.',
 };
 
 module.exports = { vuln, router };

@@ -18,11 +18,11 @@ const vuln = {
   name: 'Scope Tampering',
   difficulty: 'Easy',
   hint: 'The authorize request takes a scope parameter and the IdP never checks whether your role allows it. Ask for a scope that exceeds your own privileges.',
-  hints: ["You asked for a low scope, and the IdP took your word for it. What happens if you ask for a higher one?", "The IdP grants what you ask for without checking entitlement.", "Authorize while requesting a privilege level you were never assigned, exchange the code the normal way, then present the resulting token to the admin-only endpoint."],
-  tools: 'B, C',
-  how: 'Authorize with scope=admin as bob, exchange the code, then read /oauth/idp/admin-data.',
+  hints: ["In Burp's browser, log in as bob and authorize pentrix-spa once normally. In Proxy history, look at the authorize request: the scope is whatever was asked for, and nothing about the request proves your role.", "Send the token exchange request to Repeater and read the token response: the IdP issues the token with the requested scope, no entitlement check anywhere.", "Back in the browser, edit the scope parameter of the authorize request to a privilege level you were never assigned, approve it, exchange the code in Repeater, then present the resulting token to the admin-only endpoint from Repeater."],
+  tools: 'BZ, B, C',
+  how: 'In Burp, authorize as bob while requesting a scope you were never granted, exchange the code in Repeater, then call the admin-only endpoint with the admin-scoped token.',
   link: '/oauth#scope-upgrade',
-  start: 'curl -s "http://localhost:3000/oauth/idp/authorize?client_id=pentrix-spa&redirect_uri=http%3A%2F%2Fapp.pentrix.lab%2Fcallback&response_type=code&scope=admin"\ncurl -s -X POST http://localhost:3000/oauth/idp/token -d "client_id=pentrix-spa&code=<CODE>"\ncurl -s "http://localhost:3000/oauth/idp/admin-data?access_token=<TOKEN>"',
+  start: 'With Burp Proxy on, log in to the IdP as bob in the browser, authorize pentrix-spa once normally, and send the authorize request from Proxy history to Repeater.',
 };
 
 // GET /oauth/idp/admin-data -> admin-only resource. Checks that the token has
@@ -70,7 +70,17 @@ router.get('/scope-upgrade', (req, res) => {
         <li>Call <code>GET /oauth/idp/admin-data?access_token=...</code>.</li>
       </ol>
       ${payloadBlock('Authorize with scope=admin', 'http://localhost:3000' + href)}
-      ${payloadBlock('Token exchange + admin data', 'curl -s -X POST http://localhost:3000/oauth/idp/token -d "client_id=pentrix-spa&code=<CODE>"\ncurl -s "http://localhost:3000/oauth/idp/admin-data?access_token=<TOKEN>"')}
+      ${payloadBlock('Burp Repeater (token exchange)', `POST /oauth/idp/token HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
+
+client_id=pentrix-spa&code=<CODE>`)}
+      ${payloadBlock('Burp Repeater (admin data)', `GET /oauth/idp/admin-data?access_token=<TOKEN> HTTP/1.1
+Host: localhost:3000
+Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
+
+`)}
       <p class="dim">The flag is awarded when admin-data is read with an admin-scoped token held by a non-admin user.</p>
     </div>
     ${hintLadder(vuln)}

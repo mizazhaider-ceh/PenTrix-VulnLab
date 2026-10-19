@@ -22,7 +22,8 @@ router.get('/billion', (req, res) => {
       <p>Submit XML up to 3000 characters. The flag is awarded when your payload keeps the
       parser busy for more than <b>1.5 seconds</b>, or blows the expansion past <b>5 MB</b>.
       Your browser URL-encodes the form for you;
-      with curl, use <code>--data-urlencode</code> so the <code>&amp;</code> characters survive.</p>`)}
+      in Burp Repeater, URL-encode the body before sending so the
+      <code>&amp;</code> characters survive (select the body text, right-click, URL-encode).</p>`)}
     <form class="clay-card" method="POST" action="/xxe/billion">
       <div class="clay-field">
         <label for="xxe-billion-xml">XML payload</label>
@@ -77,11 +78,11 @@ module.exports = {
     name: 'Billion Laughs (Entity-Expansion DoS)',
     difficulty: 'Medium',
     hint: 'The billion endpoint expands internal entities recursively with no depth limit. Define entities that reference each other and watch the parse time.',
-    hints: ["Entities can reference other entities. What if they reference each other exponentially?", "Nested entity definitions multiply at parse time: a small document can expand into gigabytes of text. Think about how few nested definitions it takes to overwhelm a parser.", "Define a small cascade of entities where each level repeats the previous one many times, then reference the top level once in your document. Key insight: the parser has no depth or size cap here, so the expansion compounds until it crosses the flag threshold. Watch the parse time, not the output."],
-    tools: "C",
-    how: 'Submit nested <!ENTITY> definitions (lol, lol2 ... lol7) so expansion explodes exponentially and parse time exceeds 1.5s.',
+    hints: ["Start in Burp Proxy: capture a normal POST /xxe/billion request from the form so you have a baseline you can replay before changing anything.", "Send that request to Repeater. Entities can reference other entities; in Repeater, build a small cascade where each level repeats the previous one many times, then reference the top level once in your document body.", "Send the request and read the response: the result page reports how long the parser was busy and how large the expansion got. Tune the payload until the parse crosses the time or size threshold and the flag box appears."],
+    tools: "BZ",
+    how: 'In Burp Repeater, send nested <!ENTITY> definitions (lol, lol2 ... lol7) in the xml field so expansion explodes exponentially and parse time exceeds 1.5s.',
     link: '/xxe#xxe-billion-laughs',
-    start: 'curl -s http://localhost:3000/xxe/billion\ncurl -s -X POST --data-urlencode xml@payload.xml http://localhost:3000/xxe/billion',
+    start: 'Proxy your browser through Burp and open GET /xxe/billion. Submit the form once with plain XML, find the POST /xxe/billion request in Proxy HTTP history, send it to Repeater, then replace the xml field with your nested entity payload and send.',
   },
   router,
 };

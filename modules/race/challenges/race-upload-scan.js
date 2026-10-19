@@ -16,11 +16,11 @@ const vuln = {
   name: 'Beat the AV Scan (TOCTOU)',
   difficulty: 'Hard',
   hint: 'Uploaded files are served immediately, but a simulated AV scan deletes them 2 seconds later. The file exists in a window where it should not.',
-  hints: ["Uploaded files are scanned for 2 seconds, then deleted if bad. But the file is live during the scan.", "TOCTOU: fetch the file URL in the 2s window before the scanner deletes it.", "Upload, then immediately GET the file URL in a loop until you get it before deletion."],
-  tools: 'P, C',
-  how: 'Upload a file at /race/upload, then fetch /race/files/<name> before the 2-second scan deletes it.',
+  hints: ["The upload is scanned for 2 seconds, then deleted if bad, but the file is live during the scan. Upload through the form with Burp Proxy running.", "TOCTOU: capture the upload POST in Burp Proxy, note the file URL, and send it to Burp Repeater.", "Fetch the file URL in Repeater quickly after the upload, inside the 2-second scan window, before the scanner deletes it."],
+  tools: 'BZ, B',
+  how: 'Upload a file at /race/upload, then fetch /race/files/<name> with Burp Repeater inside the 2-second scan window, before the scanner deletes it.',
   link: '/race#race-upload-scan',
-  start: 'curl -s http://localhost:3000/race/upload | head -c 600',
+  start: 'Burp Proxy: upload a file with the form, send the file URL to Burp Repeater, and fetch it before the 2-second scan deletes it.',
 };
 
 // Challenge-local presentation: a clay app shell for the file vault screens.
@@ -61,7 +61,7 @@ router.get('/upload', (req, res) => {
     <section class="clay-card">
       <h2>Try it yourself</h2>
       <p>Upload, then fetch the file URL within 2 seconds, before the scan deletes it:</p>
-      ${payloadBlock('Upload then fetch fast', `curl -s -X POST http://localhost:3000/race/upload -d 'filename=secret.txt&content=top+secret+lab+data'\ncurl -s http://localhost:3000/race/files/secret.txt`)}
+      ${payloadBlock('Burp Repeater', '1. Send the upload POST to Repeater (Ctrl+R) and send it.\n2. Immediately open a second Repeater tab and GET the file URL before the scan deletes it.')}
     </section>
     ${hintLadder(vuln)}
     ${backLinks()}

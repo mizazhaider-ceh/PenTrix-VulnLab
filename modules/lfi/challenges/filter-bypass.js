@@ -51,11 +51,11 @@ module.exports = {
   vuln: {
     id: 'filter-bypass', name: 'Naive Filter Bypass', difficulty: 'Medium',
     hint: 'The download endpoint strips <code>../</code> only once. Craft an input where removing the inner <code>../</code> leaves a fresh traversal sequence behind, and check what the string becomes after a single strip.',
-    hints: ["The filter strips ../ once. What happens to ....// after one removal?", "The filter removes the traversal sequence once and never re-scans the result. If your input contains a traversal nested inside itself, the inner removal can rebuild the outer one. Work out the collapse on paper first.", "The filter removes ../ once and never re-scans the result. Build an input where removing the inner pattern leaves a fresh traversal sequence behind, then aim it at the docs folder."],
-    tools: "B, C",
-    how: 'Bypass the single-pass filter with ....//docs/secret.txt.',
+    hints: ["The filter strips ../ once. What happens to ....// after one removal? Send a normal download request to Burp Repeater first so you can iterate quickly.", "In Repeater, try a plain traversal and confirm it gets stripped. Then try the same traversal nested inside itself, and read the 'Contents of' line to see what the filter left behind.", "Work out on paper what remains after one removal of the inner pattern, then put that string in the file parameter in Repeater and aim it at the docs folder."],
+    tools: "BZ, B, C",
+    how: 'Bypass the single-pass filter with a nested traversal so the stripped result still carries .. and reads the secret via /lfi/download.',
     link: '/lfi/download?file=about.txt',
-    start: 'curl "http://localhost:3000/lfi/download?file=about.txt"',
+    start: 'In Burp, open /lfi/download?file=about.txt, intercept the request in the Proxy, send it to Repeater, and watch how the file parameter changes after the filter.',
   },
   router,
 };

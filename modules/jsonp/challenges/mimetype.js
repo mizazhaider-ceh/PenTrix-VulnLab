@@ -30,11 +30,11 @@ const vuln = {
   name: 'JSONP MIME Sniffing',
   difficulty: 'Easy',
   hint: 'The response is served as text/html, so the browser parses it as a document, not just script. Your injected markup must read the per-session token from the response text and beacon it to /jsonp/beacon-xss.',
-  hints: ["The JSONP is served as text/html. What does the browser do with it?", "It parses as a document. Your callback becomes HTML/JS.", "Request with an HTML-shaped callback and echo the token."],
-  tools: 'B',
-  how: 'Put an HTML tag in the callback and open the URL directly, e.g. <img src=x onerror="fetch(\'/jsonp/beacon-xss?v=mimetype&n=\'+document.body.innerHTML.match(/\\"token\\":\\"([a-f0-9]+)\\"/)[1])">.',
+  hints: ["In Burp Proxy, open /jsonp/snippet?callback=hello in the browser and watch the response in Proxy history. It is served as text/html, so the browser treats it as a document, not as a script. What happens to a callback value that looks like HTML?", "Send that request to Repeater and try an HTML-shaped callback value. The response text carries a per-session token; think about how code running in that document could read it and send it back.", "Load the Repeater-crafted URL in Burp's browser so the injected markup executes. Echo the token to /jsonp/beacon-xss and the beacon response shows the flag."],
+  tools: 'BZ, B',
+  how: 'Craft the /jsonp/snippet request in Repeater with an HTML-shaped callback, then open that URL in the browser: served as text/html, the response is parsed as a document and your markup runs. Read the per-session token from the response text and echo it to /jsonp/beacon-xss?v=mimetype&n=<token>; the beacon response shows the flag.',
   link: '/jsonp#mimetype',
-  start: 'curl -si "http://localhost:3000/jsonp/snippet?callback=cb"',
+  start: 'In Burp Proxy, open /jsonp/snippet?callback=hello in the browser and watch the response headers in Proxy history. Send the request to Repeater and try HTML-shaped callback values until the Repeater URL, opened in the browser, runs your markup; then echo the per-session token to /jsonp/beacon-xss?v=mimetype&n=<token>.',
 };
 
 module.exports = { vuln, router };

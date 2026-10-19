@@ -18,11 +18,11 @@ const vuln = {
   difficulty: 'Medium',
   path: 'ratelimit',
   hint: 'The limiter allows 5 requests, but it counts each request only after an async gap. A parallel burst all reads "0 used" at once.',
-  hints: ["The limit is 5 per window. But windows are checked per-request, not atomically.", "Burst 20 parallel requests. The counter doesn't keep up.", "Fire 20 parallel requests. Count > 5 proves the bypass."],
-  tools: 'P, C',
-  how: 'Hit POST /race/ratelimit/hit with 20 parallel requests so more than 5 are allowed in one window.',
+  hints: ["Send one POST /race/ratelimit/hit to Burp Repeater and replay it: the counter goes up by exactly one each time.", "Forward that request to Intruder and set the attack to send many concurrent requests in parallel mode.", "A burst of 20 parallel requests all reads the counter before it increments. An accepted count above 5 proves the bypass."],
+  tools: 'BZ, P, C',
+  how: 'Send a burst of 20 parallel POST requests to /race/ratelimit/hit inside one window. If more than 5 are accepted, the counter race is proven. In Burp this is one Intruder parallel-mode attack.',
   link: '/race#race-ratelimit',
-  start: 'curl -s http://localhost:3000/race/ratelimit\nseq 1 20 | xargs -P20 -I{} curl -s -X POST http://localhost:3000/race/ratelimit/hit',
+  start: 'Proxy the Rate-limited API page in Burp, send one POST /race/ratelimit/hit to Intruder, and run a single parallel-mode attack of 20 concurrent requests. Watch the accepted count climb past 5.',
 };
 
 // GET /race/ratelimit -> the API console showing the current window count.
@@ -46,9 +46,11 @@ router.get('/ratelimit', (req, res) => {
     </section>
     <section class="clay-card">
       <h3>Break it</h3>
-      <p>Click once and you are counted. Send 20 at the same instant and the
-      counter cannot keep up:</p>
-      <pre><code>seq 1 20 | xargs -P20 -I{} curl -s -X POST http://localhost:3000/race/ratelimit/hit</code></pre>
+      <p>Click once and you are counted. Send 20 at the exact same instant and
+      the counter cannot keep up: Proxy this page in Burp, send
+      <code>POST /race/ratelimit/hit</code> to Intruder, and run one
+      parallel-mode attack with 20 concurrent requests. Watch the accepted
+      count climb past 5.</p>
     </section>
     ${hintLadder(vuln)}
     ${backLink}

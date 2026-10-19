@@ -16,11 +16,11 @@ const vuln = {
   name: 'Negative Quantity Credit',
   difficulty: 'Easy',
   hint: 'The quantity field is never validated. What happens to the total if you "buy" fewer than zero hoodies?',
-  hints: ["The cart lets you set quantity. What if it's negative?", "Negative qty * price = negative total. The balance is credited.", "Order a quantity that flips the sign of the total. When the total goes negative, charging it credits your balance instead."],
-  tools: "B",
-  how: 'Order a negative quantity at /bizlogic/negative-qty so the shop credits your balance instead of charging it.',
+  hints: ["Catch the checkout POST in Burp Proxy's intercept tab before it reaches the server.", "The request body carries qty=1. Think about what the server computes with a value below zero.", "Forward the modified request from the Proxy. If the shop ends up owing you money, it pays you instead."],
+  tools: "BZ, B",
+  how: 'At /bizlogic/negative-qty, intercept the checkout POST in Burp Proxy, change qty to a negative number, forward it, and the shop credits your balance instead of charging it.',
   link: '/bizlogic#biz-negative-qty',
-  start: 'curl -s -X POST http://localhost:3000/bizlogic/negative-qty -d \'qty=-1\'',
+  start: 'Browse to the Negative Quantity challenge with Burp Proxy intercepting. Submit the checkout form, catch the POST in the Proxy, edit qty to a negative value, and forward it.',
 };
 
 router.get('/negative-qty', (req, res) => {

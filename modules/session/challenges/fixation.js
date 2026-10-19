@@ -17,14 +17,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: "The server keeps whatever session id you arrived with, even across login. Set the victim's cookie to a value you chose, then let them log in.",
   hints: [
-    'Log in, then check your session id. Did it change from before login?',
-    "The pre-login sid is kept after login. Fixate a victim's sid, wait for their login, then use it.",
-    "Get a sid, don't log in. Have the 'victim' (or yourself in another browser) log in with that sid. The sid is now authed.",
+    'In Burp Proxy, click the preset link on the fixation console, then find the request in Proxy HTTP history and read the Set-Cookie response header.',
+    'Send the preset request to Repeater. You now hold a lab_sid value that was chosen before any login happened.',
+    'In Repeater, replay the login POST as admin with that same lab_sid cookie attached. The response shows the sid did not change across login.',
   ],
-  tools: 'B, DT',
-  how: 'Fix the lab_sid cookie to a known value, log in as admin, and confirm the sid did not change.',
+  tools: 'BZ, B, DT',
+  how: 'Set the lab_sid cookie to a known value (with the preset link, or by editing the Cookie header in Repeater), log in as admin, and confirm the sid did not change.',
   link: '/session#fixation',
-  start: 'curl -s -c jar -b jar http://localhost:3000/session/fixation/preset\ncurl -s -b jar -c jar -d "username=admin&password=admin123" http://localhost:3000/session/fixation/login',
+  start: 'In Burp Proxy, open the fixation console and click "Set my session cookie to sid=attacker123". In Repeater, replay the login POST as admin with that same lab_sid cookie attached, then compare the session id shown before and after login.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).

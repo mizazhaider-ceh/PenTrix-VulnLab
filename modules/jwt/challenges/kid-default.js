@@ -81,11 +81,11 @@ const vuln = {
   name: 'Default Key for Missing kid',
   difficulty: 'Medium',
   hint: 'Tokens without a kid header fall back to a hardcoded default key. Developers pick very predictable defaults.',
-  hints: ["No kid header? The server falls back to a default key. What might it be?", "'default', 'secret', 'key'. Guessable.", "Send a token with no kid, signed with the guessed default key."],
-  tools: "N",
-  how: 'Guess the default key, sign a kid-less admin token with it, and submit it.',
+  hints: ["Proxy the browser, submit the token form once, and send that POST to Repeater so you can replay it.", "A token with no kid header falls back to a hardcoded default key. What tiny guessable key would a developer hardcode while testing?", "In Repeater, swap in a kid-less admin token signed with your guessed key and resend. A 403 means wrong guess, so try the next one."],
+  tools: "BZ, N",
+  how: 'Catch the token form in Burp Proxy, move it to Repeater, guess the hardcoded default key, sign a kid-less admin token with it, and resubmit.',
   link: '/jwt#kid-default',
-  start: 'curl -s http://localhost:3000/jwt/kiddefault\nnode -e "const jwt=require(\'jsonwebtoken\'); console.log(jwt.sign({user:\'guest\',role:\'admin\'},\'<guessed-key>\',{algorithm:\'HS256\'}))"',
+  start: 'Open http://localhost:3000/jwt/kiddefault in your browser with Burp Proxy on, submit the token form once, then send that request to Repeater and work from there.',
 };
 
 // --------------------------------------------------------------- challenge

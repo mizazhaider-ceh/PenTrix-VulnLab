@@ -19,11 +19,11 @@ const vuln = {
   name: 'Userinfo bypass',
   difficulty: 'Easy',
   hint: 'The allowlist looks for the trusted string anywhere in the URL. What comes before @ is userinfo, not the host.',
-  hints: ["URLs can carry credentials before the @ sign. A naive blocklist reads the left side of the URL; the URL parser connects to the right side.", "The blocklist sees the trusted name and allows it, but the URL parser treats everything before @ as credentials and connects to the host after it.", "Put a trusted-looking name before the @ and the real loopback target after it, aimed at the internal secret path."],
-  tools: "C",
-  how: 'Fetch http://pentrix.lab@127.0.0.1:PORT/ssrf/internal/secret via /ssrf/userinfo.',
+  hints: ["In Burp Proxy, browse the userinfo page and submit any partner URL; send the intercepted request to Repeater so you can edit the url parameter freely.", "In Repeater, try a URL with no trusted string and read the 403. Then try one where the trusted string sits anywhere in the URL: it passes.", "In Repeater, remember what @ means in a URL: everything before it is userinfo, so the parser connects to the host after it. Put the trusted name before @ and the loopback target after it."],
+  tools: "BZ, C",
+  how: 'In Burp Repeater, GET /ssrf/userinfo with the url parameter set to a URL whose userinfo carries the trusted domain while the real host is the loopback internal secret path.',
   link: '/ssrf#ssrf-userinfo',
-  start: 'curl -s "http://localhost:3000/ssrf/userinfo?url=http://pentrix.lab/"',
+  start: 'Browse to http://localhost:3000/ssrf/userinfo through Burp Proxy, submit any partner URL in the form, and send the intercepted request to Repeater. Watch the 403 for URLs without the trusted string, then experiment with the url parameter in Repeater; the flag appears on the page when the check is bypassed.',
 };
 
 const APP_NAME = 'VendorPulse';

@@ -4,7 +4,7 @@
 // pre-sale stock level and the shop sells more than it owns.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel, hintLadder } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, hintLadder, payloadBlock } = require('../../../lib/page');
 const { award, captured } = require('../../../lib/flags');
 // Module-level race plumbing lives in ../shared.js (see final report): the
 // shared state getter, the check-to-use sleep window, and the back link.
@@ -18,11 +18,11 @@ const vuln = {
   difficulty: 'Easy',
   path: 'stock',
   hint: 'Only 5 items in stock. The stock check and the decrement are separated by a gap. Two orders of 5 at the same time...',
-  hints: ["Only 5 items in stock. But buys aren't serialized.", "Parallel buys all see 'in stock' and all decrement. Oversell.", "Buy in parallel 10 times. Sold > 5."],
-  tools: 'P, C',
-  how: 'Buy with parallel POSTs at /race/stock whose quantities total more than the 5 items in stock.',
+  hints: ["Only 5 items in stock. But buys aren't serialized. Confirm in Burp Repeater that one order of 5 works and shows the items sold count.", "Repeater sends one request at a time, and a race needs many at once. Send the buy request to Intruder and raise the concurrent request count.", "The await between the stock check and the decrement is the window. Fire a burst of parallel orders of 5 so every one passes the check against the same stock level, pushing total sold above 5."],
+  tools: 'BZ, C',
+  how: 'Fire a burst of parallel orders at /race/stock/buy whose quantities total more than the 5 items in stock, so every order passes the stock check before any decrement lands and the shop oversells.',
   link: '/race#race-stock',
-  start: 'curl -s http://localhost:3000/race/stock\nseq 1 2 | xargs -P2 -I{} curl -s -X POST http://localhost:3000/race/stock/buy -d \'qty=5\'',
+  start: 'Capture one POST /race/stock/buy in Burp, then send it to Intruder and run the attack with concurrent requests enabled.',
 };
 
 // GET /race/stock -> the gadget shop page.
@@ -51,7 +51,7 @@ router.get('/stock', (req, res) => {
       <h3>Break it</h3>
       <p>Two parallel orders of 5 when only 5 exist. The stock check races the
       decrement and the shop oversells:</p>
-      <pre><code>seq 1 2 | xargs -P2 -I{} curl -s -X POST http://localhost:3000/race/stock/buy -d 'qty=5'</code></pre>
+      ${payloadBlock('Burp Intruder', 'Send the buy POST to Intruder (Ctrl+I), set payloads/threads for 2 parallel requests, start the attack and watch the responses.')}
     </section>
     ${hintLadder(vuln)}
     ${backLink}

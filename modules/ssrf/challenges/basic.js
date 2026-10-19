@@ -15,12 +15,12 @@ const vuln = {
   id: 'basic',
   name: 'Basic SSRF',
   difficulty: 'Medium',
-  hint: 'The server fetches whatever URL you give it. What does 127.0.0.1 mean from the server\'s point of view?',
-  hints: ["The app fetches a URL you provide and shows you the result. What can the server reach that you can't?", "The server is inside the network. Give it an internal URL (127.0.0.1) and it will fetch it for you.", "Think from the server's point of view: the internal secret lives on its own loopback interface. Feed the fetcher a loopback URL aimed at the internal secret path, and the server-side request will return the internal marker."],
-  tools: "B, C",
-  how: 'Point the fetcher at http://127.0.0.1:PORT/ssrf/internal/secret.',
+  hint: 'Proxy the FetchBox page in Burp and watch what happens: the server fetches whatever URL you give it. What does 127.0.0.1 mean from the server\'s point of view?',
+  hints: ["With Burp Proxy on, submit a harmless URL in the FetchBox form and watch the fetch request. The app fetches a URL you provide and shows you the result. What can the server reach that you can't?", "Send the /ssrf/fetch request to Burp Repeater. The server is inside the network, so 'local' means its own loopback. What does 127.0.0.1 mean from the server's point of view?", "In Repeater, aim the url parameter at the loopback interface on the lab port and at the internal secret path. The server-side request will return the internal marker."],
+  tools: "BZ, C",
+  how: 'In Burp Repeater, point the fetcher at http://127.0.0.1:PORT/ssrf/internal/secret and send.',
   link: '/ssrf#basic',
-  start: 'curl -s "http://localhost:3000/ssrf/fetch?url=http://example.com/"',
+  start: 'With Burp Proxy on, open FetchBox (/ssrf), submit a harmless URL in the form, then send the fetch request to Repeater and tweak the url parameter.',
 };
 
 // Fetch a URL server-side with a hard timeout. Resolves with the raw body
@@ -91,7 +91,7 @@ function resultPage(title, req, url, body, err, modId, vulnId, opts = {}) {
   </div>`;
   const bodyHtml = appShell('FetchBox', form + `<div class="card">${inner}</div>
     ${hintLadder(vuln)}
-    ${toolsPill(vuln.tools)}
+    ${toolsPill(vuln)}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssrf">&larr; Back to the SSRF module</a></p>`, { mark: '🔗', nav: ['Preview', 'History', 'API'] });
   return page(title, bodyHtml);
 }

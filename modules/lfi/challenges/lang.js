@@ -48,11 +48,11 @@ module.exports = {
   vuln: {
     id: 'lang', name: 'Language Parameter Traversal', difficulty: 'Easy',
     hint: 'The <code>lang</code> parameter picks a file from <code>docs/lang/</code> with no validation. It is just another filename: climb one level and name the secret.',
-    hints: ["The language parameter picks a file. Is it validated?", "The lang parameter is another file path. Traversal works there too.", "The lang parameter picks a file from docs/lang/ with no validation. Climb out of that folder and name the secret the same way you would in the main viewer."],
-    tools: "B, C",
-    how: 'Traverse out of docs/lang/ via the lang parameter on /lfi/lang.',
+    hints: ["The language parameter picks a file. Is it validated? Proxy the request and look at the lang parameter in Repeater.", "The lang parameter is another file path. Traversal works there too: in Repeater, climb one level out of the folder.", "The lang parameter picks a file from docs/lang/ with no validation. Climb out of that folder in Repeater and name the secret the same way you would in the main viewer."],
+    tools: "BZ, B, C",
+    how: 'Send the /lfi/lang request to Repeater and traverse out of docs/lang/ with the lang parameter until the secret shows its marker.',
     link: '/lfi/lang?lang=en',
-    start: 'curl "http://localhost:3000/lfi/lang?lang=en"',
+    start: 'Browse to /lfi/lang with Burp Proxy intercept on, forward the request, then send it to Repeater (Ctrl+R) and edit the lang parameter there.',
   },
   router,
 };

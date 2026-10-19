@@ -42,12 +42,12 @@ module.exports = {
     hints: [
       'Your input lands inside an HTML attribute: value="...". The quote character is not escaped. What can you do with an unescaped quote?',
       'Close the attribute with ">, then open a new tag. You are breaking out of the attribute context into the HTML body context.',
-      'Submit a double quote and a closing angle bracket, followed by a script tag that calls /xss/collect (parameters c, v=xss-attr-breakout and n=window.__px).',
+      'In Burp Repeater, build the request with your breakout expression in the n parameter and inspect the reflected markup in the response. Then load the final request URL in the browser and watch for the /xss/collect hit.',
     ],
-    tools: 'B',
-    how: 'Submit "> followed by a script tag carrying the exfiltration payload (v=xss-attr-breakout).',
+    tools: 'BZ, B',
+    how: 'Break out of the attribute with an unescaped quote, then open a script tag that calls /xss/collect for v=xss-attr-breakout. Craft the request in Burp Repeater, then load the final URL in the browser so the injected script runs and fires the beacon.',
     link: '/xss/attr',
-    start: 'curl -s "http://localhost:3000/xss/attr?n=nightowl" | grep -n nightowl',
+    start: 'Proxy the page through Burp, then send the request to Repeater. Watch how n reflects inside value="..." in the response. Tweak n in Repeater until the reflection shows your breakout markup, then paste the Repeater URL into the browser to fire the beacon.',
   },
   router,
 };

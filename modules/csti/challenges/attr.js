@@ -18,14 +18,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: 'The server entity-encodes your text into the value attribute, but the browser decodes it with getAttribute before the engine evaluates it. Encoding does not stop client-side evaluation.',
   hints: [
-    "The template is inside an HTML attribute. When is it evaluated?",
-    "After HTML decoding. The attribute value becomes template code.",
-    "Inject into the attribute so the decoded value is a template expression whose result proves evaluation: an arithmetic result is enough.",
+    "The template sits inside an HTML attribute. Watch the badge text POST in Burp Proxy: the response shows how the server encodes the value attribute.",
+    "Send the save request to Repeater and vary the tpl value. The decoding that matters happens in the browser, not on the server.",
+    "Reload the page in the browser after saving. If the badge renders the arithmetic result, check Proxy history for the beacon the page fires automatically.",
   ],
-  tools: 'B, DT',
-  how: 'Save {{7*7}} as the badge text; the attribute decodes and the engine renders 49.',
+  tools: 'BZ, B, DT',
+  how: 'Save {{7*7}} as the badge text through Burp Proxy or Repeater; on page reload the browser decodes the attribute value and the client-side engine renders 49, firing the beacon with the page token.',
   link: '/csti#attr',
-  start: 'curl -s -c jar http://localhost:3000/csti/attr\n# Browser lab: open http://localhost:3000/csti/attr, save badge text, and watch the attribute decode and evaluate.',
+  start: 'Start Burp Proxy with your browser pointed at http://localhost:3000/csti/attr. Intercept the Save badge text POST, experiment with the tpl value in Repeater, save it, then reload the page in the browser and watch the beacon fire in Proxy history.',
 };
 
 // The naive client-side template engine, served to the lab page.

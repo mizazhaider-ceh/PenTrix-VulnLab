@@ -14,11 +14,11 @@ const vuln = {
   name: 'Crack the MD5',
   difficulty: 'Easy',
   hint: 'Unsalted MD5 of a weak password. The password is in the in-lab wordlist: hash every candidate until one matches.',
-  hints: ["The hash is unsalted MD5 of a dictionary word. What's the attack?", "Offline cracking with a wordlist (or hashcat).", "Hash every entry in the in-lab wordlist with MD5 until one matches the leak, then log in with it."],
-  tools: 'W, P',
-  how: 'Crack the hash with the wordlist, then log in with the password.',
+  hints: ["The hash is unsalted MD5 of a dictionary word. What's the attack?", "Copy the leaked hash and the in-lab wordlist into Repeater tabs.", "Hash every wordlist entry with MD5 until one matches the leak, then log in with it through Burp Proxy."],
+  tools: 'BZ, W, P',
+  how: 'Crack the unsalted MD5 with the in-lab wordlist, then log in with the recovered password.',
   link: '/crypto#crypto-md5-crack',
-  start: 'curl -s http://localhost:3000/crypto/md5\ncurl -s http://localhost:3000/crypto/md5/wordlist.txt',
+  start: 'Browse to the LegacyBox login page through Burp Proxy, then fetch the leaked hash and the wordlist in Repeater.',
 };
 
 // In-app chrome: the challenge reads as a small real product, not a harness.

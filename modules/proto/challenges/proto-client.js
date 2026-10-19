@@ -17,11 +17,11 @@ const vuln = {
   name: 'Client-Side Pollution',
   difficulty: 'Easy',
   hint: 'All the merging happens in your browser, not on the server. Open the demo link and watch the theme box change color.',
-  hints: ["The client-side code reads a theme parameter from the query string and merges it in your browser. The merge reaches the browser's shared prototype.", "The browser's Object.prototype gets polluted. The page renders the polluted value.", "Load the page with a query parameter that sets the theme key on the shared prototype, using any theme value other than the default. The page reports the reflected value to claim the flag."],
-  tools: "B",
-  how: 'Load the page with a __proto__[theme] parameter so it renders the polluted value; the page reports it for the flag.',
+  hints: ["In Burp, open the target in the built-in browser with Proxy on. The merge happens in the page\u2019s JavaScript, not on the server, so Proxy history only shows you the requests around it.", "Send the /proto/client request to Repeater. Craft a nested query parameter whose path reaches the shared prototype\u2019s theme key, with any value other than the default, and load the resulting URL in Burp\u2019s browser.", "Watch the theme box: the page renders the value it reads from a fresh {}, then reports that value to the claim endpoint itself. The flag arrives in the claim response in Proxy history."],
+  tools: "BZ, B, DT",
+  how: 'Send a request to /proto/client carrying a nested query parameter that lands the theme key on the browser\u2019s shared prototype, then load the crafted URL in a real browser (Burp\u2019s built-in browser works) so the page\u2019s script merges the parameter, renders the polluted value from a fresh {}, and the page reports it to the claim endpoint for the flag.',
   link: '/proto#proto-client',
-  start: 'curl -s "http://localhost:3000/proto/client" | grep -o "themeOut"\n# The merge runs in JavaScript in your browser, so open this in a real\n# browser: http://localhost:3000/proto/client?__proto__[theme]=dark',
+  start: 'Start Burp and open its built-in browser (Proxy tab, Open browser).\nNavigate to http://localhost:3000/proto/client and confirm the theme picker loads; check Proxy HTTP history for the request.\nSend the request to Repeater and add a nested query parameter that sets the theme key on the shared prototype to a non-default value.\nLoad the crafted URL in Burp\u2019s browser, watch the theme box render the polluted value, and find the flag in the claim response in Proxy history.',
 };
 
 // GET /proto/client -> the theme picker. Parses the browser's query string

@@ -16,11 +16,11 @@ const vuln = {
   name: 'Vote Counted Twice',
   difficulty: 'Easy',
   hint: 'One vote per name is enforced by checking first, then recording. Send two votes for the same name in parallel.',
-  hints: ["Votes check for duplicate names. But the check and insert aren't atomic.", "Simultaneous votes with the same name both pass the duplicate check.", "Send a burst of votes for the same name at the same instant and count the recorded votes. More than one vote for one name proves the duplicate check lost the race."],
-  tools: 'P, C',
-  how: 'POST two votes for the same name at /race/vote at the same instant so both pass the duplicate check.',
+  hints: ["Votes check for duplicate names, but the check and the insert are not atomic. Capture the vote POST in Burp Proxy and send it to Intruder.", "Burp Intruder fires requests in parallel: load the vote POST into Intruder, set concurrent threads, and submit the same name at the same instant.", "Watch the results table: more than one vote for one name proves the duplicate check lost the race."],
+  tools: 'BZ, C',
+  how: 'Send two or more votes for the same name at the same instant through Burp Intruder in parallel mode so both pass the duplicate check.',
   link: '/race#race-vote',
-  start: 'curl http://localhost:3000/race/vote\nseq 1 2 | xargs -P2 -I{} curl -s -X POST http://localhost:3000/race/vote -d \'name=voter1\'',
+  start: 'Burp Proxy: capture a vote POST for name=voter1, send it to Burp Intruder, and fire a burst of concurrent identical votes.',
 };
 
 // Challenge-local presentation: a clay card hero for the poll screen.
@@ -55,7 +55,7 @@ router.get('/vote', (req, res) => {
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
     <p>The duplicate check races the insert. Two parallel votes for the same name both get recorded:</p>
-    ${payloadBlock('Parallel votes', `seq 1 2 | xargs -P2 -I{} curl -s -X POST http://localhost:3000/race/vote -d 'name=voter1'`)}
+    ${payloadBlock('Burp Intruder', 'Send the vote POST to Intruder (Ctrl+I), set payloads/threads for 2 parallel requests, start the attack and watch the responses.')}
     ${backLinks()}
   `)));
 });

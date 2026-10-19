@@ -15,16 +15,16 @@ const vuln = {
   id: 'logout',
   name: 'Logout Does Not Destroy the Session',
   difficulty: 'Easy',
-  hint: 'Logging out should kill the server-side session. Here it only shows you a goodbye page. Replay the old cookie.',
+  hint: 'Logging out should kill the server-side session. Here it only shows you a goodbye page. Replay the old cookie in Repeater.',
   hints: [
-    'Log out, then try your old cookie on the admin page. What happens?',
-    "Logout flips a flag but the old cookie still works. The session isn't invalidated server-side.",
-    'Login, save the cookie, logout, then replay the old cookie.',
+    'With Burp Proxy running, log in as admin and log out in your browser. Which Cookie header did the browser send?',
+    "Send the logout request to Repeater, note the lab_sid value, then log out. The logout flips a flag but never deletes the session server-side.",
+    'In Repeater, replay the GET /session/logoutdemo/secret request with the old lab_sid cookie you captured before logging out.',
   ],
-  tools: 'B, DT',
-  how: 'Log in as admin, visit the logout link, then revisit the secret admin page with the same cookie.',
+  tools: 'BZ, B',
+  how: 'Log in as admin, capture the lab_sid cookie through Burp Proxy, log out, then replay the secret admin request in Burp Repeater with the same cookie.',
   link: '/session#logout',
-  start: 'curl -s -c jar -b jar -d "username=admin&password=admin123" http://localhost:3000/session/logoutdemo/login\ncurl -s -b jar -c jar http://localhost:3000/session/logoutdemo/logout\ncurl -s -b jar -c jar http://localhost:3000/session/logoutdemo/secret',
+  start: 'Open Burp Proxy and browse to http://localhost:3000/session/logoutdemo in your proxied browser. Log in as admin, then visit the logout page and watch which Cookie header the browser keeps sending.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).

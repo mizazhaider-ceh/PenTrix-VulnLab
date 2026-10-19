@@ -13,11 +13,11 @@ const vuln = {
   name: 'Support Ticket Impersonation',
   difficulty: 'Medium',
   hint: 'Tickets are sequential, and one of them belongs to admin. The support endpoint never checks that you are staff.',
-  hints: ["Support tickets have sequential IDs. What happens if you open someone else's ticket?", "Ticket IDs are predictable and there's no authorization check. Enumerate the ticket numbers until you land on the admin's.", "Find where the ticket number enters the request, then walk through the sequential IDs around the recent range. The key insight: the endpoint never checks you are staff, so each number drops you into the owner's session."],
-  tools: 'B, C',
-  how: 'Enumerate ticket numbers at /auth/support/login until you land an admin session.',
+  hints: ["Open someone else's ticket: which Burp step turns the ticket number into a variable you can walk?", "The ticket number is in the query string, and the page says tickets are sequential around the recent range. Send the request to Repeater and step through the numbers one by one.", "For the full sweep, send the request to Intruder, put the payload marker on the ticket value, load a numbers payload over the recent range, and look for the response that signs you in as someone important."],
+  tools: 'BZ, B',
+  how: 'Walk the sequential ticket numbers at /auth/support/login in Burp Repeater or Intruder until a response lands an admin session.',
   link: '/auth/support',
-  start: 'curl -c jar -b jar http://localhost:3000/auth/support',
+  start: 'Open http://localhost:3000/auth/support through the Burp proxy browser, submit a ticket number once, then send that request to Repeater.',
 };
 
 function ensureSupportTickets() {

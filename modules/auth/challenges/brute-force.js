@@ -11,12 +11,16 @@ const vuln = {
   id: 'brute-force',
   name: 'No Rate Limiting (Brute-Force Login)',
   difficulty: 'Medium',
-  hint: 'There is no rate limiting, no lockout, and no CAPTCHA. Alice\'s password is very weak. If a few tries don\'t work, script it: the counter resets only on success, and the flag lands when you finally log in as alice after at least 5 failed attempts in the same session.',
-  hints: ["The login has no rate limit, no lockout, no CAPTCHA. What does that mean for password guessing?", "Without throttling, you can try thousands of passwords. Alice's password is weak and guessable.", "Script the login attempts (or guess manually). The flag lands when you log in as alice after 5+ failed attempts in one session."],
-  tools: 'B, P',
-  how: 'Brute-force / guess alice\'s weak password; the flag is awarded once you log in as alice after 5+ failed attempts in one session.',
+  hint: 'There is no rate limiting, no lockout, and no CAPTCHA. Alice\'s password is very weak. Intercept the login POST in Burp Proxy and run an Intruder sniper attack over a small password wordlist; the flag lands when you finally log in as alice after 5+ failed attempts in the same session.',
+  hints: [
+    "The login has no rate limit, no lockout, and no CAPTCHA. Which Burp tool was built exactly for this job?",
+    "Send the login POST to Intruder and put a sniper payload marker on the password field, then load a small weak-password wordlist.",
+    "Keep one session cookie across every attempt (the failed sign-in counter is per browser session). Make sure at least 5 attempts fail before the right password hits.",
+  ],
+  tools: 'BZ, B',
+  how: 'Brute-force alice\'s weak password, for example with an Intruder sniper attack on the password field over a password wordlist; the flag is awarded once you log in as alice after 5+ failed attempts in the same session.',
   link: '/auth/login',
-  start: 'curl -i -c jar -b jar -d "username=alice&password=letmein" http://localhost:3000/auth/login',
+  start: 'Browse to /auth/login with Burp Proxy intercepting, submit the form once, then send the login POST to Intruder and set up a sniper attack on the password field.',
 };
 
 function loginView(req, opts) {

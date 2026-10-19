@@ -13,16 +13,16 @@ const vuln = {
   id: 'cmdi-braces',
   name: 'Ping Gadget v4 ($IFS blocked too)',
   difficulty: 'Medium',
-  hint: 'Spaces are stripped and the literal text $IFS is stripped as well. The braced form of a variable looks different to a naive string filter.',
+  hint: 'Spaces are stripped and the literal text $IFS is stripped as well. The braced form of a variable looks different to a naive string filter. Probe the host parameter in Repeater to see exactly which bytes the filter removes.',
   hints: [
-    "The filter strips the exact string $IFS. But variables have another spelling.",
-    "${IFS} is the braced form. A naive string filter looking for '$IFS' misses it.",
-    "Chain a read of the password file after the ping using a statement separator, writing the whole command with no literal spaces by using the braced variable spelling the filter misses. The response must contain the file's content.",
+    "In Repeater, send the host parameter carrying the exact text $IFS and read the page to see what the filter removed. It strips that literal string only. What other spelling of the same variable would not match?",
+    "Variables have a braced form that a naive string filter cannot see. Use Repeater's Decoder tab to check your encoding: the server must receive the spelling the filter misses, with no literal spaces anywhere in the value.",
+    "Chain a read of the password file after the ping with a statement separator, writing the whole command with no literal spaces by using the braced variable spelling the filter misses. Confirm the win in Repeater by spotting the file's real content in the response body.",
   ],
-  tools: 'B, C',
-  how: 'Use ${IFS} instead of $IFS, e.g. ?host=127.0.0.1;cat${IFS}/etc/passwd',
+  tools: 'BZ, B, C',
+  how: 'In Repeater, submit the ping request with the host parameter using the braced variable spelling that the naive string filter misses, with no literal spaces, and read the file content in the response.',
   link: '/cmdi/ping4',
-  start: 'curl "http://localhost:3000/cmdi/ping4?host=127.0.0.1"',
+  start: 'Open the Ping Gadget v4 page with Burp Proxy intercepting, submit a normal ping, send the request to Repeater, and probe the host parameter there.',
 };
 
 // GET /cmdi/ping4 -> v4 gadget: spaces and the literal string "$IFS" are stripped.

@@ -39,13 +39,13 @@ module.exports = {
     hint: 'A staff page listing the shop\'s members lives under the admin path, unlinked anywhere for normal users, but nothing stops you from typing a plausible address. Log in as alice or bob and browse to it directly.',
     hints: [
       'Some URLs are not linked in the UI. Does that mean the server blocks them?',
-      'Force-browse: type the staff URL directly. The server may not check your role on unlinked paths.',
-      'Sign in as alice or bob and request a path under /idor/admin/ that would plausibly list the shop\'s members.',
+      'Proxy a login as alice or bob, send the logged-in request to Repeater, then change only the request line path.',
+      'Force-browse: a path under /idor/admin/ would plausibly list the shop\'s members. The server may not check your role on unlinked paths.',
     ],
-    tools: 'B',
-    how: 'Force-browse /idor/admin/users as a non-admin user.',
+    tools: 'BZ, B',
+    how: 'Force-browse /idor/admin/users as a non-admin user: replay the member login session in Repeater with the path changed to the staff directory.',
     link: '/idor#function-browse',
-    start: 'curl -s -c jar -L http://localhost:3000/idor/login/bob\ncurl -s -b jar http://localhost:3000/idor/comments',
+    start: 'Open the IDOR shop in Burp\'s built-in browser and log in as bob. In Proxy history, send a logged-in request to Repeater, change the request path to the staff member directory under /idor/admin/, and send.',
   },
   router,
 };

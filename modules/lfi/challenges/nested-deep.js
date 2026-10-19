@@ -50,11 +50,11 @@ module.exports = {
   vuln: {
     id: 'nested-deep', name: 'Deep Nesting Bypass', difficulty: 'Easy',
     hint: 'This filter strips every <code>../</code> in one pass, but it never looks at the result again. Nest your dots so stripping creates a fresh traversal: work out what the string becomes after the single pass.',
-    hints: ["The filter does a one-pass global strip of ../. What about nested dots?", "One pass removes every occurrence and then stops. Nest a pattern inside itself so the removal assembles a fresh traversal from the leftovers. Sketch the collapse on paper before firing it.", "A one-pass global strip can be fooled by nesting. Arrange your dots and slashes so that stripping the inner ../ leaves a brand new traversal behind, and sketch the collapsed result on paper before you fire it."],
-    tools: "B, C",
-    how: 'Beat the one-pass global strip on /lfi/nested with nested dots.',
+    hints: ["The filter does a one-pass global strip of ../. What about nested dots?", "One pass removes every occurrence and then stops. Nest a pattern inside itself so the removal assembles a fresh traversal from the leftovers. Sketch the collapse on paper before firing it.", "Send the page parameter to Burp Repeater and nest dots and slashes so a single global strip rebuilds a traversal from the leftovers. Sketch the collapsed result on paper before you fire it."],
+    tools: "BZ, B",
+    how: 'Beat the one-pass global strip on /lfi/nested with nested dots, worked out and fired in Burp Repeater.',
     link: '/lfi/nested',
-    start: 'curl "http://localhost:3000/lfi/nested?page=readme.txt"',
+    start: 'Point your browser through Burp Proxy at http://localhost:3000, open /lfi/nested, and send the request to Repeater so you can tamper with the page parameter.',
   },
   router,
 };

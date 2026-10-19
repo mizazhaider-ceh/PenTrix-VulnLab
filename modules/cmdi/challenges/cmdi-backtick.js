@@ -12,16 +12,16 @@ const vuln = {
   id: 'cmdi-backtick',
   name: 'Ping Gadget v6 ($() blocked)',
   difficulty: 'Easy',
-  hint: 'The filter removes $(, killing the modern command-substitution syntax. The shell has an older syntax that does the same job.',
+  hint: 'The filter removes $(, killing the modern command-substitution syntax. The shell has an older syntax that does the same job. Probe the host parameter in Repeater to see which forms survive the filter.',
   hints: [
-    "The filter removes $(, killing modern command substitution. But shells are old. What came before $()?",
-    "Backticks are the legacy command-substitution syntax: whatever sits between a pair of them runs, and its output lands in place. The filter never mentions them.",
-    "Join the ping to a second statement with a separator, and inside your input use the legacy substitution syntax to run a command whose output gets dropped in place. The injected command's output must show up in the response for the flag to fire.",
+    "In Repeater, send a request carrying a $( substitution attempt and read the page to see what the filter removed. Then ask: which older substitution syntax does this filter never mention?",
+    "Command substitution has a legacy form older than $(): whatever sits between a pair of those marks runs, and its output lands in place. In Repeater, probe which of those characters survive the round trip (the URL-decode view shows you exactly what the server received).",
+    "Join the ping to a second statement with a separator, and wrap your injected command in the legacy substitution pair the filter ignores. Confirm in Repeater by reading the injected command's real output in the response body: the flag only fires when that output shows up.",
   ],
-  tools: 'B, C',
-  how: 'Use backticks for command substitution, e.g. ?host=127.0.0.1;echo `id`',
+  tools: 'BZ, B, C',
+  how: 'In Repeater, submit the ping request with the host parameter using the legacy command-substitution syntax the filter does not strip, then read the injected command output in the response.',
   link: '/cmdi/ping6',
-  start: 'curl "http://localhost:3000/cmdi/ping6?host=127.0.0.1"',
+  start: 'Open the Ping Gadget v6 page with Burp Proxy intercepting, submit a normal ping, send the request to Repeater, and probe the host parameter there.',
 };
 
 // GET /cmdi/ping6 -> v6 gadget: "$(" is stripped, backticks are not.

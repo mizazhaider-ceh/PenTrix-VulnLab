@@ -24,11 +24,11 @@ const vuln = {
   name: 'Verb Tampering',
   difficulty: 'Easy',
   hint: 'The docs say POST-only. Try the exact same request as a GET.',
-  hints: ["The docs say POST-only. But what happens if you send a GET?", "The GET route runs the same handler. The action fires.", "The GET route is wired to the same submit handler as POST. Replay the submission over GET, moving the form's parameter into the URL query, and the feedback is recorded without any POST at all."],
-  tools: 'B',
-  how: 'Submit feedback with GET instead of POST.',
+  hints: ["The docs say POST-only. Intercept a feedback submission in Burp Proxy and look at the request.", "In Burp Repeater, take the intercepted request, change the method to GET, and move the msg parameter into the URL query string.", "The GET route is wired to the same submit handler as POST. Replay the submission over GET, moving the form's parameter into the URL query, and the feedback is recorded without any POST at all."],
+  tools: 'BZ, B, C',
+  how: 'Replay the feedback submission over GET (move msg into the URL query) instead of POST.',
   link: '/http#verb-tamper',
-  start: 'curl -s -c jar -b jar "http://localhost:3000/http/feedback?msg=hi"',
+  start: 'Send your browser through Burp Proxy. 1) Open /http/feedback and submit the form, intercepting the POST. 2) Send the intercepted request to Repeater, change the method to GET, and move the msg parameter into the URL query string. 3) Send it and read the response.',
 };
 
 function feedbackSubmit(req, res) {

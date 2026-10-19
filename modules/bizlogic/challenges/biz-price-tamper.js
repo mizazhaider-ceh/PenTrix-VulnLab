@@ -16,11 +16,11 @@ const vuln = {
   name: 'Client-Side Price Tampering',
   difficulty: 'Easy',
   hint: 'View the page source: the price travels to the server in a hidden form field. The server never re-checks it against the catalog.',
-  hints: ["The price is in a hidden form field. Who controls hidden fields?", "You do. The server honors the submitted price as-is.", "The server charges whatever price the browser reports. Report a much smaller number than the catalog price and checkout."],
-  tools: "BZ, B",
-  how: 'Change the hidden price field at /bizlogic/price-tamper and buy the $50 hoodie for less.',
+  hints: ["The price is a hidden form field. Open the page in DevTools and see which value the browser actually submits.", "You control hidden fields. In Burp Repeater, change the price parameter to something below the catalog price.", "Lower the submitted price in Repeater and send the request. The server charges whatever number arrives, so watch the receipt line 'You paid'."],
+  tools: "BZ, B, DT",
+  how: 'Buy the $50 hoodie for less: tamper with the price parameter on the way to /bizlogic/price-tamper/buy in Burp Repeater. The server honors the submitted price without re-checking the catalog.',
   link: '/bizlogic#biz-price-tamper',
-  start: 'curl -s -X POST http://localhost:3000/bizlogic/price-tamper/buy -d \'product_id=hoodie&price=1\'',
+  start: 'In the browser, click "Buy now for $50" with Burp Proxy intercepting the POST to /bizlogic/price-tamper/buy. Send the intercepted request to Repeater and experiment with the price parameter.',
 };
 
 router.get('/price-tamper', (req, res) => {
@@ -32,8 +32,13 @@ router.get('/price-tamper', (req, res) => {
       <input type="hidden" name="price" value="50" />
       <button class="clay-btn clay-btn-primary" type="submit">Buy now for $50</button>
     </form>
-    <p class="note">View the page source: the price is a hidden form field. Try it with curl:</p>
-    <pre><code>curl -s -X POST http://localhost:3000/bizlogic/price-tamper/buy -d 'product_id=hoodie&price=1'</code></pre>
+    <p class="note">View the page source: the price is a hidden form field. Try it in Burp Repeater: click "Buy now for $50" with Proxy intercepting, send the request to Repeater with Ctrl+R, change <code>price</code>, and send.</p>
+    <div class="payload"><div class="payload-head"><span>Burp Repeater</span></div><pre class="payload-body">POST /bizlogic/price-tamper/buy HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 25
+
+product_id=hoodie&amp;price=1</pre></div>
     ${shared.backLink(s)}
   `));
 });

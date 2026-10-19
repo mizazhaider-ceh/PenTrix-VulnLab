@@ -22,11 +22,11 @@ const vuln = {
   name: 'Coupon Stacking Past 100%',
   difficulty: 'Medium',
   hint: 'Each coupon claims "one per order", but the discount math just adds every valid code together. 50 + 40 + 30 = ?',
-  hints: ["Coupons give % off. Can you use more than one?", "Percentages stack with no cap. 60% + 50% = 110% off (negative total).", "Stack coupons on one order until the total reaches zero or below. Each new code adds its percentage to the same pile, so keep piling until the discount crosses 100%."],
-  tools: 'B',
-  how: 'Apply SAVE50, SAVE40 and SAVE30 together at /bizlogic/coupon-stack so the discount exceeds 100%.',
+  hints: ["The coupon input says to separate multiple codes with commas or spaces, and the page lists three codes. What happens if you send more than one code? Try it in Burp Repeater.", "Each valid code's percentage is added to the same discount pile, with no cap. Percentages above 100% turn the total negative, and the shop owes you money.", "In Repeater, replay the POST /bizlogic/coupon-stack request and keep adding valid codes to the codes parameter until the discount crosses 100% and the receipt shows a negative total."],
+  tools: 'BZ, B',
+  how: 'Replay the checkout POST in Burp Repeater with multiple coupon codes in the codes field: the percentages add past 100%, the total drops to zero or below, and the flag is awarded.',
   link: '/bizlogic#biz-coupon-stack',
-  start: 'curl -s http://localhost:3000/bizlogic/coupon-stack | grep -o "SAVE[0-9]*" | sort -u\ncurl -s -X POST http://localhost:3000/bizlogic/coupon-stack -d \'codes=SAVE50,SAVE40,SAVE30\'',
+  start: 'Open the checkout page in the browser with Burp Proxy intercepting. Submit the coupon form once, send the POST /bizlogic/coupon-stack request to Repeater, then experiment with code combinations in the codes field until the discount stacks past 100%.',
 };
 
 router.get('/coupon-stack', (req, res) => {

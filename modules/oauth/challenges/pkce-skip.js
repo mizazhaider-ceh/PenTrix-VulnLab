@@ -15,11 +15,11 @@ const vuln = {
   name: 'PKCE Downgrade',
   difficulty: 'Medium',
   hint: 'The authorize endpoint accepts code_challenge, but the token endpoint never requires the code_verifier. Exchange a bound code without one.',
-  hints: ["The flow uses PKCE (code_challenge). But is the verifier checked?", "No. Exchange without a verifier.", "POST the token exchange with no code_verifier. It works."],
-  tools: 'C',
-  how: 'Authorize with a code_challenge, then exchange the code with no code_verifier parameter.',
+  hints: ["The flow uses PKCE (code_challenge). Send the token exchange through Burp Repeater so you control every parameter.", "In Repeater, replay the token POST with no code_verifier parameter at all. What does the IdP say back?", "The flag arrives in the token response JSON when a challenge-bound code is exchanged with a missing verifier."],
+  tools: 'BZ, B',
+  how: 'Authorize with a code_challenge in the browser, then replay the token POST in Burp Repeater with the code_verifier parameter removed.',
   link: '/oauth#pkce-skip',
-  start: 'curl -s -b jar -c jar http://localhost:3000/oauth/login/bob',
+  start: 'Open Burp and route your browser through the proxy. Log in to the IdP as bob, authorize with a code_challenge, then send the token exchange to Repeater.',
 };
 
 // Same code_challenge the original lab hands out.
@@ -51,7 +51,12 @@ router.get('/pkce-skip', (req, res) => {
           <b>no</b> <code>code_verifier</code> parameter at all:</li>
         </ol>
       </div>
-      ${payloadBlock('Token exchange without a verifier', "curl -s -X POST http://localhost:3000/oauth/idp/token \\\n  -d 'client_id=pentrix-spa&code=PASTE_YOUR_CODE_HERE'")}
+      ${payloadBlock('Burp Repeater (no verifier at all)', `POST /oauth/idp/token HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
+
+client_id=pentrix-spa&code=<CODE>`)}
       <p>The exchange succeeds even though the verifier is missing. The flag is
       awarded when a challenge-bound code is exchanged with no verifier, and it
       arrives inside the token response JSON, in the <code>flag</code> field.</p>

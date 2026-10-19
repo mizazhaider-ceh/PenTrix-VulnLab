@@ -14,14 +14,14 @@ const vuln = {
   difficulty: 'Medium',
   hint: 'Every space is deleted from your input, but the shell still needs word separators. Bash has a built-in variable that expands to whitespace.',
   hints: [
-    "Spaces are deleted from your input. But the shell needs word separators. What else expands to whitespace?",
-    "Bash's $IFS variable expands to whitespace. Use it where you'd put a space.",
-    "Chain a second command after the ping with a statement separator, replacing every space with the whitespace variable the filter forgot to strip. The award needs that command's output visible in the response, so read a file you will recognize.",
+    "Open the page in Burp's browser and submit a normal host, then send the request to Repeater. First try a space-containing injection and watch the response: every space vanishes.",
+    "In Repeater, think about where the host value lands in the shell command. The shell still needs word separators, and Bash has a built-in variable that expands to whitespace.",
+    "Chain a second command after the ping with a statement separator, writing every separator with the whitespace variable the filter forgot to strip. Send it in Repeater and read the response body: the flag is awarded only when the second command's real output shows up, so pick a command that prints something unmistakable.",
   ],
-  tools: 'B, C',
-  how: 'Replace spaces with $IFS, e.g. ?host=127.0.0.1;cat$IFS/etc/passwd',
+  tools: 'BZ, B',
+  how: 'In Repeater, rewrite the injection so every word separator is the shell whitespace variable the filter never strips, then confirm the response body carries the injected command real output before claiming the flag.',
   link: '/cmdi/ping3',
-  start: 'curl "http://localhost:3000/cmdi/ping3?host=127.0.0.1"',
+  start: 'Open the ping3 gadget in your browser (with Burp Proxy on), submit a plain host like 127.0.0.1, then push the request to Repeater.',
 };
 
 // GET /cmdi/ping3 -> v3 gadget: every space is stripped before the shell runs it.

@@ -22,11 +22,11 @@ const vuln = {
   name: 'Key in JavaScript',
   difficulty: 'Easy',
   hint: 'The frontend encrypts, so the frontend must know the key. Read the served JavaScript file.',
-  hints: ["The AES key is in the public JavaScript. Find it.", "It's in app.js or the page source. Extract it and decrypt offline.", "Get the key from the JS, decrypt the note ciphertext in Python, submit the plaintext."],
-  tools: 'DT, P',
-  how: 'Find the hardcoded AES key in app.js, decrypt the ciphertext offline, and submit the note.',
+  hints: ["The AES key is in the public JavaScript. Find it.", "Send the served app.js to Repeater and read the key constant.", "Decrypt the note ciphertext offline in Python, then submit the plaintext with a Repeater POST to the solve endpoint."],
+  tools: 'BZ, DT, P',
+  how: 'Find the hardcoded AES key in the served JavaScript, decrypt the ciphertext offline, and submit the note.',
   link: '/crypto#crypto-key-in-js',
-  start: 'curl -s http://localhost:3000/crypto/keyjs/app.js',
+  start: 'Browse to the Secure Notes vault note page through Burp Proxy, then open the linked app.js in Repeater to read the served JavaScript.',
 };
 
 // --- local clay UI helpers (self-contained; no crypto shared module yet) ---

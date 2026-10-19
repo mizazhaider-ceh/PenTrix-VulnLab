@@ -13,11 +13,11 @@ const vuln = {
   name: 'Cloud metadata SSRF',
   difficulty: 'Medium',
   hint: 'Cloud VMs expose instance credentials at a link-local address the fetcher does not block.',
-  hints: ["Cloud VMs have a metadata service at a special IP. What is it, and what does it serve?", "169.254.169.254 is the link-local metadata address. It serves IAM credentials to the instance.", "First fetch the credentials listing path on the metadata service, then fetch the credential name it lists to read the secret material."],
-  tools: 'C',
-  how: 'Fetch http://169.254.169.254/latest/meta-data/iam/security-credentials/ via /ssrf/fetch-meta.',
+  hints: ["Open the FetchKit page in your browser through Burp Proxy, submit one fetch, then send that request to Repeater. Cloud VMs expose a metadata service at a special link-local IP.", "In Repeater, try the link-local metadata address as the url value. The metadata service serves IAM credentials to the instance.", "First fetch the credentials listing path on the metadata service in Repeater, then fetch the credential name it lists to read the secret material."],
+  tools: 'BZ, C',
+  how: 'In Burp Repeater, ask /ssrf/fetch-meta to fetch the cloud link-local metadata address: first the IAM credentials listing path, then the credential name it returns, to read the simulated secret material.',
   link: '/ssrf#ssrf-metadata',
-  start: 'curl -s "http://localhost:3000/ssrf/fetch-meta?url=http://127.0.0.1:3000/ssrf/internal/status"',
+  start: 'Browse to the FetchKit debugger page through Burp Proxy, submit a fetch, send the request to Repeater, then change the url value to point at the cloud metadata service.',
 };
 
 // Clay-styled fetcher form page. Shown when no ?url= is given; it reads like

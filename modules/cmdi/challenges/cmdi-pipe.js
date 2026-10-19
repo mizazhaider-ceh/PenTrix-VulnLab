@@ -14,14 +14,14 @@ const vuln = {
   difficulty: 'Easy',
   hint: 'Semicolons are stripped, but the shell has other ways to chain commands. One of them feeds the first command output into the second.',
   hints: [
-    "Semicolons are stripped. But | chains commands without a semicolon.",
-    "The pipe feeds ping's output into the next command. The filter only looks for ;.",
-    "Append a pipe after a valid host and feed the ping output into a command of your own. The filter only watches for semicolons, so chaining still works this way. The award fires when your command's output appears in the response.",
+    "In Repeater, test the filter first: send a host with a semicolon and watch the page strip it. The filter only watches for semicolons.",
+    "The shell has other command separators the filter never touches. In Repeater, swap the stripped separator for one that feeds the first command's output into the next, placed right after a valid host.",
+    "Confirm the win in Repeater: the flag fires only when your second command's real output shows up in the response body, so end with a command whose output you will recognize.",
   ],
-  tools: 'B, C',
-  how: 'Chain with a pipe, e.g. ?host=127.0.0.1|id (encode & as %26 when you need it, but | needs no encoding)',
+  tools: 'BZ, B, C',
+  how: 'In Burp Repeater, chain a second command after a valid host with the pipe separator (the filter only strips semicolons), then confirm its real output in the response body.',
   link: '/cmdi/ping8',
-  start: 'curl "http://localhost:3000/cmdi/ping8?host=127.0.0.1"',
+  start: 'Open the Ping Gadget v8 page with Burp Proxy intercepting, submit a normal host like 127.0.0.1, send the request to Repeater, and probe the host parameter there.',
 };
 
 // GET /cmdi/ping8 -> v8 gadget: only ";" is stripped.

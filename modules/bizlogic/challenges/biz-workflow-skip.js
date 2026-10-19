@@ -107,11 +107,11 @@ const vuln = {
   name: 'Checkout Step Skipped',
   difficulty: 'Medium',
   hint: 'Checkout is cart, then payment, then confirm. The confirm endpoint never verifies that payment actually happened.',
-  hints: ["Checkout has steps: pay, then confirm. Does confirm check that pay ran?", "No. The confirm endpoint never verifies payment.", "Fill the cart first, then call the confirm step by itself, skipping only the pay step. Confirm never checks that payment actually ran."],
-  tools: "BZ, C",
-  how: 'Add an item to the cart, then POST /bizlogic/workflow/confirm directly without paying.',
+  hints: ["Checkout has steps: cart, pay, confirm. Proxy each step and send the confirm POST to Repeater.", "Does confirm check that the pay step ran? Replay the confirm request in Repeater and find out.", "Fill the cart first, then replay the confirm request on its own, skipping only the pay step. Confirm never verifies that payment happened."],
+  tools: "BZ, B",
+  how: 'Add the hoodie to the cart, then POST /bizlogic/workflow/confirm directly, skipping the pay step entirely.',
   link: '/bizlogic#biz-workflow-skip',
-  start: 'curl -s -b jar -c jar http://localhost:3000/bizlogic/workflow\ncurl -s -b jar -X POST http://localhost:3000/bizlogic/workflow/cart -d \'product_id=hoodie\'',
+  start: 'Start Burp Proxy and open http://localhost:3000/bizlogic/workflow in your proxied browser. Add the hoodie to the cart, then send the confirm POST to Repeater and replay it before paying.',
 };
 
 module.exports = { vuln, router };

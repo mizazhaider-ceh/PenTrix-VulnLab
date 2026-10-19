@@ -13,12 +13,12 @@ const vuln = {
   id: 'otp-bruteforce',
   name: 'Brute-Forcing a 4-Digit OTP',
   difficulty: 'Medium',
-  hint: 'You get a valid reset token for admin on screen, but the 4-digit code is never shown and there is no rate limiting. Script all 10,000 codes against the verify endpoint.',
-  hints: ["The OTP is 4 digits. How many possibilities is that, and is there any lockout?", "10,000 codes, no lockout, no expiry. A simple Python loop trying 0000-9999 will hit it.", "Script POSTs to the verify endpoint with codes 0000-9999 until one works."],
-  tools: 'P, C',
-  how: 'Brute-force the 4-digit OTP for the given admin reset token, then reset the password.',
+  hint: 'You get a valid reset token for admin on screen, but the 4-digit code is never shown and there is no rate limiting. Fire an Intruder sniper attack at the otp field and grep for the success page.',
+  hints: ["The OTP is 4 digits. How many possibilities is that, and is there any lockout?", "10,000 codes, no lockout, no expiry. Set a sniper payload position on the otp field and run a numeric brute force.", "In Intruder, mark only the otp parameter with the payload marker, load a 0000-9999 numeric payload set, and watch for the response that looks different from the failures."],
+  tools: 'BZ, P, C',
+  how: 'Run an Intruder sniper attack over the otp field of the verify request (numeric payload 0000-9999) to brute-force the 4-digit code for the given admin reset token, then reset the password.',
   link: '/auth/otp-reset',
-  start: 'curl -c jar -b jar http://localhost:3000/auth/otp-reset',
+  start: 'Open http://localhost:3000/auth/otp-reset through the Burp proxy browser, copy the token, submit the form once, send that POST to Intruder, and set a sniper payload position on the otp field.',
 };
 
 function ensureAuthOtpTable() {

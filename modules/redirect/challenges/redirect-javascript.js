@@ -71,11 +71,11 @@ const vuln = {
   name: 'javascript: Scheme Honored',
   difficulty: 'Medium',
   hint: 'The redirect puts whatever you give it into the Location header, with no scheme allowlist. Browsers treat javascript: as code, not a page.',
-  hints: ["The redirector puts your input in the Location header. What schemes can a Location have?", "javascript: URLs run code. If the Location is javascript:..., the browser executes it.", "Point the redirect at a scheme the browser treats as code, not a page. The key insight: the server copies your input into the Location header with no scheme allowlist, so the scheme is yours to choose."],
-  tools: 'C',
-  how: 'Request /redirect/js?next=javascript:alert(1) and inspect the Location header with curl -i.',
+  hints: ["Proxy the promo form submit in Burp, send the request to Repeater, and change the value of next. What does the response Location header do with it?", "Think about schemes: Repeater lets you send any Location target back. Which scheme does a browser treat as code?", "The key insight: the server copies your input into the Location header with no scheme allowlist, so the scheme is yours to choose."],
+  tools: 'BZ, B',
+  how: 'In Repeater, request /redirect/js with next set to a javascript: URL and confirm the Location header carries that scheme.',
   link: '/redirect#redirect-javascript',
-  start: 'curl -i "http://localhost:3000/redirect/js?next=javascript:alert(1)"',
+  start: 'Submit the promo form at /redirect/js through Burp Proxy and send the request to Repeater.',
 };
 
 module.exports = { vuln, router };

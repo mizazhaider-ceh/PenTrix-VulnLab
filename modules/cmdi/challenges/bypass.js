@@ -12,16 +12,16 @@ const vuln = {
   id: 'bypass',
   name: 'Ping Gadget v2 (weak blacklist)',
   difficulty: 'Medium',
-  hint: 'Only the ";" character is removed, and only once. Shells give you several other ways to chain commands.',
+  hint: 'Only the ";" character is removed, and only once. Probe the host parameter in Repeater: shells give you several other ways to chain commands.',
   hints: [
-    "The filter strips semicolons. But the shell has other command separators. Which ones?",
-    "A newline (%0a) always starts a second, independent command, no matter how the first one exits. && and || also work, but only when the first command's exit status cooperates. The filter only removes the first ; it finds.",
-    "Follow a valid host with a URL-encoded separator the filter cannot see in raw form, then end with a command whose output you will recognize. Remember: a newline always runs the second command, while && and || depend on the first command's exit status. Confirm success by spotting that output in the response.",
+    "In Repeater, watch what the filter removes from your host parameter: it strips the first semicolon only. The shell offers several other command separators that this filter never touches. Which ones?",
+    "Try the separator in its URL-encoded form so the raw filter never sees it: Repeater lets you edit the parameter and resend in one place. A newline always starts a second, independent command no matter how the first exits, while && and || depend on the first command's exit status. Intruder is built for this kind of separator fuzzing: run a payload set of separators through the host parameter.",
+    "Follow a valid host with an encoded separator the filter cannot see in raw form, then end with a command whose output you will recognize. Confirm the win in Repeater by spotting that output in the response.",
   ],
-  tools: 'B, C',
-  how: 'Bypass the semicolon filter with a newline, && , or ||, e.g. ?host=127.0.0.1%0aid',
+  tools: 'BZ, B, C',
+  how: 'In Burp Repeater, submit the ping request with the host parameter carrying a URL-encoded command separator the filter cannot see, then read the injected command output in the response.',
   link: '/cmdi/ping2',
-  start: 'curl "http://localhost:3000/cmdi/ping2?host=127.0.0.1"',
+  start: 'Open the Ping Gadget v2 page with Burp Proxy intercepting, submit a normal ping, send the request to Repeater, and probe the host parameter there.',
 };
 
 // GET /cmdi/ping2 -> v2 gadget: a naive blacklist that strips ';' only, once.

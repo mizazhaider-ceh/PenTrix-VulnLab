@@ -49,11 +49,11 @@ const vuln = {
   name: 'DDE Command Execution',
   difficulty: 'Easy',
   hint: 'DDE lets a formula ask another application to run a command. The DDE() function form works too.',
-  hints: ["DDE is an old spreadsheet feature where one application asks another to run a command. Your contact fields are exported to the CSV unchanged, so what you type is what the spreadsheet receives.", "The DDE() spreadsheet function takes a target application, a topic, and a command to run. The exporter only quotes your cell, it never neutralizes it, so a formula trigger at the start of your cell survives the download.", "Call the DDE() spreadsheet function inside a formula cell: name the target application, name the topic, and give it a system command to run. The trick is packaging that call so the exported cell still opens as a live formula."],
-  tools: "B",
-  how: 'Put a =DDE("cmd";...) payload in a field and download the CSV export.',
+  hints: ["DDE is an old spreadsheet feature where one application asks another to run a command. Open /formula in Burp's browser with Proxy running and add one normal contact first, so you have a working POST /formula/add to experiment with.", "The DDE() spreadsheet function takes a target application, a topic, and a command to run. Send the captured POST to Repeater and change the name parameter into a formula cell that calls DDE(): the exporter only quotes your cell, it never neutralizes it, so a formula trigger at the start survives the download.", "Send the request from Repeater, then request /formula/export.csv and check the X-Flags header in the response. The trick is packaging the DDE() call so the exported cell still opens as a live formula."],
+  tools: "BZ, B",
+  how: 'Repeater: POST an add-contact request with a DDE formula cell in the name field, then download the CSV export. The flag comes back in the X-Flags response header.',
   link: '/formula#formula-dde',
-  start: 'curl -s -b jar -c jar http://localhost:3000/formula/ > /dev/null\ncurl -s -b jar --data-urlencode \'name==DDE("cmd";"/C calc")\' --data-urlencode "note=test" http://localhost:3000/formula/add\ncurl -s -b jar -D - http://localhost:3000/formula/export.csv -o /dev/null | grep -i x-flags',
+  start: "Open /formula in Burp's browser with Proxy running, add one contact normally, then send the POST to /formula/add to Repeater. Change the name parameter into a formula cell, send it, then request /formula/export.csv and inspect the X-Flags header.",
 };
 
 function contactRows() {

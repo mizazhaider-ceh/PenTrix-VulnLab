@@ -62,13 +62,13 @@ module.exports = {
     hint: 'Comments are saved and shown to every visitor unescaped. Your payload persists and fires on every page view.',
     hints: [
       'Comments are saved and shown to every visitor. Where does your comment end up in the HTML?',
-      'The comment is stored verbatim and rendered raw. Your payload persists in the database and fires for everyone who views the page.',
-      'Post a script that calls /xss/collect (parameters c, v=stored and n=window.__px) as a guestbook comment, then reload the page so your own browser runs it.',
+      'Send the sign-guestbook POST to Burp Repeater. The comment is stored verbatim and rendered raw, so your payload persists in the database and fires for every page view.',
+      'Plant a beacon comment via Repeater that calls /xss/collect (parameters c, v=stored and n=window.__px), then reload the guestbook in your proxied browser so your own browser executes it and fires the beacon.',
     ],
-    tools: 'B',
-    how: 'Post the exfiltration payload as a guestbook comment, then reload the page so your own browser fires it.',
+    tools: 'BZ, B',
+    how: 'In Burp Repeater, POST the exfiltration payload as a guestbook comment, then reload the guestbook in your proxied browser so the stored payload fires.',
     link: '/xss/guestbook',
-    start: 'curl -s http://localhost:3000/xss/guestbook | grep -c "<article"',
+    start: 'Start Burp Proxy, browse to /xss/guestbook in your proxied browser, and read the Messages list. Then send the sign-guestbook POST to Repeater: the body field is stored verbatim and rendered raw for every visitor.',
   },
   router,
 };

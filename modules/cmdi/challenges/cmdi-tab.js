@@ -14,14 +14,14 @@ const vuln = {
   difficulty: 'Easy',
   hint: 'Spaces are stripped from your input. A literal tab character (%09 in a URL) is also whitespace to the shell.',
   hints: [
-    "Spaces are stripped. But space isn't the only whitespace.",
-    "%09 is a tab. The shell treats it as a word separator just like space.",
-    "Chain a command after the ping with a statement separator, using the URL-encoded tab wherever the shell needs a word separator. Pick a command that prints a recognizable file so the response confirms the second statement actually ran.",
+    "Spaces are stripped. In Repeater, send a host with a space and watch the filter strip it: space is not the only whitespace the shell understands.",
+    "The URL-encoded tab (%09) is whitespace to the shell, and the filter never looks for it. Repeater sends %09 through untouched, so build your chain with a separator the filter allows and a word separator it never sees.",
+    "Chain a command after the ping and pick one that prints a recognizable file, so the response body confirms the second command actually ran.",
   ],
-  tools: 'B, C',
-  how: 'Use a tab as the word separator, e.g. ?host=127.0.0.1;cat%09/etc/passwd',
+  tools: 'BZ, B, C',
+  how: 'In Burp Repeater, chain a second command after a valid host using the URL-encoded tab (%09) as the word separator (spaces are stripped, tabs are not), then read the command output in the response body.',
   link: '/cmdi/ping9',
-  start: 'curl "http://localhost:3000/cmdi/ping9?host=127.0.0.1"',
+  start: 'Open the Ping Gadget v9 page with Burp Proxy intercepting, submit a normal host like 127.0.0.1, send the request to Repeater, and probe the host parameter there.',
 };
 
 // GET /cmdi/ping9 -> v9 gadget: spaces are stripped (again).

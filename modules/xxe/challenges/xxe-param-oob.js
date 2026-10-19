@@ -15,11 +15,11 @@ const vuln = {
   name: 'Parameter-Entity OOB Exfiltration',
   difficulty: 'Hard',
   hint: 'Chain parameter entities entirely inline: %file; reads the secret, %oob; declares a new entity whose URL carries %file; to the in-lab collector. Mind the quoting.',
-  hints: ["Parameter entities (%) work in the DTD. Can they exfiltrate data out-of-band?", "Do it all inline: one parameter entity reads the secret file, another builds a callback URL containing that content, and referencing it makes the parser fire the request. Mind the quoting: parameter entity values and URL attributes nest at different levels.", "Declare the file-reading parameter entity, then a second parameter entity that injects a general entity whose SYSTEM identifier is the collector URL carrying the file content, and reference that general entity in your document body to fire the pingback. Key insight: the parser, not your browser, performs the callback fetch, so the secret leaves server-side and lands in the collector log."],
-  tools: "C",
-  how: 'Submit a DOCTYPE where %oob; injects <!ENTITY exfil SYSTEM \'http://.../xxe/collector/log?d=%file;\'> (single quotes!), then reference &exfil; to fire the pingback.',
+  hints: ["Proxy your browser through Burp and open the import console at /xxe/param. Submit the form once, find POST /xxe/param in Proxy HTTP history, and send it to Repeater so you can replay it while you iterate.", "Parameter entities (%) expand inline inside the DOCTYPE, and the in-lab collector at /xxe/collector/log means you need no external listener. In Repeater, declare one parameter entity that reads the secret file, then a second one whose value is a brand-new <!ENTITY> declaration with a SYSTEM URL pointing at the collector and carrying the file content as a query parameter.", "Reference the second parameter entity to smuggle the new declaration into the document, then reference the new general entity in your <data> body to fire the pingback. Key insight: the parser, not your browser, performs the callback fetch, so the secret leaves server-side; open the collector log afterwards to watch it land. Mind the quoting: the outer parameter entity value is double-quoted, so the inner declaration's URL must use single quotes."],
+  tools: "BZ, B, C",
+  how: 'In Burp Repeater, send XML whose DOCTYPE declares a parameter entity that reads the secret and a second one that smuggles in a new <!ENTITY> whose SYSTEM URL points at the in-lab collector carrying the file content, then reference the new entity in the body to fire the pingback.',
   link: '/xxe#xxe-param-oob',
-  start: 'curl -s http://localhost:3000/xxe/param\ncurl -s -X POST --data-urlencode "xml=<data>hello</data>" http://localhost:3000/xxe/param',
+  start: 'Proxy your browser through Burp and open the advanced import console at /xxe/param. Submit the form once, find the POST /xxe/param request in Proxy HTTP history, send it to Repeater, then replace the xml form field with your parameter-entity payload and send; check the OOB collector log after each attempt.',
 };
 
 const chrome = (crumb) => ({

@@ -23,11 +23,11 @@ const vuln = {
   name: 'Tampered Refund Amount',
   difficulty: 'Medium',
   hint: 'The refund form carries the amount in a hidden field. The server refunds whatever number you submit, even more than you paid.',
-  hints: ["The refund amount is in a hidden field. Is it clamped?", "No. Request a refund larger than the order total.", "Buy an order, then refund it for more than it cost. The server never checks the refund amount against what you paid."],
+  hints: ["Open the refund page in your proxied browser and send the refund POST to Repeater. What parameters does the request carry?", "The amount comes from a hidden form field. Edit it in Repeater and re-send: is it clamped?", "No. Request a refund larger than the order total. The server never checks the refund amount against what you paid."],
   tools: 'BZ, B',
-  how: 'Buy the $50 hoodie, then request a refund at /bizlogic/refund with an amount larger than $50.',
+  how: 'Buy the $50 hoodie, then submit the refund form with an amount larger than $50 by changing the hidden amount field before sending.',
   link: '/bizlogic#biz-refund',
-  start: 'curl -s -b jar -c jar http://localhost:3000/bizlogic/refund\ncurl -s -b jar -X POST http://localhost:3000/bizlogic/refund/buy -d \'product_id=hoodie\'\ncurl -s -b jar -X POST http://localhost:3000/bizlogic/refund -d \'order_id=1&amount=5000\'',
+  start: 'Start Burp Proxy and open http://localhost:3000/bizlogic/refund in your proxied browser. Buy the hoodie, then send the refund POST to Repeater and replay it with a larger amount.',
 };
 
 const cardTop = (label) => `
@@ -56,8 +56,13 @@ router.get('/refund', (req, res) => {
       </form>
       <h3>Your orders</h3>
       <div class="tbl-scroll"><table class="tbl"><tr><th>Order</th><th>Items</th><th>Paid</th><th></th></tr>${orderRows}</table></div>
-      <p class="note">View the page source: the refund amount is a hidden field. Try it with curl:</p>
-      <pre><code>curl -s -X POST http://localhost:3000/bizlogic/refund -d 'order_id=1&amount=5000'</code></pre>
+      <p class="note">View the page source: the refund amount is a hidden field. Try it in Burp Repeater: click a Refund button with Proxy intercepting, send the request to Repeater with Ctrl+R, change <code>amount</code>, and send.</p>
+      <div class="payload"><div class="payload-head"><span>Burp Repeater</span></div><pre class="payload-body">POST /bizlogic/refund HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 22
+
+order_id=1&amp;amount=5000</pre></div>
     </div>
     ${backLink(s)}
   `));

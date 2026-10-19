@@ -18,11 +18,11 @@ const vuln = {
   name: 'Unicode Escape Bypass',
   difficulty: 'Hard',
   hint: 'The blacklist scans the raw JSON text for __proto__. JSON string escapes are decoded after that scan.',
-  hints: ["The blacklist blocks '_' as text. But \\u005f is also underscore.", "Unicode escapes bypass text filters. The JSON parser decodes them.", "Craft the JSON document so the raw bytes never contain the forbidden literal, yet JSON.parse rebuilds it after the scan. Send it as text/plain, then open the admin check."],
-  tools: "C",
-  how: 'Smuggle the key past the blacklist with \\u005f escapes, then open the admin check.',
+  hints: ["Proxy the importer in Burp and note the Content-Type the server needs: it only trusts the raw bytes when they arrive as text/plain. The blacklist scans that raw text for the forbidden literal.", "In Repeater, build the JSON document so the forbidden key never appears in the raw bytes: JSON string escapes are decoded by JSON.parse after the scan. A 200 reply means the merge ran.", "Open the admin check in the browser: a fresh {} now reads the polluted role."],
+  tools: "BZ, B",
+  how: 'Replay the merge in Repeater with the key hidden behind JSON string escapes, then verify it with the admin check.',
   link: '/proto#proto-unicode-bypass',
-  start: 'curl -s -X POST http://localhost:3000/proto/unicode/merge -H "Content-Type: text/plain" -d \'{"appName": "demo"}\'',
+  start: 'Set Burp as your browser proxy and open /proto/unicode in the browser. Study the sample JSON document in the importer box, then copy it into Repeater as a POST to /proto/unicode/merge with Content-Type: text/plain, send it, and open /proto/unicode/admin in the browser.',
 };
 
 // GET /proto/unicode -> the config importer page.

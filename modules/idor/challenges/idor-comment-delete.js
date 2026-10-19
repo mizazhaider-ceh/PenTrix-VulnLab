@@ -63,13 +63,13 @@ module.exports = {
     hint: 'The delete button on /idor/comments sends only the comment id. Log in as bob and delete a comment written by someone else.',
     hints: [
       'The delete button sends a comment id. Does the server check that you wrote the comment?',
-      'The delete endpoint keys only on the comment id, with no authorship check. You only get a button for your own comments, but the request is yours to craft.',
-      'Log in as bob, note the id of a comment written by someone else on /idor/comments, and send that id to the delete endpoint.',
+      'You only get a delete button for your own comments. Click it once with Burp intercepting, then send that POST to Repeater and try a different id.',
+      'Log in as bob, note the id of a comment written by someone else in the comments table, then use Repeater to send the delete request for that id.',
     ],
-    tools: 'B, C',
-    how: 'Delete another user\'s comment by submitting its id to /idor/comments/delete.',
+    tools: 'BZ, B',
+    how: 'Delete another user\'s comment by submitting its id to the delete endpoint from Repeater.',
     link: '/idor#idor-comment-delete',
-    start: 'curl -s -c jar -L http://localhost:3000/idor/login/bob\ncurl -s -b jar http://localhost:3000/idor/comments',
+    start: 'Point your browser at Burp\'s proxy, then visit http://localhost:3000/idor/login/bob to log in and open /idor/comments.',
   },
   router,
 };

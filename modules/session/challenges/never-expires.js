@@ -12,12 +12,16 @@ const vuln = {
   id: 'never-expires',
   name: 'Sessions Never Expire',
   difficulty: 'Easy',
-  hint: 'Sessions live for 10 years here. The archive keeps a decade-old admin session, and it still works.',
-  hints: ["The session lasts 10 years. What about an old archived sid?", "A leaked old sid still works. Expiry is the only thing that kills sessions.", "Open the session archive linked from the challenge page, copy the decade-old admin sid, and set it as your lab_sid cookie. Key insight: this app never expires sessions, so age alone never invalidates them."],
-  tools: 'B, DT',
-  how: 'Copy the archived admin session id, set it as your lab_sid cookie, and open the legacy admin panel.',
+  hint: 'Sessions live for 10 years here. The archive keeps a decade-old admin session, and it still works in Repeater.',
+  hints: [
+    "Open the session archive in your proxied browser. What does it hand you for a decade-old admin session?",
+    "A leaked old sid still works. Expiry is the only thing that kills sessions, and here expiry is 10 years away.",
+    "Send the GET /session/legacy-admin request to Burp Repeater, set the lab_sid Cookie header to the archived sid, and re-send.",
+  ],
+  tools: 'BZ, B',
+  how: 'Copy the archived admin session id from the session archive, then open the legacy admin panel in Burp Repeater with that sid as your lab_sid cookie.',
   link: '/session#never-expires',
-  start: 'curl -s http://localhost:3000/session/neverexpires',
+  start: 'Open Burp Proxy and browse to http://localhost:3000/session/neverexpires in your proxied browser. Read the session archive and note the archived admin session id shown there.',
 };
 
 const TEN_YEARS_MS = 10 * 365 * 24 * 3600 * 1000;

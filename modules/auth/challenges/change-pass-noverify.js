@@ -12,12 +12,12 @@ const vuln = {
   id: 'change-pass-noverify',
   name: 'Password Change Without Current Password',
   difficulty: 'Easy',
-  hint: 'Log in as anyone through /auth/login, then open the change-password page and notice it never asks for the current password.',
-  hints: ["You're logged in and want to change your password. Does it ask for the current one?", "The change-password endpoint only checks your session, not your current password. Anyone with session access (XSS, shared computer) can set a new password.", "Get yourself signed in, then submit a new password on the change-password page. The key insight: a correct implementation would demand proof of the old password first, and that check is missing here."],
-  tools: 'B',
-  how: 'While logged in, change the account password without knowing the current one.',
+  hint: 'Route your browser through Burp, log in at /auth/login, then open the change-password page and notice it never asks for the current password.',
+  hints: ["Proxy your login through Burp so the session is captured. On the change-password page, does the form ask for the current password?", "Intercept the change-password POST in Burp and look at the parameters: the server checks your session cookie, never the old password.", "Send the change-password request to Repeater and replay it with a new password value. A correct implementation would demand proof of the old password first, and that check is missing here."],
+  tools: 'BZ, B',
+  how: 'In Burp, intercept the change-password request and replay it with a new password, without supplying the old one.',
   link: '/auth/change-password',
-  start: 'curl -c jar -b jar -d "username=bob&password=bob123" http://localhost:3000/auth/login',
+  start: 'Set Burp as your browser proxy, log in at /auth/login, then load /auth/change-password through the Proxy.',
 };
 
 router.get('/change-password', (req, res) => {

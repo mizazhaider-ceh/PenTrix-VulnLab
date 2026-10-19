@@ -81,12 +81,12 @@ const vuln = {
   id: 'proto-dos',
   name: 'Polluting toString',
   difficulty: 'Easy',
-  hint: 'The widget page stringifies an object whose prototype you control. What if toString stopped being a function?',
-  hints: ["Polluting toString breaks the widget. What happens when toString isn't a function?", "The render crashes. It's a DoS via prototype pollution.", "Give the widget scope's toString a non-function value through the prototype, then reload the widget. When string coercion can no longer call it, the render crashes."],
-  tools: 'B',
-  how: 'Pollute toString on the widget scope so the render crashes; the crash page awards the flag.',
+  hint: 'Send the widget page request to Burp Repeater. The widget is stringified from an object whose prototype you control. What if toString stopped being a function?',
+  hints: ["Open the widget page with Burp Proxy running, then send the request to Repeater. The widget's prototype scope is yours to control.", "In Repeater, replay the request with a polluted query string that gives the scope's toString a non-function value. The render crashes, which is a DoS via prototype pollution.", "When Repeater shows the crash page with the flag box, you are done. Reload the widget in the browser if you want a fresh one."],
+  tools: 'BZ, B',
+  how: 'Via Burp Repeater, pollute the widget scope toString with a non-function value so the render crashes; the crash page awards the flag.',
   link: '/proto#proto-dos',
-  start: 'curl -s "http://localhost:3000/proto/dos?__proto__[toString]=boom" | grep -o "The widget broke"',
+  start: 'In Burp, open the widget page (/proto/dos) in the browser so the request lands in the proxy history, then send it to Repeater and replay it with a polluted query string until the widget crashes.',
 };
 
 // GET /proto/dos -> dashboard widget whose render merges the query string.

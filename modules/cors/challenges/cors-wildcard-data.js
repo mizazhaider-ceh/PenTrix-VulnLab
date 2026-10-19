@@ -13,11 +13,11 @@ const vuln = {
   name: 'Wildcard on Sensitive Data',
   difficulty: 'Easy',
   hint: 'Access-Control-Allow-Origin: * on an endpoint that returns every user\'s email address.',
-  hints: ["The API sends ACAO: * with user emails. What does * mean?", "Any website can read it. No credentials needed, just fetch.", "The data endpoint answers any origin, so your page only needs to ask for it and read the response body. No special setup is needed on the attacker's side."],
-  tools: "B",
-  how: 'Prove it: /cors/prove?vuln=cors-wildcard-data&origin=https://evil.com',
+  hints: ["The API sends ACAO: * with user emails. What does * mean? Open GET /cors/api/users in Repeater and read the raw response headers.", "Any website can read it. No credentials needed, just fetch. Replay the request in Repeater: the wildcard rides on every response.", "The data endpoint answers any origin, so your page only needs to ask for it and read the response body. No special setup is needed on the attacker's side."],
+  tools: "BZ, B",
+  how: 'Burp Repeater: GET /cors/api/users and read the Access-Control-Allow-Origin: * header riding on a response that returns every user\'s email address; any origin can read it cross-origin, no credentials needed; or prove via /cors/prove?vuln=cors-wildcard-data&origin=https://evil.com',
   link: '/cors#cors-wildcard-data',
-  start: 'curl -si http://localhost:3000/cors/api/users',
+  start: 'Burp: browse the team directory page, find GET /cors/api/users in Proxy history, send it to Repeater, and inspect the CORS response headers.',
 };
 
 // GET /cors/api/users -> team directory data. Wildcard origin on sensitive
@@ -54,7 +54,7 @@ router.get('/wildcard', (req, res) => {
     <div class="clay-card">
       <h2>API and origin checker</h2>
       <p>Raw endpoint: <a href="/cors/api/users"><code>/cors/api/users</code></a></p>
-      ${payloadBlock('Try it raw', 'curl -si http://localhost:3000/cors/api/users')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/users HTTP/1.1\nHost: localhost:3000\n\n')}
       <p>The checker sends a real request to the endpoint with the Origin you
       type and shows the exact response headers, the same check a browser
       performs before allowing a cross-origin read.</p>
