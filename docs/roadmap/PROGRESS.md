@@ -147,7 +147,7 @@ lands for that challenge.
    needs the better-sqlite3 v12 verify copy, or Docker).
 2. Re-verify this section after the tests land.
 
-## Milestone 12 (kill-chain scenarios): IN PROGRESS
+## Milestone 12 (kill-chain scenarios): DONE (2026-10-19, committed e21875e)
 
 Recorded 2026-10-19. M12 chains several challenges across modules into
 story-driven kill chains with staged unlock: stage N+1 opens only after
@@ -200,6 +200,48 @@ tests rely on. No em dashes anywhere in the scenario copy.
 ### Next actions
 
 1. Screenshot pass on the three shipped scenarios.
+
+## Milestone 13 (guided career paths): DONE (2026-10-19)
+
+Recorded 2026-10-19. M13 adds ordered, story-framed challenge sequences
+with prerequisites, per-step progress tracking, and a verifiable PNG
+certificate bound to the install identity. Prerequisites are guidance,
+not hard locks: every step stays browsable, but paths are designed to be
+taken in order.
+
+### Framework
+
+| File | Status | What it does |
+|---|---|---|
+| `paths/index.js` | done | Defensive def loader, `GET /paths` (clay cards: name, level, step count, progress bar), `GET /paths/:id` (steps with captured pills, Enter buttons, certificate button when complete), `GET /paths/:id/certificate` (403 until complete; PNG via `lib/certpng.js`), `GET /paths/:id/verify` (code form, case-insensitive check). Exports `{ router, paths, setPathsRegistry, pathProgress, pathComplete, prereqsMet, verifyCodeFor, installFingerprint }` |
+| `paths/zero-to-web-pentester.js` | done | 10 steps, Beginner, no prerequisites. The starting path. |
+| `paths/api-hacker.js` | done | 10 steps, Intermediate, recommends Zero to Web Pentester first. |
+| `paths/authentication-assassin.js` | done | 11 steps, Intermediate, recommends Zero to Web Pentester first. |
+| `lib/certpng.js` | done | Zero-dependency 1200x850 PNG certificate renderer (hand-authored 5x7 bitmap font, zlib+CRC32 PNG encoder, clay styling, auto-shrink for long names, deterministic output). |
+| `lib/db.js` | done | Additive `meta` table plus `installId()`: a 32-hex install secret minted on first boot, stable per database, fresh per new database. Powers certificate verification codes. |
+| `app.js` wiring | done | `RESERVED_IDS` gains `paths`; router mounted at `/paths`; registry injected via `setPathsRegistry`. |
+| `lib/page.js` nav | done | `Paths` link added (`activeNav: 'paths'`). |
+
+### Verification codes
+
+`verifyCodeFor = 'PTX-' + sha256(installId + ':' + pathId).hex.slice(0,8).toUpperCase()`.
+The code is printed on the certificate and checked on the path's `/verify`
+page (case-insensitive). Because it derives from the install secret, a
+certificate from one machine never validates on another. The page explains
+this binding in plain language.
+
+### Tests
+
+| File | Status |
+|---|---|
+| `tests/paths-infra.test.js` | green (16 tests: registry, prereqs, code math, fingerprint) |
+| `tests/paths.test.js` | green (6 tests: index, detail, prereqs, 404, page hygiene) |
+| `tests/paths-progress.test.js` | green (progress tracking per session) |
+| `tests/paths-cert.test.js` | green (5 tests: 403 before completion, PNG after, deterministic bytes) |
+| `tests/paths-verify.test.js` | green (valid/invalid codes, cross-install rejection) |
+
+All 31 moduleId/vulnId pairs across the three path defs were cross-checked
+against the real challenge files. No em dashes anywhere in the path copy.
 
 # Historical notes (pre-M3, kept for context)
 

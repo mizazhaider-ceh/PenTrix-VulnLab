@@ -64,7 +64,8 @@ npm test
 3. **Find the bug.** Exploit it the way a real attacker would, with real tools: curl, Burp, your browser.
 4. **Capture the flag.** Progress lands on the scoreboard.
 5. **Want a story?** Open `/scenarios` for a kill-chain: several challenges chained into one attack, stages unlocking one at a time.
-6. **Stuck?** Reveal the hint. Still stuck? `SOLUTIONS.md` walks the technique, never the flag.
+6. **Want a career path?** Open `/paths`: ordered challenge sequences from beginner to intermediate, ending in a verifiable certificate.
+7. **Stuck?** Reveal the hint. Still stuck? `SOLUTIONS.md` walks the technique, never the flag.
 
 ## Flags are born on your machine, not in this repo
 
@@ -103,7 +104,21 @@ Most labs stop at "find the bug". PenTrix is being built to train complete secur
 
 1. **Break-then-fix.** After you capture a flag, patch the vulnerable code yourself. The lab re-runs the original exploit against your fix in an isolated sandbox. If the exploit fails and the app still works, you earn a fix badge. Offense and defense, in one place. *(In active development: framework plus full SQLi and XSS coverage first.)*
 2. **Kill-chain scenarios.** Multi-stage attacks that tell one story: recon a target, exploit it, pivot, escalate, exfiltrate. Single challenges teach techniques; scenarios teach how attackers actually think. Three stories ship today: **Shop Takeover**, **API Heist**, and **Ghost in the CMS**. Each unlocks stage by stage and ends with its own scenario flag.
-3. **Guided career paths.** Ordered journeys like "Zero to Web Pentester" and "API Hacker", with prerequisites, skill tracking, and a verifiable certificate when you finish. *(In active development.)*
+3. **Guided career paths.** Ordered journeys like **Zero to Web Pentester**, **API Hacker**, and **Authentication Assassin**, with prerequisites, skill tracking, and a verifiable certificate when you finish. Finish all steps, download your PNG, and prove your skill on any machine running your install.
+
+## Guided career paths
+
+A **career path** is an ordered sequence of challenges that takes you from one skill level to the next. You enter through `/paths`, work the steps in order, and capture every flag. Finish all steps and you earn a **certificate**: a downloadable PNG with a verification code (printed on it, like `PTX-XXXXXXXX`) bound to your install.
+
+Three paths ship with this release:
+
+| Path | Level | Steps | Prerequisites |
+|------|-------|-------|---------------|
+| **Zero to Web Pentester** | Beginner | 10: reflected XSS, SQLi login bypass, IDOR, CSRF, debug page leak, HTTP verb tampering, open redirect, CSV formula injection, user enumeration, stored XSS | None. Start here. |
+| **API Hacker** | Intermediate | 10: data exposure, mass assignment, missing rate limits, JWT forgery three ways, OAuth flow hijack, API key regeneration abuse, API version bypass, CORS data leak | Zero to Web Pentester |
+| **Authentication Assassin** | Intermediate | 11: user enumeration, brute force, reset flow abuse, predictable reset tokens, OTP brute force, security questions, session fixation, predictable sessions, `kid` SQL injection, OAuth code replay, support impersonation | Zero to Web Pentester |
+
+Prerequisites are guidance, not a hard lock: you can browse any path's steps anytime, but the paths are designed to be taken in order. When you finish a path, download your certificate from the path page and check the code on that path's `/verify` page. Certificates are minted from your install's secret identity, so a certificate from one machine will never validate on another.
 
 ## Kill-chain scenarios
 
@@ -130,7 +145,7 @@ The scenario flag works like every other flag: generated per deployment, stored 
 | Shortcut exploits rejected | Yes | Partial | No | Yes |
 | Break-then-fix mode | In development | No | No | No |
 | Kill-chain scenarios | Yes, 3 story-driven scenarios | No | No | Partial |
-| Guided career paths | In development | No | Lessons | Yes |
+| Guided career paths | Yes, 3 paths with verifiable certificates | No | Lessons | Yes |
 | One-command local setup | Yes | Yes | Yes | Browser only |
 | Fully open source | Yes | Yes | Yes | No |
 
@@ -191,8 +206,9 @@ This repo went through a full engineering transformation:
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
 - **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
 - **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
-- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked. Career paths are next.
+- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked.
 - **Kill-chain scenarios.** Three story-driven scenarios live at `/scenarios`: Shop Takeover, API Heist, and Ghost in the CMS. Staged unlock: each stage opens only after the previous stage's flag is captured, and finishing all stages earns a scenario flag.
+- **Career paths.** Three guided paths live at `/paths`: Zero to Web Pentester, API Hacker, and Authentication Assassin. Ordered steps, prerequisites, progress tracking, and a verifiable PNG certificate on completion.
 - The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 ## Project layout
@@ -213,7 +229,9 @@ PenTrix-VulnLab/
 │   └── ...                 # 28 more modules, same shape
 ├── scenarios/              # 3 kill-chain scenarios (shop-takeover, api-heist,
 │                           #   ghost-in-the-cms), staged unlock, scenario flags
-├── paths/                  # guided career paths (in development)
+├── paths/                  # 3 career paths (zero-to-web-pentester, api-hacker,
+│                           #   authentication-assassin), prerequisites, PNG
+│                           #   certificates with verification codes
 ├── public/                 # claymorphism CSS, client JS
 ├── data/                   # SQLite database (gitignored, created on boot)
 ├── docs/
@@ -251,7 +269,7 @@ A simple challenge-builder format is in development. Until then, issues and pull
 No. Everything is solvable with curl and a browser. Burp just makes some challenges faster.
 
 **Where do I start if I am brand new?**
-Open the app and follow the "Start here" card. It points to the gentlest module first. Then follow the career paths as they land.
+Open the app and follow the "Start here" card. It points to the gentlest module first. Then start the **Zero to Web Pentester** path at `/paths`: ten steps from gentlest to trickiest, ending with your first certificate.
 
 ## Rules
 

@@ -50,7 +50,7 @@ getDb(); // init + seed
 // module has an index.js) ----
 const modulesDir = path.join(__dirname, 'modules');
 // Route prefixes owned by the app shell; modules may not claim them.
-const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads', 'scenarios']);
+const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads', 'scenarios', 'paths']);
 const seenIds = new Set();
 const registry = [];
 if (fs.existsSync(modulesDir)) {
@@ -89,9 +89,10 @@ if (fs.existsSync(modulesDir)) {
 }
 app.locals.registry = registry;
 
-// ---- M12 kill-chain scenarios (defs live in scenarios/; the framework mounts
-// below, after the fixmode block, so the wiring order is explicit) ----
+// ---- M13 career paths (defs live in paths/; the framework mounts below,
+// after the fixmode block, so the wiring order is explicit) ----
 const scenariosMod = require('./scenarios/index');
+const pathsMod = require('./paths/index');
 
 // Seed per-deployment random flags for every registered challenge.
 // Flags live only in the SQLite file (gitignored); the source never
@@ -351,6 +352,10 @@ try { fixbadges = require('./lib/fixbadges'); } catch (e) { console.warn('[warn]
 // ---- M12 kill-chain scenarios wiring (mounted after the fixmode block) ----
 app.use('/scenarios', scenariosMod.router);
 scenariosMod.setScenariosRegistry(registry);
+
+// ---- M13 career paths wiring (mounted after the scenarios block) ----
+app.use('/paths', pathsMod.router);
+pathsMod.setPathsRegistry(registry);
 
 // Resolve a /fix URL to a registered module + challenge, or null.
 function findFixChallenge(module, vulnId) {
