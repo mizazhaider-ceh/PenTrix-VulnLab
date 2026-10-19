@@ -147,6 +147,60 @@ lands for that challenge.
    needs the better-sqlite3 v12 verify copy, or Docker).
 2. Re-verify this section after the tests land.
 
+## Milestone 12 (kill-chain scenarios): IN PROGRESS
+
+Recorded 2026-10-19. M12 chains several challenges across modules into
+story-driven kill chains with staged unlock: stage N+1 opens only after
+stage N's flag is captured. Scenario flags live in the flags table with
+module_id `scenario` (same `PENTRIX{<32 hex>}` format, seeded by
+`ensureFlags`, INSERT OR IGNORE makes reseeding safe).
+
+### Framework
+
+| File | Status | What it does |
+|---|---|---|
+| `scenarios/index.js` | done | Defensive def loader, `GET /scenarios` (clay cards: name, tagline, difficulty pill, per-scenario progress bar, link), `GET /scenarios/:id` (story brief panel, gated stage list, completion award). Exports `{ router, scenarios, setScenariosRegistry }` |
+| `scenarios/shop-takeover.js` | done (real def, landed 2026-10-19) | sqli/login-bypass, idor/admin, bizlogic/biz-price-tamper, xss/stored |
+| `scenarios/api-heist.js` | done (real def) | api/exposure, api/mass-assignment, jwt/none-admin, api/api-version-bypass |
+| `scenarios/ghost-in-the-cms.js` | done (real def, landed 2026-10-19) | misconfig/git, auth/reset-predictable, upload/upload-double-ext, xss/stored |
+| `app.js` wiring | done | `RESERVED_IDS` gains `scenarios` and `paths`; router mounted at `/scenarios`; registry injected via `setScenariosRegistry`; `ensureFlags` also seeds the three scenario flags |
+| `lib/page.js` nav | done | `Scenarios` link added (`activeNav: 'scenarios'`) |
+| Scoreboard | done | New "Kill-chain scenarios" section (`sb-scenarios` class, not `sb-module`, so test parsing is untouched): per-scenario captured/missing pill plus link; the `<b>got / total</b> flags` line counts module challenges only, unchanged |
+
+### Stage gating rules
+
+1. Stage 0 is always unlocked; stage i unlocks iff stage i-1's flag is captured (checked per request via `captured(req, moduleId, vulnId)`).
+2. Unlocked stage: title, briefing, clay "Enter the challenge" button resolving the challenge's `vuln.link` from the injected registry, falling back to `/<moduleId>`.
+3. Locked stage: lock orb, title, "Complete the previous stage to unlock". No link, no briefing leaked.
+4. Completion: when all stage flags are captured and the scenario flag is not yet captured, `award(req, 'scenario', sc.id)` fires once and `flagBanner` renders at the top of the scenario page. Revisits re-render the banner from `flagFor('scenario', sc.id)` (read from the seeded flags row, never re-awarded).
+5. Unknown scenario id returns the styled 404.
+
+### Tests
+
+| File | Status |
+|---|---|
+| `tests/scenarios-api.test.js` | green (2026-10-19, 32 tests total across the four scenario suites, all pass) |
+| `tests/scenarios-shop.test.js` | green |
+| `tests/scenarios-ghost.test.js` | green (delivered by test authors, real end-to-end exploit chain) |
+| `tests/scenarios-edge.test.js` | green (unlock edge cases: out-of-order completion, fresh-session isolation, unknown-id 404, revisit banner, locked-stage view-source) |
+| `tests/platform.test.js` | run green after wiring (see infra lead report) |
+
+### Page copy
+
+Checked 2026-10-19 (fixer pass): the `/scenarios` index page explains what a
+kill chain is for a newcomer ("Real attacks are chains, not single bugs")
+and states the staged-unlock rule ("Stages unlock one at a time: capture
+the previous stage's flag to open the next") plus how the scenario flag is
+earned ("Finish every stage to earn the scenario flag"). Each scenario page
+now carries a "How the scenario flag is earned" line under the tagline, so
+the rule is visible before the first stage, not only after completion.
+Stage blocks render with `id="stage-N"` anchors, a contract the scenario
+tests rely on. No em dashes anywhere in the scenario copy.
+
+### Next actions
+
+1. Screenshot pass on the three shipped scenarios.
+
 # Historical notes (pre-M3, kept for context)
 
 

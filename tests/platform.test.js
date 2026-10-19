@@ -30,10 +30,23 @@ test('platform', async (t) => {
   await t.test('flags: 201 unique per-deployment flags in the documented format', () => {
     const Database = require('better-sqlite3');
     const db = new Database(path.join(dataDir, 'vulnlab.db'), { readonly: true });
-    const rows = db.prepare('SELECT module_id, vuln_id, flag FROM flags').all();
+    const rows = db.prepare("SELECT module_id, vuln_id, flag FROM flags WHERE module_id <> 'scenario'").all();
     db.close();
     assert.equal(rows.length, EXPECTED_CHALLENGES);
     assert.equal(new Set(rows.map((r) => r.flag)).size, EXPECTED_CHALLENGES);
+    for (const r of rows) assert.match(r.flag, /^PENTRIX\{[0-9a-f]{32}\}$/);
+  });
+
+  // M12: the three scenario completion flags also live in the flags table
+  // (module_id 'scenario'), seeded by ensureFlags alongside the challenges.
+  await t.test('flags: 3 scenario flags seeded with module_id scenario', () => {
+    const Database = require('better-sqlite3');
+    const db = new Database(path.join(dataDir, 'vulnlab.db'), { readonly: true });
+    const rows = db.prepare("SELECT module_id, vuln_id, flag FROM flags WHERE module_id = 'scenario'").all();
+    db.close();
+    assert.deepEqual(rows.map((r) => r.vuln_id).sort(),
+      ['api-heist', 'ghost-in-the-cms', 'shop-takeover']);
+    assert.equal(new Set(rows.map((r) => r.flag)).size, 3);
     for (const r of rows) assert.match(r.flag, /^PENTRIX\{[0-9a-f]{32}\}$/);
   });
 

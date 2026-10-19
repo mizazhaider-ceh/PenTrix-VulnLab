@@ -50,7 +50,7 @@ getDb(); // init + seed
 // module has an index.js) ----
 const modulesDir = path.join(__dirname, 'modules');
 // Route prefixes owned by the app shell; modules may not claim them.
-const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads']);
+const RESERVED_IDS = new Set(['scoreboard', 'about', 'uploads', 'scenarios']);
 const seenIds = new Set();
 const registry = [];
 if (fs.existsSync(modulesDir)) {
@@ -89,10 +89,15 @@ if (fs.existsSync(modulesDir)) {
 }
 app.locals.registry = registry;
 
+// ---- M12 kill-chain scenarios (defs live in scenarios/; the framework mounts
+// below, after the fixmode block, so the wiring order is explicit) ----
+const scenariosMod = require('./scenarios/index');
+
 // Seed per-deployment random flags for every registered challenge.
 // Flags live only in the SQLite file (gitignored); the source never
 // contains a real flag, so reading GitHub reveals nothing.
-ensureFlags(registry.flatMap((m) => m.vulns.map((v) => ({ modId: m.id, vulnId: v.id }))));
+ensureFlags(registry.flatMap((m) => m.vulns.map((v) => ({ modId: m.id, vulnId: v.id })))
+  .concat(scenariosMod.scenarios.map((s) => ({ modId: 'scenario', vulnId: s.id }))));
 
 // ---- shell helpers (M4) ----
 const DIFFICULTIES = ['Beginner', 'Easy', 'Intermediate', 'Medium', 'Mixed', 'Hard'];
@@ -117,6 +122,33 @@ function totals(req) {
 function scoreChipHtml(req) {
   const { got, total } = totals(req);
   return `<span class="score-chip" title="Flags captured"><span aria-hidden="true">🚩</span> ${got}/${total}</span>`;
+}
+
+// M12: scoreboard section for the kill-chain scenarios. It reuses the
+// sb-module card styling (the extra sb-scenarios marker stays for future
+// CSS), and rows mirror the module row markup but without data-key, so the
+// sb-module test parsing in tests/helpers.js is untouched.
+function scenariosSectionHtml(req) {
+  const list = scenariosMod.scenarios;
+  const done = list.filter((s) => captured(req, 'scenario', s.id)).length;
+  const rows = list.map((s) => {
+    const hit = captured(req, 'scenario', s.id);
+    const st = hit
+      ? '<span class="status status-captured"><span class="dot" aria-hidden="true"></span>Captured</span>'
+      : '<span class="status status-missing"><span class="dot" aria-hidden="true"></span>Not captured</span>';
+    return `<tr><td>${st}</td><td><a href="/scenarios/${esc(s.id)}"><b>${esc(s.name)}</b></a></td><td>${difficultyPill(s.difficulty)}</td></tr>`;
+  }).join('');
+  return `<section class="sb-module sb-scenarios" aria-label="Kill-chain scenarios">
+    <div class="sb-head"><span class="orb" aria-hidden="true">🔗</span>
+      <h3><a href="/scenarios">Kill-chain scenarios</a></h3>
+      <span class="sb-count">${done}/${list.length}</span></div>
+    ${progressBar(done, list.length, 'Kill-chain scenarios progress')}
+    <div class="tbl-scroll"><table class="tbl">
+      <caption class="sr-only">Kill-chain scenarios: completion status</caption>
+      <thead><tr><th scope="col">Status</th><th scope="col">Scenario</th><th scope="col">Difficulty</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </section>`;
 }
 
 // Gentlest entry point: first Beginner module, else first Easy, else first.
@@ -273,7 +305,8 @@ app.get('/scoreboard', (req, res) => {
       </div>
     </form>
     <p class="dim" data-sb-empty hidden>No challenges match your filter. Try clearing the search.</p>
-    ${sections || emptyState('Nothing matches', '<p>No challenges match the current filter.</p>', '<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Clear filter</a></p>')}`,
+    ${sections || emptyState('Nothing matches', '<p>No challenges match the current filter.</p>', '<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Clear filter</a></p>')}
+    ${scenariosSectionHtml(req)}`,
     'scoreboard', { scoreChip: scoreChipHtml(req) }));
 });
 
@@ -314,6 +347,10 @@ let fixmode = null;
 let fixbadges = null;
 try { fixmode = require('./lib/fixmode'); } catch (e) { console.warn('[warn] fix mode unavailable: lib/fixmode.js could not load'); }
 try { fixbadges = require('./lib/fixbadges'); } catch (e) { console.warn('[warn] fix badges unavailable: lib/fixbadges.js could not load'); }
+
+// ---- M12 kill-chain scenarios wiring (mounted after the fixmode block) ----
+app.use('/scenarios', scenariosMod.router);
+scenariosMod.setScenariosRegistry(registry);
 
 // Resolve a /fix URL to a registered module + challenge, or null.
 function findFixChallenge(module, vulnId) {

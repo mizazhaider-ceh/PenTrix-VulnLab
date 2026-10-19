@@ -63,7 +63,8 @@ npm test
 2. **Read the briefing**, then open a challenge. Each one looks and behaves like a real little website. The vulnerability is there to be discovered, not announced.
 3. **Find the bug.** Exploit it the way a real attacker would, with real tools: curl, Burp, your browser.
 4. **Capture the flag.** Progress lands on the scoreboard.
-5. **Stuck?** Reveal the hint. Still stuck? `SOLUTIONS.md` walks the technique, never the flag.
+5. **Want a story?** Open `/scenarios` for a kill-chain: several challenges chained into one attack, stages unlocking one at a time.
+6. **Stuck?** Reveal the hint. Still stuck? `SOLUTIONS.md` walks the technique, never the flag.
 
 ## Flags are born on your machine, not in this repo
 
@@ -101,8 +102,24 @@ Every challenge is paired with tests proving the real path works and the fakes f
 Most labs stop at "find the bug". PenTrix is being built to train complete security engineers:
 
 1. **Break-then-fix.** After you capture a flag, patch the vulnerable code yourself. The lab re-runs the original exploit against your fix in an isolated sandbox. If the exploit fails and the app still works, you earn a fix badge. Offense and defense, in one place. *(In active development: framework plus full SQLi and XSS coverage first.)*
-2. **Kill-chain scenarios.** Multi-stage attacks that tell one story: recon a target, exploit it, pivot, escalate, exfiltrate. Single challenges teach techniques; scenarios teach how attackers actually think. *(In active development: Shop Takeover, API Heist, Ghost in the CMS.)*
+2. **Kill-chain scenarios.** Multi-stage attacks that tell one story: recon a target, exploit it, pivot, escalate, exfiltrate. Single challenges teach techniques; scenarios teach how attackers actually think. Three stories ship today: **Shop Takeover**, **API Heist**, and **Ghost in the CMS**. Each unlocks stage by stage and ends with its own scenario flag.
 3. **Guided career paths.** Ordered journeys like "Zero to Web Pentester" and "API Hacker", with prerequisites, skill tracking, and a verifiable certificate when you finish. *(In active development.)*
+
+## Kill-chain scenarios
+
+Single challenges teach techniques. Scenarios teach how attackers actually think.
+
+A **kill-chain scenario** strings several challenges from different modules into one story: recon a target, break in, pivot, escalate, exfiltrate. You enter through `/scenarios` and work through a scenario's stages in order. Stages unlock one at a time: capturing a stage's flag opens the next stage. When every stage is captured, the **scenario flag** is awarded at the top of the scenario page.
+
+Three scenarios ship with this release:
+
+| Scenario | Story | Stages |
+|----------|-------|--------|
+| **Shop Takeover** (Intermediate) | Break into the PenTrix Corner Store, abuse its business logic, leave your mark. | SQLi login bypass -> IDOR admin access -> price tampering -> stored XSS |
+| **API Heist** (Intermediate) | Rob Acme Corp's private API: leak data, forge tokens, empty the vault. | Data exposure -> mass assignment -> `alg=none` JWT forgery -> API version bypass |
+| **Ghost in the CMS** (Intermediate) | Slip through a misconfigured CMS unseen, take an account, haunt the front page. | Exposed `.git` -> predictable reset tokens -> upload filter bypass -> stored XSS |
+
+The scenario flag works like every other flag: generated per deployment, stored in your local database, and awarded only for genuine exploitation. Lockout is per stage, so you can leave and come back: captured stages stay captured in your session, and later stages wait behind the lock icon until you earn your way in.
 
 ## Why PenTrix
 
@@ -112,7 +129,7 @@ Most labs stop at "find the bug". PenTrix is being built to train complete secur
 | Flags random per install | Yes | No | No | N/A |
 | Shortcut exploits rejected | Yes | Partial | No | Yes |
 | Break-then-fix mode | In development | No | No | No |
-| Kill-chain scenarios | In development | No | No | Partial |
+| Kill-chain scenarios | Yes, 3 story-driven scenarios | No | No | Partial |
 | Guided career paths | In development | No | Lessons | Yes |
 | One-command local setup | Yes | Yes | Yes | Browser only |
 | Fully open source | Yes | Yes | Yes | No |
@@ -174,7 +191,9 @@ This repo went through a full engineering transformation:
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
 - **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
 - **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
-- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked. Kill-chain scenarios and career paths are next. The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
+- **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit is blocked. Career paths are next.
+- **Kill-chain scenarios.** Three story-driven scenarios live at `/scenarios`: Shop Takeover, API Heist, and Ghost in the CMS. Staged unlock: each stage opens only after the previous stage's flag is captured, and finishing all stages earns a scenario flag.
+- The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 ## Project layout
 
@@ -192,7 +211,8 @@ PenTrix-VulnLab/
 │   │       ├── login.js    # one file per challenge
 │   │       └── ...
 │   └── ...                 # 28 more modules, same shape
-├── scenarios/              # kill-chain scenarios (in development)
+├── scenarios/              # 3 kill-chain scenarios (shop-takeover, api-heist,
+│                           #   ghost-in-the-cms), staged unlock, scenario flags
 ├── paths/                  # guided career paths (in development)
 ├── public/                 # claymorphism CSS, client JS
 ├── data/                   # SQLite database (gitignored, created on boot)
