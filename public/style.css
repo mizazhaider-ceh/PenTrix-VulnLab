@@ -175,3 +175,88 @@ section.block{margin-bottom:48px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.js .reveal{opacity:1;transform:none}}
 @media(min-width:720px){.clay-card.featured{grid-column:span 2}}
 @media(max-width:719px){.hero{padding:36px 28px;border-radius:36px}.hero h1{font-size:2.4rem}.topbar{flex-wrap:wrap;padding:8px 12px;border-radius:var(--r-med)}.topbar nav{width:100%;justify-content:space-between}.topbar nav a{padding:10px 12px}.clay-btn-primary{width:100%}.blob{width:40vh;height:40vh}.blob-3{display:none}.clay-card.featured{grid-column:span 1}.flag-well code{font-size:.9rem;word-break:break-all}}
+
+/* ================================================================
+   M6 MOTION SYSTEM (claymorphism, per docs/design/MOTION_SYSTEM.md)
+   Two motion kinds: ambient (slow 6s-12s loops, blobs only) and
+   feedback (fast, 100ms-400ms, tied to actions). Every keyframe
+   animates transform and opacity only. Static component rules above
+   are untouched; this section only adds or overrides motion.
+   ================================================================ */
+
+/* --- Timing and easing tokens (A0) --- */
+:root{
+  --dur-base:240ms;      /* disclosures, small entrances */
+  --dur-ambient-1:6s;    /* breathe */
+  --dur-ambient-2:8s;    /* float */
+  --dur-ambient-3:10s;   /* float delayed */
+  --dur-ambient-4:12s;   /* float slow */
+  --ease-in-out:cubic-bezier(.65,0,.35,1);
+}
+
+/* --- A1-A4: ambient keyframes (transform and opacity only) --- */
+@keyframes clay-float{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-20px) rotate(2deg)}}
+@keyframes clay-float-delayed{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-15px) rotate(-2deg)}}
+@keyframes clay-float-slow{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-30px) rotate(5deg)}}
+@keyframes clay-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+
+/* --- Ambient assignment: one drift loop per blob, phase-offset --- */
+.blob-1{animation:clay-float var(--dur-ambient-2) var(--ease-in-out) infinite}
+.blob-2{animation:clay-float-delayed var(--dur-ambient-3) var(--ease-in-out) -5s infinite}
+.blob-3{animation:clay-float-slow var(--dur-ambient-4) var(--ease-in-out) -2s infinite}
+
+/* --- A7: blob choreography offsets (opt-in utilities) --- */
+.animation-delay-2000{animation-delay:2s}
+.animation-delay-4000{animation-delay:4s}
+
+/* --- A5: hover lift (pills; cards and buttons already lift above) --- */
+.pill,.clay-pill,.badge{transition:transform var(--dur-fast) var(--ease-out)}
+.pill:hover,.clay-pill:hover,.badge:hover{transform:translateY(-4px)}
+
+/* --- A6: active squish stays the fastest feedback (200ms or less) --- */
+a.clay-card:active{transition-duration:var(--dur-press)}
+
+/* --- A8: scale accents, decorative shapes only, never text blocks --- */
+a.clay-card .orb{transition:transform 300ms var(--ease-out)}
+a.clay-card:hover .orb{transform:scale(1.06)}
+a.clay-card.featured:hover{transform:translateY(-8px) scale(1.02)}
+.flag-orb{animation:clay-breathe-once var(--dur-ambient-1) var(--ease-in-out) .3s 1}
+@keyframes clay-breathe-once{0%{transform:scale(1)}50%{transform:scale(1.07)}100%{transform:scale(1)}}
+
+/* --- Disclosure expand: hint content eases in on open (details stays native) --- */
+@keyframes hint-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.hint[open]>:not(summary){animation:hint-in var(--dur-base) var(--ease-out)}
+
+/* --- Page transition: subtle fade on arrival (JS-gated) and exit --- */
+@keyframes page-in{from{opacity:0}to{opacity:1}}
+.js body{animation:page-in var(--dur-fast) var(--ease-out)}
+html.page-exit body{opacity:0;transition:opacity 160ms var(--ease-out)}
+
+/* --- Micro-interactions: copy pop, filter row fades --- */
+@keyframes copy-pop{0%{transform:scale(.92)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+.copy-btn.copied{animation:copy-pop var(--dur-fast) var(--ease-out)}
+.sb-module tbody tr,.grid>a.clay-card{transition:opacity var(--dur-fast) var(--ease-out)}
+
+/* --- Reduced motion: single source of truth, disables ALL motion --- */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .js .reveal{opacity:1;transform:none}
+}
+
+/* --- Mobile fallbacks --- */
+@media(max-width:480px){
+  /* halve ambient travel so drift stays ignorable on small screens */
+  @keyframes clay-float{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(1deg)}}
+  @keyframes clay-float-delayed{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-8px) rotate(-1deg)}}
+  @keyframes clay-float-slow{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-15px) rotate(2deg)}}
+  /* no choreography offsets and no entrance stagger on small screens */
+  .animation-delay-2000,.animation-delay-4000{animation-delay:0s!important}
+  .js .reveal{transition-delay:0ms!important}
+}
+@media(hover:none){
+  /* no hover to begin with: lift becomes an active-state press */
+  a.clay-card:hover{transform:none;box-shadow:var(--shadow-clay-card)}
+  a.clay-card:active{transform:translateY(-4px) scale(.97);transition-duration:var(--dur-press)}
+  .clay-btn-primary:hover,.clay-btn-secondary:hover{transform:none}
+  .pill:hover,.clay-pill:hover,.badge:hover{transform:none}
+}

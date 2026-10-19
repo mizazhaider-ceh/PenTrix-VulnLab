@@ -4,6 +4,7 @@
 (function () {
   'use strict';
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var raf = window.requestAnimationFrame || function (fn) { fn(); };
   var canObserve = 'IntersectionObserver' in window && !reduced;
   if (canObserve) document.documentElement.classList.add('js');
 
@@ -56,8 +57,27 @@
         var hay = (it.getAttribute('data-search') || '').toLowerCase();
         var key = (it.getAttribute('data-key') || '').toLowerCase();
         var show = (!q || hay.indexOf(q) !== -1) && (f === 'all' || key === f);
-        it.style.display = show ? '' : 'none';
-        if (show) shown++;
+        var hidden = it.style.display === 'none';
+        if (it._ft) { clearTimeout(it._ft); it._ft = null; }
+        if (show) {
+          if (hidden) {
+            it.style.display = '';
+            if (!reduced) {
+              /* fade in: display first, then two frames so the transition runs */
+              it.style.opacity = '0';
+              raf(function () {
+                raf(function () { it.style.opacity = '1'; });
+              });
+              it._ft = setTimeout(function () { it.style.opacity = ''; it._ft = null; }, 260);
+            }
+          } else { it.style.opacity = ''; }
+          shown++;
+        } else if (!hidden) {
+          if (!reduced) {
+            it.style.opacity = '0';
+            it._ft = setTimeout(function () { it.style.display = 'none'; it.style.opacity = ''; it._ft = null; }, 220);
+          } else { it.style.display = 'none'; }
+        }
       });
       if (empty) empty.hidden = shown !== 0;
       if (opts.after) opts.after(shown);
@@ -98,6 +118,27 @@
     els.forEach(function (el, i) {
       el.style.transitionDelay = Math.min(i, 8) * 40 + 'ms';
       io.observe(el);
+    });
+  }
+  /* Page transition: subtle 160ms fade on same-origin navigation.
+     Skipped under reduced motion; modifier clicks, new tabs, downloads,
+     hash links and forms are untouched. */
+  if (!reduced) {
+    document.addEventListener('click', function (e) {
+      if (document.documentElement.classList.contains('page-exit')) return;
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a || e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) === '#') return;
+      var url;
+      try { url = new URL(a.href, document.baseURI); } catch (_) { return; }
+      if (url.origin !== location.origin) return;
+      if (url.pathname === location.pathname && url.search === location.search) return;
+      e.preventDefault();
+      document.documentElement.classList.add('page-exit');
+      setTimeout(function () { location.href = a.href; }, 160);
     });
   }
 })();
