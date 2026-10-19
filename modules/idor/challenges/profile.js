@@ -43,11 +43,11 @@ module.exports = {
     id: 'profile',
     name: 'Profile IDOR',
     difficulty: 'Easy',
-    hint: 'Log in as alice (id 2), then open a different user id in the URL, e.g. /idor/users/1.',
+    hint: 'Log in as alice, then change the number in the profile URL to a different member\'s id instead of your own.',
     hints: [
       'Your profile page has a number in its URL. What does the server do when you ask for a different number?',
       'The server looks the member up by id and never compares it with the id in your session, so the number in the URL is the only thing deciding whose data you see.',
-      'Signed in as a normal user, open the profile of a different member id (1 is the admin, 3 is bob) and read what the page returns.',
+      'Signed in as a normal user, change the number in the profile URL to a different member\'s id (the admin\'s id is worth trying first) and read what the page returns.',
     ],
     tools: 'B, C',
     how: 'Change the :id in /idor/users/:id to another user and read their secret.',

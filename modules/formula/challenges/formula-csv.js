@@ -49,7 +49,7 @@ const vuln = {
   name: 'Classic Formula Injection',
   difficulty: 'Easy',
   hint: 'Spreadsheets execute cells starting with =. The classic payload calls cmd through the pipe syntax.',
-  hints: ["The CSV export includes your input raw. What happens when Excel opens =cmd|...?", "Formula injection. The cell is treated as a formula.", "Submit =cmd|' /C calc'!A0 as a field. The export has the dangerous cell."],
+  hints: ["The CSV export includes your input raw. What happens when Excel opens =cmd|...?", "Quoting does not neutralize a formula cell. Think about which characters at the very start of a cell make a spreadsheet treat it as a formula instead of plain text.", "Use the classic cmd pipe trick: a formula cell that pipes a Windows shell command through the pipe operator, with a cell reference to anchor it. You know the pieces, assemble them as one cell value."],
   tools: "B",
   how: 'Put =cmd|... style payload in the name field and download the CSV export.',
   link: '/formula#formula-csv',

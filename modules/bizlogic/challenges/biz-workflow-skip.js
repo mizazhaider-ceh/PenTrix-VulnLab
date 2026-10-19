@@ -107,7 +107,7 @@ const vuln = {
   name: 'Checkout Step Skipped',
   difficulty: 'Medium',
   hint: 'Checkout is cart, then payment, then confirm. The confirm endpoint never verifies that payment actually happened.',
-  hints: ["Checkout has steps: pay, then confirm. Does confirm check that pay ran?", "No. The confirm endpoint never verifies payment.", "Skip the pay step and POST directly to /bizlogic/workflow/confirm. Order confirmed unpaid."],
+  hints: ["Checkout has steps: pay, then confirm. Does confirm check that pay ran?", "No. The confirm endpoint never verifies payment.", "Fill the cart first, then call the confirm step by itself, skipping only the pay step. Confirm never checks that payment actually ran."],
   tools: "BZ, C",
   how: 'Add an item to the cart, then POST /bizlogic/workflow/confirm directly without paying.',
   link: '/bizlogic#biz-workflow-skip',

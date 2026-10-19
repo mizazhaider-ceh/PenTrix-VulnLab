@@ -14,7 +14,7 @@ const vuln = {
   name: 'data: Scheme Honored',
   difficulty: 'Medium',
   hint: 'Same sink, different scheme: data: URLs let you smuggle a whole HTML document through the redirect.',
-  hints: ["data: URLs can hold HTML. What if the redirect goes to one?", "A data:text/html URL renders as a page. It's a redirect to attacker content.", "Try ?next=data:text/html,<script>alert(1)</script>."],
+  hints: ["data: URLs can hold HTML. What if the redirect goes to one?", "A data:text/html URL renders as a page. It's a redirect to attacker content.", "Send a data: URL that carries a full HTML document as the redirect target. The key insight: the server honors any scheme in the Location header, so the redirect becomes a delivery channel for attacker-controlled content."],
   tools: "C",
   how: 'Request /redirect/data?next=data:text/html,<script>alert(1)</script> (URL-encoded) and check the Location header.',
   link: '/redirect#redirect-data',

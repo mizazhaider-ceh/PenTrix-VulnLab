@@ -54,8 +54,8 @@ router.get('/view', (req, res) => {
 module.exports = {
   vuln: {
     id: 'traversal', name: 'Basic Path Traversal', difficulty: 'Easy',
-    hint: 'The viewer joins your input to the docs path with no checks at all. What happens if you ask for a file in the parent directory, like <code>..%2F..%2Fsecret.txt</code>? Adjust the depth until you find it.',
-    hints: ["The docs viewer takes a filename. What if the filename contains ../?", "../ escapes the docs directory. The secret marker proves the read.", "Try ?file=../secret.txt (adjust depth) and look for the marker."],
+    hint: 'The viewer joins your input to the docs path with no checks at all. Ask for a file in the parent directory with ../ sequences (encoding the slashes can help), and adjust the depth until the secret marker appears.',
+    hints: ["The docs viewer takes a filename. What if the filename contains ../?", "../ escapes the docs directory. The secret marker proves the read.", "The viewer joins your filename to the docs path with zero checks. Climb out of docs/ with ../ sequences, adjust the depth until the secret marker appears, and try encoding the slashes if the plain form fails."],
     tools: "B, C",
     how: 'Use ../ sequences to escape docs/ and read secret.txt.',
     link: '/lfi/view?file=readme.txt',

@@ -13,7 +13,7 @@ const vuln = {
   name: 'Cloud metadata SSRF',
   difficulty: 'Medium',
   hint: 'Cloud VMs expose instance credentials at a link-local address the fetcher does not block.',
-  hints: ["Cloud VMs have a metadata service at a special IP. What is it, and what does it serve?", "169.254.169.254 is the link-local metadata address. It serves IAM credentials to the instance.", "Fetch http://169.254.169.254/latest/meta-data/iam/security-credentials/."],
+  hints: ["Cloud VMs have a metadata service at a special IP. What is it, and what does it serve?", "169.254.169.254 is the link-local metadata address. It serves IAM credentials to the instance.", "First fetch the credentials listing path on the metadata service, then fetch the credential name it lists to read the secret material."],
   tools: 'C',
   how: 'Fetch http://169.254.169.254/latest/meta-data/iam/security-credentials/ via /ssrf/fetch-meta.',
   link: '/ssrf#ssrf-metadata',

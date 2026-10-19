@@ -23,7 +23,7 @@ const vuln = {
   name: 'Tampered Refund Amount',
   difficulty: 'Medium',
   hint: 'The refund form carries the amount in a hidden field. The server refunds whatever number you submit, even more than you paid.',
-  hints: ["The refund amount is in a hidden field. Is it clamped?", "No. Request a refund larger than the order total.", "Set refund_amount=9999 on a $50 order. Refund > total."],
+  hints: ["The refund amount is in a hidden field. Is it clamped?", "No. Request a refund larger than the order total.", "Buy an order, then refund it for more than it cost. The server never checks the refund amount against what you paid."],
   tools: 'BZ, B',
   how: 'Buy the $50 hoodie, then request a refund at /bizlogic/refund with an amount larger than $50.',
   link: '/bizlogic#biz-refund',

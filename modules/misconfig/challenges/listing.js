@@ -84,7 +84,7 @@ module.exports = {
     name: 'Directory Listing Leak',
     difficulty: 'Easy',
     hint: 'The file browser lists everything in public-files, including files that were never meant to be seen.',
-    hints: ["The directory listing is hand-rolled. What files does it expose?", "The listing shows secret.txt. Directory listings leak files nobody linked.", "Open the listing and download secret.txt."],
+    hints: ["The directory listing is hand-rolled. What files does it expose?", "The listing shows secret.txt. Directory listings leak files nobody linked.", "Browse the directory listing, pick out the file that was never meant to be public, and download it through the listing."],
     tools: 'B',
     how: 'Open /misconfig/files/ and read secret.txt.',
     link: '/misconfig#listing',

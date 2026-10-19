@@ -118,8 +118,8 @@ module.exports = {
     hint: 'Display names are stored and every view evaluates them as templates. Your payload persists and fires for every visitor.',
     hints: [
       'Your display name is stored and evaluated as a template on view.',
-      'Stored CSTI: save {{7*7}} as your name, then view the page.',
-      'Set the name to the payload and reload.',
+      'Stored CSTI: save an arithmetic expression as your display name, then view the member list.',
+      'Set your display name to a template expression that evaluates to a distinctive number, then reload. The stored value fires on every view, and the page beacons for you once the rendered result proves evaluation.',
     ],
     tools: 'B',
     how: 'Save {{7*7}} as your display name and reload the member list.',

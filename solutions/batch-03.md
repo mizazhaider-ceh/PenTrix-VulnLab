@@ -1,4 +1,4 @@
-# Batch 03 Solutions — auth (+8) and idor (+8)
+# Batch 03 Solutions: auth (+8) and idor (+8)
 
 Base URL in these walkthroughs is `http://localhost:3000` (adjust the port to
 whatever the lab runs on). All 16 labs were verified working with curl against

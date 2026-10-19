@@ -36,7 +36,7 @@ module.exports = {
     hints: [
       'The server never sees the URL fragment (everything after #). So where does the vulnerability live?',
       'JavaScript on the page copies location.hash into innerHTML. The sink is client-side only; the server just serves the static page.',
-      'Build a URL of the form /xss/dom#<tag with an event handler> where the handler calls /xss/collect (parameters c, v=dom and n=window.__px), then open it. A <script> tag inserted through innerHTML does not run, so use an element with an event handler.',
+      'Build a URL of the form /xss/dom#<tag with an event handler> where the handler calls /xss/collect (parameters c, v=dom and n=window.__px), then open it. A <script> tag inserted through innerHTML does not run, so use an element whose event handler fires on its own when the page loads (a broken image is the classic choice).',
     ],
     tools: 'B, DT',
     how: 'Build a /xss/dom#... link whose fragment contains the exfiltration payload, then open it.',

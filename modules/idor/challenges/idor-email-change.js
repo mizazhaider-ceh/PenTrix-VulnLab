@@ -60,11 +60,11 @@ module.exports = {
     id: 'idor-email-change',
     name: 'Email Change IDOR',
     difficulty: 'Easy',
-    hint: 'The change-email form on /idor/account submits a user_id field. Change it to 1 (admin) and set a new email.',
+    hint: 'The change-email form on /idor/account submits a user_id field. Swap it for another user\'s id (the admin\'s is a strong target) and set a new email.',
     hints: [
       'The email change form carries more than just the new address. What else does your browser send, and can you change it?',
       'The form submits a user_id parameter that the server trusts. Change it to another user\'s id.',
-      'Resubmit POST /idor/account/email with a user_id that is not yours (1 is the admin) and a new email.',
+      'Replay the email change request with a different account\'s id in the user_id field (the admin is a strong target), then read the confirmation page carefully: it tells you whose address actually moved.',
     ],
     tools: 'BZ, C',
     how: 'POST /idor/account/email with another user\'s id in the user_id parameter.',

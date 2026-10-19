@@ -83,7 +83,7 @@ module.exports = {
     name: 'INSERT Injection',
     difficulty: 'Medium',
     hint: 'The feedback form builds its INSERT with string interpolation. You cannot stack queries here, but VALUES() happily accepts a subquery.',
-    hints: ["The feedback form builds an INSERT query by gluing your input into the VALUES list. You can't stack queries, but VALUES accepts more than plain text.", "A subquery inside VALUES() runs as part of the insert. Break out of the value string, then use (SELECT secret FROM users WHERE username='admin') as one of the values.", "Submit feedback with name: ', (SELECT secret FROM users WHERE username='admin'), ' --  to write the secret into your row, then read it back."],
+    hints: ["The feedback form builds an INSERT query by gluing your input into the VALUES list. You can't stack queries, but VALUES accepts more than plain text.", "A subquery inside VALUES() runs as part of the insert. Break out of the value string, then use (SELECT secret FROM users WHERE username='admin') as one of the values.", "Break out of the quoted value in the feedback form, slip a subquery into the VALUES list that fetches the admin secret, and close out the statement so the insert still parses. Then read the secret back from your own feedback row."],
     tools: "B, C",
     how: 'Break out of the VALUES list with a subquery that writes the admin secret into your feedback row.',
     link: '/sqli/feedback',

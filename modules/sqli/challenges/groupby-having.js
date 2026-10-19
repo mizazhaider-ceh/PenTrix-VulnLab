@@ -61,7 +61,7 @@ module.exports = {
     name: 'GROUP BY Injection',
     difficulty: 'Medium',
     hint: 'The stats page groups sales by an expression you control and prints the grouping key back. GROUP BY accepts any expression, including a subquery.',
-    hints: ["The stats page groups sales and prints the grouping key. You control the GROUP BY expression. What can an expression be?", "GROUP BY accepts any SQL expression, including a subquery. If the grouping key is (SELECT secret FROM users...), the secret comes back as the group label.", "Set the group parameter to: (SELECT secret FROM users WHERE username='admin') and read the secret from the grouped output."],
+    hints: ["The stats page groups sales and prints the grouping key. You control the GROUP BY expression. What can an expression be?", "GROUP BY accepts any SQL expression, including a subquery. If the grouping key is (SELECT secret FROM users...), the secret comes back as the group label.", "You control the GROUP BY expression and the page prints the grouping key. Aim that expression at the users table so the admin secret itself becomes the group label, then read it straight from the stats output."],
     tools: "B, C",
     how: 'Point the GROUP BY expression at the users table so the admin secret comes back as the grouping key.',
     link: '/sqli/stats',

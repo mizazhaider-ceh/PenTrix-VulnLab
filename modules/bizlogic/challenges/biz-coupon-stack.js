@@ -22,7 +22,7 @@ const vuln = {
   name: 'Coupon Stacking Past 100%',
   difficulty: 'Medium',
   hint: 'Each coupon claims "one per order", but the discount math just adds every valid code together. 50 + 40 + 30 = ?',
-  hints: ["Coupons give % off. Can you use more than one?", "Percentages stack with no cap. 60% + 50% = 110% off (negative total).", "Apply two coupons. Total <= 0."],
+  hints: ["Coupons give % off. Can you use more than one?", "Percentages stack with no cap. 60% + 50% = 110% off (negative total).", "Stack coupons on one order until the total reaches zero or below. Each new code adds its percentage to the same pile, so keep piling until the discount crosses 100%."],
   tools: 'B',
   how: 'Apply SAVE50, SAVE40 and SAVE30 together at /bizlogic/coupon-stack so the discount exceeds 100%.',
   link: '/bizlogic#biz-coupon-stack',

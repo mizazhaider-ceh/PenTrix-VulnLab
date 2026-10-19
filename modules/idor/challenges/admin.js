@@ -45,11 +45,11 @@ module.exports = {
     id: 'admin',
     name: 'Unprotected Admin Panel',
     difficulty: 'Easy',
-    hint: 'The admin panel only checks "logged in", not your role. Log in as alice or bob and visit /idor/admin.',
+    hint: 'The admin panel only checks "logged in", not your role. Log in as alice or bob and request its predictable URL directly instead of looking for a link to it.',
     hints: [
       'The admin link is not shown in your navigation. But what actually protects the admin URL?',
       'A hidden link is not an access control. The page asks "are you signed in" but may never ask "are you an admin".',
-      'Signed in as alice or bob, request the admin panel path directly (it lives at /idor/admin).',
+      'Signed in as alice or bob, request the admin panel URL directly rather than hunting for a link, since the server never verifies the admin role.',
     ],
     tools: 'B',
     how: 'Log in as any non-admin user and open /idor/admin.',

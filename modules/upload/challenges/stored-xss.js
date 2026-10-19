@@ -90,7 +90,7 @@ module.exports = {
     hints: [
       'You can upload HTML files and they are served back. With what Content-Type?',
       'Uploaded HTML/SVG is served inline (not as a download). Your script runs when the file is opened.',
-      'Upload an HTML file with <script>alert(1)</script>, then open its /uploads/ link.',
+      'KEY INSIGHT: the file you upload is served back inline and your browser executes whatever it renders. Build an HTML page that runs script when it opens, upload it, and open its /uploads/ link.',
     ],
     tools: 'B, C',
     how: 'Upload an .html or .svg file containing JavaScript to POST /upload?filename=..., then open its /uploads/ link.',

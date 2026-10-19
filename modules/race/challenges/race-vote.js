@@ -16,7 +16,7 @@ const vuln = {
   name: 'Vote Counted Twice',
   difficulty: 'Easy',
   hint: 'One vote per name is enforced by checking first, then recording. Send two votes for the same name in parallel.',
-  hints: ["Votes check for duplicate names. But the check and insert aren't atomic.", "Simultaneous votes with the same name both pass the duplicate check.", "POST 5 votes with the same name in parallel. Votes > 1."],
+  hints: ["Votes check for duplicate names. But the check and insert aren't atomic.", "Simultaneous votes with the same name both pass the duplicate check.", "Send a burst of votes for the same name at the same instant and count the recorded votes. More than one vote for one name proves the duplicate check lost the race."],
   tools: 'P, C',
   how: 'POST two votes for the same name at /race/vote at the same instant so both pass the duplicate check.',
   link: '/race#race-vote',

@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "The filter strips semicolons. But the shell has other command separators. Which ones?",
     "A newline (%0a) always starts a second, independent command, no matter how the first one exits. && and || also work, but only when the first command's exit status cooperates. The filter only removes the first ; it finds.",
-    "Try ?host=127.0.0.1%0aid (newline) or ?host=127.0.0.1%26%26id (&&).",
+    "Follow a valid host with a URL-encoded separator the filter cannot see in raw form, then end with a command whose output you will recognize. Remember: a newline always runs the second command, while && and || depend on the first command's exit status. Confirm success by spotting that output in the response.",
   ],
   tools: 'B, C',
   how: 'Bypass the semicolon filter with a newline, && , or ||, e.g. ?host=127.0.0.1%0aid',

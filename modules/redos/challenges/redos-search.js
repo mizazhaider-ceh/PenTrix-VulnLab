@@ -23,8 +23,8 @@ const vuln = {
   hint: 'Your query is compiled into ^((q)+)+$ as the repeated atom. The haystack is 26 a\'s plus !. Which atom gives the nesting something to chew on?',
   hints: [
     'Your search term becomes a regex atom. Can you inject a catastrophic pattern?',
-    'Submit ^((a)+)+$ as the search. The server compiles it.',
-    'The search itself is the ReDoS. Time the response.',
+    'The text you type becomes the atom that the server wraps in its own nested quantifiers. Build that atom from the haystack\'s repeated character so the nesting has something to chew on.',
+    'The catastrophic pattern only explodes because the last character can never match. Submit the haystack\'s repeated character as your query and let that trailing mismatch do the work. Time the response.',
   ],
   tools: 'B, C',
   how: 'Search for the haystack\'s character so the compiled pattern becomes ^((a)+)+$.',

@@ -30,7 +30,7 @@ module.exports = {
     name: 'Callback XSS',
     difficulty: 'Easy',
     hint: 'The callback parameter is dropped straight into executable JavaScript. It does not have to stay a function name. The response data carries a per-session token your payload must echo back to /jsonp/beacon-xss.',
-    hints: ["The callback parameter is reflected into JavaScript. What if it's not a function name?", "Break out: callback=x);alert(1);// turns the response into your code.", "The injected script must echo the per-session token to the beacon."],
+    hints: ["The callback parameter is reflected into JavaScript. What if it's not a function name?", "The callback value is dropped verbatim into a JavaScript call. End that call early so your own code runs as part of the response.", "The injected script must echo the per-session token to the beacon."],
     tools: "B",
     how: 'Load /jsonp/user?callback=... as a script with a breakout payload that reads the token from the data object and beacons it, e.g. callback=(d=>fetch(\'/jsonp/beacon-xss?v=callback-xss&n=\'+d.token)).',
     link: '/jsonp#callback-xss',

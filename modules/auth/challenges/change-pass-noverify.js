@@ -13,7 +13,7 @@ const vuln = {
   name: 'Password Change Without Current Password',
   difficulty: 'Easy',
   hint: 'Log in as anyone through /auth/login, then open the change-password page and notice it never asks for the current password.',
-  hints: ["You're logged in and want to change your password. Does it ask for the current one?", "The change-password endpoint only checks your session, not your current password. Anyone with session access (XSS, shared computer) can set a new password.", "While logged in, POST a new password to /auth/change-password without the old one."],
+  hints: ["You're logged in and want to change your password. Does it ask for the current one?", "The change-password endpoint only checks your session, not your current password. Anyone with session access (XSS, shared computer) can set a new password.", "Get yourself signed in, then submit a new password on the change-password page. The key insight: a correct implementation would demand proof of the old password first, and that check is missing here."],
   tools: 'B',
   how: 'While logged in, change the account password without knowing the current one.',
   link: '/auth/change-password',

@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "The filter strips ; & |. But the shell treats newlines as command separators too.",
     "%0a in a URL decodes to a newline. Each line runs as its own command.",
-    "Try ?host=127.0.0.1%0acat /etc/passwd.",
+    "Place a URL-encoded newline between a valid host and a command that prints output. Each line then runs as its own statement, so the second line just needs to be a command whose result you can spot in the response.",
   ],
   tools: 'B, C',
   how: 'Inject a newline (%0a) to start a second command, e.g. ?host=127.0.0.1%0acat /etc/passwd',

@@ -77,7 +77,7 @@ module.exports = {
     name: 'ORDER BY Injection',
     difficulty: 'Medium',
     hint: 'The sort parameter goes straight into ORDER BY. ORDER BY accepts full expressions, including CASE WHEN with a subquery against the users table. Watch the row order flip as your condition changes.',
-    hints: ["The sort parameter changes the order of products. ORDER BY doesn't just take column names. What else can go there?", "ORDER BY accepts full SQL expressions, including CASE WHEN with a subquery. If the CASE condition is true, sort one way; if false, sort another way. The row order becomes your oracle.", "Inject: sort=CASE WHEN (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' THEN name ELSE price END --  and watch the order flip as your guess changes."],
+    hints: ["The sort parameter changes the order of products. ORDER BY doesn't just take column names. What else can go there?", "ORDER BY accepts full SQL expressions, including CASE WHEN with a subquery. If the CASE condition is true, sort one way; if false, sort another way. The row order becomes your oracle.", "Inject a CASE WHEN into the sort parameter that compares your current character guess against the admin secret and sorts by one column when true, another when false. The product order flips as your guess changes, turning the table into a yes/no oracle."],
     tools: "B, C",
     how: 'Run a CASE WHEN boolean oracle inside ORDER BY against the users table and observe the sorting change.',
     link: '/sqli/sort',

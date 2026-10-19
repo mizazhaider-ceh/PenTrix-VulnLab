@@ -87,7 +87,7 @@ module.exports = {
     hints: [
       'The filename is joined to the uploads directory. Is there a basename check?',
       'No. A filename like ../pwn.txt escapes the uploads dir and writes elsewhere.',
-      'Upload to /upload/traverse?filename=../pwn.txt, then read it via /upload/traversed?f=../pwn.txt.',
+      'KEY INSIGHT: the filename is joined to the uploads directory with no basename or containment check. Upload with a filename that climbs out of the uploads dir, then retrieve it through the endpoint that reads arbitrary paths.',
     ],
     tools: 'C',
     how: 'Upload to POST /upload/traverse?filename=../pwn.txt so the file lands outside the uploads dir, then read it back via /upload/traversed?f=../pwn.txt.',

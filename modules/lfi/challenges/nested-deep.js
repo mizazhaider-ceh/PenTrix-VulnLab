@@ -49,8 +49,8 @@ router.get('/nested', (req, res) => {
 module.exports = {
   vuln: {
     id: 'nested-deep', name: 'Deep Nesting Bypass', difficulty: 'Easy',
-    hint: 'This filter strips every <code>../</code> in one pass, but it never looks at the result again. Nest your dots so stripping creates a fresh traversal, e.g. <code>....///</code> collapses toward <code>../</code>.',
-    hints: ["The filter does a one-pass global strip of ../. What about nested dots?", "A single pass over '....//' removes the inner pair and leaves '../'. Nested patterns survive one pass.", "Try ?page=....///docs/secret.txt with nested dots."],
+    hint: 'This filter strips every <code>../</code> in one pass, but it never looks at the result again. Nest your dots so stripping creates a fresh traversal: work out what the string becomes after the single pass.',
+    hints: ["The filter does a one-pass global strip of ../. What about nested dots?", "One pass removes every occurrence and then stops. Nest a pattern inside itself so the removal assembles a fresh traversal from the leftovers. Sketch the collapse on paper before firing it.", "A one-pass global strip can be fooled by nesting. Arrange your dots and slashes so that stripping the inner ../ leaves a brand new traversal behind, and sketch the collapsed result on paper before you fire it."],
     tools: "B, C",
     how: 'Beat the one-pass global strip on /lfi/nested with nested dots.',
     link: '/lfi/nested',

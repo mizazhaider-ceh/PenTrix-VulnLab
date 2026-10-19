@@ -53,7 +53,7 @@ module.exports = {
     name: 'Error-based Injection',
     difficulty: 'Easy',
     hint: 'The detail page interpolates your id straight into the query and leaks raw database errors. A stray quote breaks the syntax; a bad function call or malformed JSON breaks it at runtime. Both are error oracles.',
-    hints: ["The detail page shows raw database errors. Errors are information. What can you learn from making the query fail?", "A stray quote breaks the SQL syntax and the error message confirms your input reaches the query. Runtime errors (bad function calls, malformed JSON) leak even more.", "Trigger a visible error: try id=1' for a syntax error, or id=1 UNION SELECT json('bad') for a runtime error. The error text proves injection."],
+    hints: ["The detail page shows raw database errors. Errors are information. What can you learn from making the query fail?", "A stray quote breaks the SQL syntax and the error message confirms your input reaches the query. Runtime errors (bad function calls, malformed JSON) leak even more.", "Make the query fail on purpose: one approach breaks the syntax, another breaks a function call or expression at runtime. The error text that comes back proves your input reaches the query and shows you what the database choked on."],
     tools: "B, C",
     how: "Trigger a visible SQLite error through the id parameter: a syntax error (stray quote) or a runtime error (bad function call, malformed JSON).",
     link: '/sqli/detail',

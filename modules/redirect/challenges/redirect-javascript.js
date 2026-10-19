@@ -71,7 +71,7 @@ const vuln = {
   name: 'javascript: Scheme Honored',
   difficulty: 'Medium',
   hint: 'The redirect puts whatever you give it into the Location header, with no scheme allowlist. Browsers treat javascript: as code, not a page.',
-  hints: ["The redirector puts your input in the Location header. What schemes can a Location have?", "javascript: URLs run code. If the Location is javascript:..., the browser executes it.", "Try ?next=javascript:alert(1). The Location starts with javascript:."],
+  hints: ["The redirector puts your input in the Location header. What schemes can a Location have?", "javascript: URLs run code. If the Location is javascript:..., the browser executes it.", "Point the redirect at a scheme the browser treats as code, not a page. The key insight: the server copies your input into the Location header with no scheme allowlist, so the scheme is yours to choose."],
   tools: 'C',
   how: 'Request /redirect/js?next=javascript:alert(1) and inspect the Location header with curl -i.',
   link: '/redirect#redirect-javascript',

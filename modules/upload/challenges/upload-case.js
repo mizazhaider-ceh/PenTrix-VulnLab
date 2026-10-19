@@ -63,7 +63,7 @@ module.exports = {
     hints: [
       "The blacklist has '.svg' but the check is case-sensitive. What about '.SVG'?",
       "Path.extname returns the case as-is. '.SVG' !== '.svg', so it passes, but the file is still served as SVG.",
-      "Upload evil.SVG to /upload/ext-blacklist.",
+      "KEY INSIGHT: a case-sensitive check can be beaten by changing the case of the blocked extension, since the viewer still recognises it as SVG. Upload a file whose extension is a case-variant of the blacklisted one, carrying SVG plus script, to the ext-blacklist endpoint.",
     ],
     tools: "C",
     how: 'Upload evil.SVG (uppercase) to POST /upload/ext-blacklist?filename=... so the ".svg" entry misses it.',

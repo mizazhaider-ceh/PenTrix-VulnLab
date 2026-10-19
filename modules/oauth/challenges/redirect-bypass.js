@@ -58,7 +58,7 @@ module.exports = {
     name: 'Redirect URI Prefix Bypass',
     difficulty: 'Medium',
     hint: 'The IdP checks redirect_uri with a naive prefix match against http://app.pentrix.lab. What string starts with that but points at an attacker host?',
-    hints: ["The redirect_uri check is a naive prefix match. What URIs pass but aren't the real app?", "https://app.pentrix.lab.evil.com starts with the prefix but is attacker-controlled.", "Register the evil URI, authorize, and catch the code."],
+    hints: ["The redirect_uri check is a naive prefix match. What URIs pass but aren't the real app?", "A prefix check only verifies the start of the string, so appending extra text to the trusted prefix still passes; the host it points at, however, is no longer the app.", "Register the evil URI, authorize, and catch the code."],
     tools: "B, C",
     how: 'Request an authorization code with redirect_uri=http://app.pentrix.lab.evil.com/cb and watch the code go to the attacker host.',
     link: '/oauth#redirect-bypass',

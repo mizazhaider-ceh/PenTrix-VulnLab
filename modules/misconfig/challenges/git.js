@@ -75,7 +75,7 @@ module.exports = {
     name: 'Exposed .git Directory',
     difficulty: 'Medium',
     hint: 'The repository metadata is served over HTTP. Start at /.git/HEAD, follow the ref, then walk the object store to the commit.',
-    hints: ["There's a .git directory over HTTP. What does that give you?", "HEAD, refs, and objects are all fetchable. The commit object has the secret.", "Fetch /.git/HEAD, then the ref, then the commit object. Read the diff."],
+    hints: ["There's a .git directory over HTTP. What does that give you?", "HEAD, refs, and objects are all fetchable. The commit object has the secret.", "Treat the exposed .git directory like a repository you clone by hand over HTTP: follow the chain from HEAD to the branch ref to the commit object, then reconstruct the file the commit added. The secret hides in that change."],
     tools: 'C',
     how: 'Read .git/HEAD, resolve refs/heads/main, then fetch the commit object and read the leaked secret.',
     link: '/misconfig#git',

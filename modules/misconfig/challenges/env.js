@@ -25,7 +25,7 @@ module.exports = {
     name: 'Exposed .env File',
     difficulty: 'Medium',
     hint: 'Twelve-factor apps keep secrets in environment files. One of them ended up web-accessible.',
-    hints: ["Is there a .env file in the web root?", ".env has production secrets (DB passwords, API keys). It's served as plain text.", "Fetch /misconfig/.env and read the secrets."],
+    hints: ["Is there a .env file in the web root?", ".env has production secrets (DB passwords, API keys). It's served as plain text.", "Work out the URL of the exposed environment file (a well-known hidden filename served from the web root), request it, and scan the output for production secrets."],
     tools: 'C',
     how: 'Download /misconfig/.env and read the secrets inside.',
     link: '/misconfig#env',

@@ -53,7 +53,7 @@ module.exports = {
     name: 'XInclude File Inclusion',
     difficulty: 'Medium',
     hint: 'The xinclude endpoint honors xi:include tags. The href is resolved server-side with the same file:// and http:// support as entities.',
-    hints: ["There's another XML inclusion mechanism besides entities. What is it?", "XInclude (<xi:include>) pulls in external resources. It's XXE by another name.", "Submit <xi:include href=\"file:///path/to/secret\" parse=\"text\"/> with the XInclude namespace."],
+    hints: ["There's another XML inclusion mechanism besides entities. What is it?", "XInclude (<xi:include>) pulls in external resources. It's XXE by another name.", "Use the XInclude include element with its proper namespace, pointing its href at the secret file and setting parse to text. Key insight: XInclude is processed server-side, so the included file gets spliced into the parsed document and returned. Declare the xi namespace on your root element and check the output for the spliced content."],
     tools: "B, C",
     how: 'Submit XML with <xi:include href="file:///.../secret.txt" parse="text"/> and read the spliced content in the output.',
     link: '/xxe#xxe-xinclude',

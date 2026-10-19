@@ -40,7 +40,7 @@ module.exports = {
     id: 'idor-download',
     name: 'Invoice Download IDOR',
     difficulty: 'Medium',
-    hint: 'Log in as alice, then open /idor/invoice/2 (bob\'s) or /idor/invoice/3 (admin\'s). The server never checks who the invoice belongs to.',
+    hint: 'Log in as alice and change the number in the invoice URL to one that is not yours. The server never checks who the invoice belongs to.',
     hints: [
       'Invoices are downloaded by id. Do you own the invoice you are downloading?',
       'The download endpoint trusts the :id parameter with no ownership check. Invoice ids are sequential.',

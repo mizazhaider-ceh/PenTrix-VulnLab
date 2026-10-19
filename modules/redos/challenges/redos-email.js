@@ -74,7 +74,7 @@ module.exports = {
     name: 'Catastrophic Email Regex',
     difficulty: 'Medium',
     hint: 'The local part is ((...+)+): nested quantifiers. Send a long run of valid characters with no @ anywhere.',
-    hints: ["The email regex has nested quantifiers. What input makes it backtrack?", "A long valid run followed by a bad tail. The engine tries all splits.", "Submit a+...+@ with a long 'a' run and a bad ending. Measure the time."],
+    hints: ["The email regex has nested quantifiers. What input makes it backtrack?", "A long valid run followed by a bad tail. The engine tries all splits.", "Build input that is almost valid: a long run of valid characters, then a tail that breaks the match so the engine must retry every split. Time the response."],
     tools: "B, C",
     how: 'Submit 30 a\'s followed by a non-matching character as the email (add a few more, up to the length cap, if your machine is very fast).',
     link: '/redos#redos-email',

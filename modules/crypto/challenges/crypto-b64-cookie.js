@@ -13,7 +13,7 @@ const vuln = {
   name: 'Base64 "Encryption"',
   difficulty: 'Easy',
   hint: 'Look closely at the "encrypted" cookie. Does it look random, or does it look like something you can decode?',
-  hints: ["The 'encrypted' cookie is just base64. Decode it.", "base64(username:role). Decode, change role to admin, re-encode.", "Decode your cookie, edit to admin, re-encode, and present it."],
+  hints: ["The 'encrypted' cookie is just base64. Decode it.", "It is base64-encoded JSON with a role field. Decode it, set role to admin, re-encode.", "Decode your cookie, edit role to admin in the JSON, re-encode, and present it."],
   tools: 'B, DT',
   how: 'Decode the cookie, change role to admin in the JSON, re-encode, and submit it.',
   link: '/crypto#crypto-b64-cookie',

@@ -50,8 +50,8 @@ router.get('/download', (req, res) => {
 module.exports = {
   vuln: {
     id: 'filter-bypass', name: 'Naive Filter Bypass', difficulty: 'Medium',
-    hint: 'The download endpoint strips <code>../</code> only once. Craft an input where removing the inner <code>../</code> leaves a fresh traversal sequence behind, e.g. <code>....//</code> collapses to <code>../</code> after one strip.',
-    hints: ["The filter strips ../ once. What happens to ....// after one removal?", "Single-strip: '....//' becomes '../' after removing the inner '../'. The filter doesn't re-scan.", "Try ?file=....//docs/secret.txt."],
+    hint: 'The download endpoint strips <code>../</code> only once. Craft an input where removing the inner <code>../</code> leaves a fresh traversal sequence behind, and check what the string becomes after a single strip.',
+    hints: ["The filter strips ../ once. What happens to ....// after one removal?", "The filter removes the traversal sequence once and never re-scans the result. If your input contains a traversal nested inside itself, the inner removal can rebuild the outer one. Work out the collapse on paper first.", "The filter removes ../ once and never re-scans the result. Build an input where removing the inner pattern leaves a fresh traversal sequence behind, then aim it at the docs folder."],
     tools: "B, C",
     how: 'Bypass the single-pass filter with ....//docs/secret.txt.',
     link: '/lfi/download?file=about.txt',

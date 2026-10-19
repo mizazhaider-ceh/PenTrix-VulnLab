@@ -64,7 +64,7 @@ module.exports = {
     name: 'Callback Filter Bypass',
     difficulty: 'Medium',
     hint: 'Only the literal word "alert" is blocked. JavaScript can build strings at runtime. Your payload must also echo the per-session token from the response data back to /jsonp/beacon-xss.',
-    hints: ["The filter blocks 'alert'. But strings can be concatenated.", "'al'+'ert' is alert without typing it.", "Use the concatenation in the callback to beat the filter and echo the token."],
+    hints: ["The filter blocks 'alert'. But strings can be concatenated.", "Rebuild the blocked keyword at runtime by joining string pieces, so the filter never sees the literal text.", "Use the concatenation in the callback to beat the filter and echo the token."],
     tools: "B",
     how: 'Beat the filter with concatenation and beacon the token, e.g. callback=(d=>top[\'fe\'+\'tch\'](\'/jsonp/beacon-xss?v=filter-bypass&n=\'+d.token))// loaded as a script.',
     link: '/jsonp#filter-bypass',

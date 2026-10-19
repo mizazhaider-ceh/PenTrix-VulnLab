@@ -16,7 +16,7 @@ const vuln = {
   name: 'Basic SSRF',
   difficulty: 'Medium',
   hint: 'The server fetches whatever URL you give it. What does 127.0.0.1 mean from the server\'s point of view?',
-  hints: ["The app fetches a URL you provide and shows you the result. What can the server reach that you can't?", "The server is inside the network. Give it an internal URL (127.0.0.1) and it will fetch it for you.", "Submit http://127.0.0.1:PORT/ssrf/internal/secret as the URL. The server-side fetch returns the internal marker."],
+  hints: ["The app fetches a URL you provide and shows you the result. What can the server reach that you can't?", "The server is inside the network. Give it an internal URL (127.0.0.1) and it will fetch it for you.", "Think from the server's point of view: the internal secret lives on its own loopback interface. Feed the fetcher a loopback URL aimed at the internal secret path, and the server-side request will return the internal marker."],
   tools: "B, C",
   how: 'Point the fetcher at http://127.0.0.1:PORT/ssrf/internal/secret.',
   link: '/ssrf#basic',

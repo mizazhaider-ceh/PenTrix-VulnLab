@@ -17,7 +17,7 @@ const vuln = {
   name: 'Client-Side Pollution',
   difficulty: 'Easy',
   hint: 'All the merging happens in your browser, not on the server. Open the demo link and watch the theme box change color.',
-  hints: ["The client-side code reads ?__proto__[theme] and merges it. Client-side pollution.", "The browser's Object.prototype gets polluted. The page renders the polluted value.", "Open ?__proto__[theme]=pwned and see it reflected."],
+  hints: ["The client-side code reads a theme parameter from the query string and merges it in your browser. The merge reaches the browser's shared prototype.", "The browser's Object.prototype gets polluted. The page renders the polluted value.", "Load the page with a query parameter that sets the theme key on the shared prototype, using any theme value other than the default. The page reports the reflected value to claim the flag."],
   tools: "B",
   how: 'Load the page with a __proto__[theme] parameter so it renders the polluted value; the page reports it for the flag.',
   link: '/proto#proto-client',

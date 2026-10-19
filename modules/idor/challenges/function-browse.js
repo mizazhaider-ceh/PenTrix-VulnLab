@@ -36,7 +36,7 @@ module.exports = {
     id: 'function-browse',
     name: 'Forced Browsing to Admin Function',
     difficulty: 'Medium',
-    hint: '/idor/admin/users is not linked anywhere for normal users, but nothing stops you from typing it. Log in as alice or bob and open it directly.',
+    hint: 'A staff page listing the shop\'s members lives under the admin path, unlinked anywhere for normal users, but nothing stops you from typing a plausible address. Log in as alice or bob and browse to it directly.',
     hints: [
       'Some URLs are not linked in the UI. Does that mean the server blocks them?',
       'Force-browse: type the staff URL directly. The server may not check your role on unlinked paths.',

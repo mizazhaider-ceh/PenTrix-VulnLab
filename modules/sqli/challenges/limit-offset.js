@@ -68,7 +68,7 @@ module.exports = {
     name: 'LIMIT/OFFSET Injection',
     difficulty: 'Easy',
     hint: 'The page shows only 2 products by default, but the limit parameter is interpolated raw into the LIMIT clause. LIMIT accepts more than a plain number.',
-    hints: ["The page shows only 2 products, controlled by a limit parameter. LIMIT is part of the SQL query. What else can LIMIT do?", "The limit value is interpolated raw into the query. LIMIT accepts negative numbers and comma offsets (LIMIT 0,100), which dump rows beyond the intended page.", "Try limit=-1 or limit=0,100 to pull rows the pagination was hiding."],
+    hints: ["The page shows only 2 products, controlled by a limit parameter. LIMIT is part of the SQL query. What else can LIMIT do?", "The limit value is interpolated raw into the query. LIMIT accepts negative numbers and comma offsets (LIMIT 0,100), which dump rows beyond the intended page.", "Give the limit parameter values beyond plain positive numbers: go below zero, or pass two numbers separated by a comma. Watch how the returned rows shift and pull the hidden ones into view."],
     tools: "B",
     how: 'Inject LIMIT syntax (negative numbers, comma offsets) to dump rows beyond the default page.',
     link: '/sqli/paged',

@@ -55,7 +55,7 @@ module.exports = {
     name: 'SSTI to Remote Code Execution',
     difficulty: 'Hard',
     hint: 'There is no sandbox: expressions run in Node.js with require() in scope. Reach child_process and run a system command.',
-    hints: ["The template scope includes require(). What can you require?", "require('child_process') gives you exec. This is SSTI to real RCE.", "Submit {{require('child_process').execSync('id').toString()}} and look for uid= in the output."],
+    hints: ["The template scope includes require(). What can you require?", "require('child_process') gives you exec. This is SSTI to real RCE.", "Reach the child-process module from the template scope, run a harmless system command synchronously, and convert its raw output to text so the result renders in the page."],
     tools: 'B, C',
     how: 'Execute expr={{require("child_process").execSync("id").toString()}} and read the uid= output.',
     link: '/ssti#ssti-rce',

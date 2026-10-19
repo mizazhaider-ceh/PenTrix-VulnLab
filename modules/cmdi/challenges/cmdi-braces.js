@@ -17,7 +17,7 @@ const vuln = {
   hints: [
     "The filter strips the exact string $IFS. But variables have another spelling.",
     "${IFS} is the braced form. A naive string filter looking for '$IFS' misses it.",
-    "Try ?host=127.0.0.1;cat${IFS}/etc/passwd.",
+    "Chain a read of the password file after the ping using a statement separator, writing the whole command with no literal spaces by using the braced variable spelling the filter misses. The response must contain the file's content.",
   ],
   tools: 'B, C',
   how: 'Use ${IFS} instead of $IFS, e.g. ?host=127.0.0.1;cat${IFS}/etc/passwd',

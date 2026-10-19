@@ -15,7 +15,7 @@ const vuln = {
   name: 'Exposed Database Backup',
   difficulty: 'Easy',
   hint: 'Admins sometimes leave database dumps where the web server can serve them. Guess the filename.',
-  hints: ["Is there a database backup in the web root? What files might be there?", "backup.sql or db.bak in the web root gets served to anyone. It's a full database dump.", "Fetch /misconfig/backup.sql (or guess the name) and read it."],
+  hints: ["Is there a database backup in the web root? What files might be there?", "backup.sql or db.bak in the web root gets served to anyone. It's a full database dump.", "Work out which URL path holds the exposed database dump (a common backup filename served from the web root), request it, and search the dump text for plaintext credentials or tokens."],
   tools: 'B, C',
   how: 'Download /misconfig/backup.sql and read the dump for plaintext credentials and tokens.',
   link: '/misconfig#backup',

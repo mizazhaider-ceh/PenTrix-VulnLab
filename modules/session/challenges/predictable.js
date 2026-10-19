@@ -20,7 +20,7 @@ const vuln = {
   hints: [
     "Session ids are sequential. If you're user 5, what is the admin's sid?",
     "Predictable ids: read the pattern, compute the admin's sid, replay it.",
-    "Observe your sid, guess the admin's (e.g. sid-1), and present it.",
+    "Your sid is a plain number, and the admin's sits right next to it. Try the neighboring values in both directions, then present the working one as your cookie.",
   ],
   tools: 'B, DT',
   how: 'Read the admin\'s session id off the demo page, set it as your lab_sid cookie, and open the admin panel.',

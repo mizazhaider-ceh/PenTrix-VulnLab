@@ -12,7 +12,7 @@ const vuln = {
   name: 'Subdomain Suffix Check',
   difficulty: 'Medium',
   hint: 'The check is hostname.endsWith(".trusted.pentrix.lab") with no allowlist of real subdomains behind it.',
-  hints: ["The check is hostname.endsWith('.trusted.pentrix.lab'). No allowlist of real subdomains sits behind it.", "Any subdomain of trusted.pentrix.lab passes the suffix check, including ones you control.", "Try https://evil.trusted.pentrix.lab. The suffix matches and the endpoint echoes it back."],
+  hints: ["The check is hostname.endsWith('.trusted.pentrix.lab'). No allowlist of real subdomains sits behind it.", "Any subdomain of trusted.pentrix.lab passes the suffix check, including ones you control.", "Pick a subdomain label of your own choosing under the trusted suffix. The suffix check cannot tell yours apart from a real one, so the endpoint echoes your origin back."],
   tools: "B",
   how: 'Prove it with origin https://evil.trusted.pentrix.lab.',
   link: '/cors#cors-subdomain',

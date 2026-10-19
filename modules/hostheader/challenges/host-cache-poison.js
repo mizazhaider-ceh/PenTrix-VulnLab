@@ -65,7 +65,7 @@ module.exports = {
     name: 'Cache Poisoning via Host',
     difficulty: 'Hard',
     hint: 'The portal page is cached by path only, not by host. Poison it first, then visit as a normal user.',
-    hints: ["The cache is keyed by path only. What if the cached page contains the Host?", "Poison the cache with Host: evil.com. The next victim gets your poisoned page.", "Request with Host: evil.com to poison, then fetch with a normal Host to see the poisoned entry."],
+    hints: ["The cache is keyed by path only. What if the cached page contains the Host?", "Poison the cache with a Host header naming a domain you control. The next visitor to that path receives your version of the page.", "Load the page once with a Host header naming a domain you control, then load the same path again with the normal host. The key insight: the cache key ignores Host entirely, so the second visitor receives whatever host the first visitor planted."],
     tools: 'C',
     how: 'GET /hostheader/app with Host: evil.com to poison the cache, then GET it again with the normal host.',
     link: '/hostheader#host-cache-poison',

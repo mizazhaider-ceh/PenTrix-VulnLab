@@ -16,7 +16,7 @@ const vuln = {
   name: 'Client-Side Price Tampering',
   difficulty: 'Easy',
   hint: 'View the page source: the price travels to the server in a hidden form field. The server never re-checks it against the catalog.',
-  hints: ["The price is in a hidden form field. Who controls hidden fields?", "You do. The server honors the submitted price as-is.", "Change the hidden price to 0.01 and checkout. Total < real price."],
+  hints: ["The price is in a hidden form field. Who controls hidden fields?", "You do. The server honors the submitted price as-is.", "The server charges whatever price the browser reports. Report a much smaller number than the catalog price and checkout."],
   tools: "BZ, B",
   how: 'Change the hidden price field at /bizlogic/price-tamper and buy the $50 hoodie for less.',
   link: '/bizlogic#biz-price-tamper',

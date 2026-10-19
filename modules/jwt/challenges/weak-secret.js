@@ -70,7 +70,7 @@ module.exports = {
     name: 'Weak HMAC Secret',
     difficulty: 'Medium',
     hint: 'HS256 security is only as strong as the secret. This one is a classic default. Guess it, then sign your own token offline.',
-    hints: ["The HMAC secret is a classic default. What are the usual suspects?", "'secret', 'password', '123456'. Try them offline to sign a forged token.", "Use node/jwt tool to sign {\"role\":\"admin\"} with the guessed secret."],
+    hints: ["The HMAC secret is a classic default. What are the usual suspects?", "'secret', 'password', '123456'. Try them offline to sign a forged token.", "Crack the secret offline (it is a short classic default that falls to a tiny wordlist), then forge an admin token and sign it with any JWT tooling or a small script before submitting."],
     tools: "N, W",
     how: 'Recover the weak secret, mint an admin token with jsonwebtoken locally, and submit it.',
     link: '/jwt#weak-secret',

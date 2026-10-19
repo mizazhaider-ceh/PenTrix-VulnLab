@@ -56,7 +56,7 @@ module.exports = {
     name: 'Curly-Brace Strip Bypass',
     difficulty: 'Medium',
     hint: 'The filter removes the first {{ and the first }} only, once each. Feed it more braces than it can strip.',
-    hints: ["The filter strips {{ and }}. What happens if you double them?", "Single-strip: {{{{}}}} becomes {{}} after one removal. The filter doesn't re-scan.", "Submit {{{{7*7}}}}. After stripping, {{7*7}} remains and evaluates."],
+    hints: ["The filter strips {{ and }}. What happens if you double them?", "The filter removes the stripped pair only once and never re-scans the result. Send enough braces in a row that one valid pair survives the single removal and evaluates.", "Send more braces than the filter can strip in one pass. After a single removal round, a valid {{ }} expression remains and evaluates."],
     tools: 'B, C',
     how: 'Double the braces, e.g. input={{{{7*7}}}}, so one stripped pair leaves a working {{7*7}} behind.',
     link: '/ssti#ssti-curly',

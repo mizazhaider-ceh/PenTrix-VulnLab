@@ -77,7 +77,7 @@ module.exports = {
     name: 'Billion Laughs (Entity-Expansion DoS)',
     difficulty: 'Medium',
     hint: 'The billion endpoint expands internal entities recursively with no depth limit. Define entities that reference each other and watch the parse time.',
-    hints: ["Entities can reference other entities. What if they reference each other exponentially?", "The billion laughs: define lol as 10 x's, lol2 as 10 &lol;, etc. The expansion grows exponentially and the parser chokes.", "Submit the classic nested entity payload. The flag lands when expansion time/size exceeds the threshold."],
+    hints: ["Entities can reference other entities. What if they reference each other exponentially?", "Nested entity definitions multiply at parse time: a small document can expand into gigabytes of text. Think about how few nested definitions it takes to overwhelm a parser.", "Define a small cascade of entities where each level repeats the previous one many times, then reference the top level once in your document. Key insight: the parser has no depth or size cap here, so the expansion compounds until it crosses the flag threshold. Watch the parse time, not the output."],
     tools: "C",
     how: 'Submit nested <!ENTITY> definitions (lol, lol2 ... lol7) so expansion explodes exponentially and parse time exceeds 1.5s.',
     link: '/xxe#xxe-billion-laughs',

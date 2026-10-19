@@ -53,8 +53,8 @@ module.exports = {
     hint: 'Dots are deleted from your input. JavaScript has a second property-access syntax that uses no dots.',
     hints: [
       'Dots are blocked. But property access has two syntaxes.',
-      "Bracket notation: db['key'] works where db.key is blocked.",
-      "Submit {{db['key']}}.",
+      "Bracket notation: obj['prop'] works where obj.prop is blocked. The filter only strips dots, so it never sees the second syntax.",
+      "Find the object that holds the flag and the exact key name, then reach the value with the no-dot syntax: brackets around a quoted string.",
     ],
     tools: 'B, C',
     how: 'Use bracket notation, e.g. input={{db["key"]}}, to read the property without a dot.',

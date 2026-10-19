@@ -34,7 +34,7 @@ module.exports = {
     name: 'Robots.txt Disclosure',
     difficulty: 'Easy',
     hint: 'robots.txt tells crawlers what not to fetch. Attackers read it as a treasure map.',
-    hints: ["robots.txt tells crawlers what not to index. What does it advertise?", "It lists backup.zip. That's a roadmap for attackers.", "Read /misconfig/robots.txt, then download the backup.zip it mentions."],
+    hints: ["robots.txt tells crawlers what not to index. What does it advertise?", "It lists backup.zip. That's a roadmap for attackers.", "Request the crawler rules file, note which disallowed entry looks like an interesting archive, then download that entry through the same path prefix."],
     tools: 'B, C',
     how: 'Read /misconfig/robots.txt, then download the disallowed backup.zip.',
     link: '/misconfig#robots',

@@ -22,7 +22,7 @@ const vuln = {
   name: 'OTP Verified by JavaScript',
   difficulty: 'Medium',
   hint: 'The page JavaScript checks the OTP and sets a hidden otp_ok flag. The server trusts that flag. What if you set it yourself?',
-  hints: ["The OTP check happens client-side. What does the server trust?", "The server trusts a client-side 'otp_ok' flag. Set it to true.", "Intercept the verify request and set otp_ok=1 with a wrong OTP."],
+  hints: ["The OTP check happens client-side. What does the server trust?", "The server trusts a client-side 'otp_ok' flag. Set it to true.", "The server trusts the browser's claim that the OTP was checked. Forge that claim in your request instead of guessing the real code."],
   tools: 'BZ, C',
   how: 'POST to /bizlogic/otp/verify with otp_ok=1 and a wrong OTP, skipping the client-side check entirely.',
   link: '/bizlogic#biz-otp-client',

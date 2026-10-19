@@ -76,7 +76,7 @@ module.exports = {
     name: 'Password Reset Poisoning',
     difficulty: 'Medium',
     hint: 'The reset email builds its link from the Host header. Make the victim\'s token land in your collector.',
-    hints: ["The reset link is built from the Host header. Who controls Host?", "You do. Send Host: evil.com and the reset link points at evil.com. The token goes to the attacker.", "POST /hostheader/forgot with Host: evil.com. Bring the token to the collector."],
+    hints: ["The reset link is built from the Host header. Who controls Host?", "You do. Request a reset with a Host header naming a domain you control, and the reset link points there, carrying the victim's token with it.", "Request a reset for the victim's email while sending a Host header naming a domain you control. The key insight: the victim receives a genuine link carrying a valid token, but your header decides where it points, so the token leaks to you. Carry that token to the collector."],
     tools: 'C',
     how: 'POST /hostheader/forgot with Host: evil.com, then bring the token to /hostheader/evil-collect?token=...',
     link: '/hostheader#host-reset-poison',

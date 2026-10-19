@@ -97,7 +97,7 @@ module.exports = {
     name: 'Untrusted jku Key Server',
     difficulty: 'Hard',
     hint: 'The server fetches whatever URL the jku header names and trusts the keys it finds. You run a key server in this lab.',
-    hints: ["The jku header is a URL. Who controls that URL?", "You do. Host your own JWKS with your public key, point jku at it.", "Generate a keypair, serve the JWKS, sign {\"role\":\"admin\"} with your private key, set jku to your URL."],
+    hints: ["The jku header is a URL. Who controls that URL?", "You do. Host your own JWKS with your public key, point jku at it.", "Generate your own keypair, publish the public half as a JWKS at a URL you control, then point the token's jku header at that URL and sign admin claims with your private key. The server will fetch your keys and trust them."],
     tools: "N, C",
     how: 'Publish your own key on the in-lab attacker key server, point a token\'s jku header at it, sign as admin.',
     link: '/jwt#jku',

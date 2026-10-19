@@ -14,7 +14,7 @@ const vuln = {
   name: '0.0.0.0 bypass',
   difficulty: 'Easy',
   hint: 'The blocklist never mentions 0.0.0.0, and this fetcher treats it as "this host".',
-  hints: ["The blocklist never mentions 0.0.0.0. What does this fetcher do with it?", "Many HTTP stacks treat 0.0.0.0 as 'this host'. The blocklist doesn't list it.", "Fetch http://0.0.0.0:PORT/ssrf/internal/secret."],
+  hints: ["The blocklist never mentions 0.0.0.0. What does this fetcher do with it?", "Many HTTP stacks treat 0.0.0.0 as 'this host'. The blocklist doesn't list it.", "Fetch the internal secret through the all-zeros address; this fetcher's stack treats it as the local host."],
   tools: 'C',
   how: 'Fetch http://0.0.0.0:PORT/ssrf/internal/secret via /ssrf/zero-ip.',
   link: '/ssrf#ssrf-zero-ip',

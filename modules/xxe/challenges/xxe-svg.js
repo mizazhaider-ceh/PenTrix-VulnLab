@@ -55,7 +55,7 @@ module.exports = {
     name: 'XXE in Uploaded SVG',
     difficulty: 'Medium',
     hint: 'The SVG text extractor runs the same entity-expanding parser. An SVG is just XML, and XML can carry a DOCTYPE.',
-    hints: ["SVG files are XML. Do uploaded SVGs get parsed with entities resolved?", "An SVG with a DOCTYPE declaring an external entity will have it resolved when the server parses the SVG.", "Upload an SVG with <!ENTITY xxe SYSTEM \"file:///...\"> and reference it in the SVG text."],
+    hints: ["SVG files are XML. Do uploaded SVGs get parsed with entities resolved?", "An SVG with a DOCTYPE declaring an external entity will have it resolved when the server parses the SVG.", "Your uploaded SVG needs a DOCTYPE that declares a file-reading entity, with the entity reference placed inside visible SVG text. Key insight: an SVG is still XML, so the DOCTYPE rides along through the parser. Watch the text extractor's output to confirm where your entity content lands."],
     tools: "B, C",
     how: 'Upload an SVG whose DOCTYPE declares a file:// entity for secret.txt and references it inside a <text> element.',
     link: '/xxe#xxe-svg',

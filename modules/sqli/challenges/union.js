@@ -60,7 +60,7 @@ module.exports = {
     name: 'UNION-based Injection',
     difficulty: 'Medium',
     hint: 'The product search interpolates your query into a LIKE clause returning 4 columns. Balance the quotes, then UNION in a second SELECT against the users table.',
-    hints: ["The search shows products in a table with 4 columns. A UNION SELECT needs the same number of columns. How many does your injected query return?", "Use UNION SELECT to append a second query. Match the 4 columns, then point the SELECT at the users table to pull usernames, passwords, and secrets.", "Balance the quotes, then inject: ' UNION SELECT id, username, password, secret FROM users --  (adjust column count until it renders)."],
+    hints: ["The search shows products in a table with 4 columns. A UNION SELECT needs the same number of columns. How many does your injected query return?", "Use UNION SELECT to append a second query. Match the 4 columns, then point the SELECT at the users table to pull usernames, passwords, and secrets.", "Close the quote, UNION in a second SELECT that matches the four columns, and point it at the users table. Adjust the shape until the page renders the extra rows, then read the admin secret from them."],
     tools: "B, C",
     how: "Use UNION SELECT to dump the users table (id, username, password, secret) through the product search and recover the admin secret.",
     link: '/sqli/products',

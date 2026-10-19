@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "Semicolons are stripped. But | chains commands without a semicolon.",
     "The pipe feeds ping's output into the next command. The filter only looks for ;.",
-    "Try ?host=127.0.0.1|id.",
+    "Append a pipe after a valid host and feed the ping output into a command of your own. The filter only watches for semicolons, so chaining still works this way. The award fires when your command's output appears in the response.",
   ],
   tools: 'B, C',
   how: 'Chain with a pipe, e.g. ?host=127.0.0.1|id (encode & as %26 when you need it, but | needs no encoding)',

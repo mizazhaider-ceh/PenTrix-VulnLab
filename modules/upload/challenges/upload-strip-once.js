@@ -79,7 +79,7 @@ module.exports = {
     hints: [
       "The filter removes '.svg' from the filename once. What happens to 'evil.s.svgvg' after one removal?",
       "Single-strip: 'evil.s.svgvg' becomes 'evil.svg' after removing the inner '.svg'. The filter doesn't re-scan.",
-      'Upload with filename=evil.s.svgvg to /upload/filter.',
+      'KEY INSIGHT: the filter strips the dangerous substring exactly once and never re-scans. Nest the blocked extension inside itself so that one removal reconstructs it, and pass that filename to the filter endpoint.',
     ],
     tools: 'C',
     how: 'Upload to POST /upload/filter?filename=evil.s.svgvg , after the single strip the stored name is evil.svg.',

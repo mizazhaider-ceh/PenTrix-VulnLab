@@ -20,7 +20,7 @@ const vuln = {
   hints: [
     "You need code execution. What's the path from a string to a function?",
     "constructor.constructor is the Function constructor. Build it from a string.",
-    "Use 'constructor'['constructor']('...')() to execute and beacon.",
+    "Reach the Function constructor through the exposed constructor reference, then compile a string that fetches the beacon endpoint and echoes the page-bound token. The code inside the compiled string is the one part you must write yourself.",
   ],
   tools: 'B, DT',
   how: 'Submit {{constructor.constructor("fetch(...)")()}} with a fetch to /csti/beacon?v=constructor that echoes the page token CSTI_NONCE.',

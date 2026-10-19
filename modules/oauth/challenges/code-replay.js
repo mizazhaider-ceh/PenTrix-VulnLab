@@ -15,7 +15,7 @@ const vuln = {
   name: 'Authorization Code Replay',
   difficulty: 'Medium',
   hint: 'Codes are supposed to be single-use. This IdP counts uses but never invalidates the code. Exchange the same code twice.',
-  hints: ["Are authorization codes single-use? Try using one twice.", "They're not. Exchange the same code twice and compare tokens.", "Exchange the code, then exchange it again. Two valid tokens = flag."],
+  hints: ["Are authorization codes single-use? Try using one twice.", "They're not. Exchange the same code twice and compare tokens.", "The IdP counts uses but never marks the code as spent, so a replayed exchange is treated like the first. Redeem the same code again and hold two live tokens."],
   tools: 'C',
   how: 'POST the same code to /oauth/idp/token two times and compare the two valid tokens.',
   link: '/oauth#code-replay',

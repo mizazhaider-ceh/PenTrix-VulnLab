@@ -54,7 +54,7 @@ module.exports = {
     hints: [
       "The uploader checks the Content-Type header. Who sets that header?",
       "You do. It's just a request header. Send an HTML file with Content-Type: image/png.",
-      "Upload evil.html with -H 'Content-Type: image/png' to /upload/mime-check.",
+      "KEY INSIGHT: the Content-Type header is attacker-controlled, so the real file type is never inspected. Upload an HTML file to the mime-check endpoint while setting the header to the image value the checker expects.",
     ],
     tools: "C",
     how: 'Upload an .html file to POST /upload/mime-check?filename=... with -H "Content-Type: image/png".',

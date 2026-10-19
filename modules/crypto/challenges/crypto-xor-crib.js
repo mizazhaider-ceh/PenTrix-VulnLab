@@ -18,7 +18,7 @@ const vuln = {
   name: 'XOR Crib Dragging',
   difficulty: 'Medium',
   hint: 'The key repeats every few bytes and you know the plaintext header {"user":". XOR crib against ciphertext to recover the key, trying lengths 1-12.',
-  hints: ["Repeating-key XOR with a known plaintext (crib). What does that give you?", "XOR the crib with the ciphertext to recover the key stream, then decrypt.", "Crib-drag with a known header to recover the key and plaintext."],
+  hints: ["Repeating-key XOR with a known plaintext (crib). What does that give you?", "XOR the crib with the ciphertext to recover the key stream, then decrypt.", "Try key lengths 1 to 12: derive each candidate key from the known header {\"user\":\" and keep the one that decrypts to valid JSON."],
   tools: 'P',
   how: 'Recover the repeating key with the known header, decrypt the full ciphertext, and submit the plaintext.',
   link: '/crypto#crypto-xor-crib',

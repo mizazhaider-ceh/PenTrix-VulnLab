@@ -78,7 +78,7 @@ module.exports = {
     name: 'alg=none Accepted',
     difficulty: 'Easy',
     hint: 'The verifier trusts tokens with "alg": "none" and never checks a signature. What stops you from writing your own claims?',
-    hints: ["The JWT verifier accepts alg:none. What does that mean for signatures?", "None means no signature. Mint your own token with any claims.", "Create a JWT with header {\"alg\":\"none\"} and payload {\"role\":\"admin\"}, no signature. Present it."],
+    hints: ["The JWT verifier accepts alg:none. What does that mean for signatures?", "None means no signature. Mint your own token with any claims.", "Hand-craft an unsigned token: a base64 header claiming alg none, a base64 payload carrying admin claims, and an empty signature segment. The verifier never checks signatures, so your self-written claims are trusted."],
     tools: "B, N",
     how: 'Craft an unsigned token (header, payload, empty signature) with role "admin" and submit it.',
     link: '/jwt#none-admin',

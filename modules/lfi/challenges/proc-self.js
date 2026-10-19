@@ -50,7 +50,7 @@ module.exports = {
   vuln: {
     id: 'proc-self', name: 'Process Environ Leak', difficulty: 'Medium',
     hint: 'The process-info page appends your filename to <code>/proc/self/</code> with no checks. Most files there are boring, but one of them holds the whole environment, secrets included. Its entries are NUL-separated.',
-    hints: ["Linux exposes process info via /proc. What does /proc/self/environ contain?", "The environ file has the process environment, including secrets. Read it via the filename parameter.", "Try ?f=environ and look for the marker."],
+    hints: ["Linux exposes process info via /proc. What does /proc/self/environ contain?", "The environ file has the process environment, including secrets. Read it via the filename parameter.", "The filename is appended straight onto /proc/self/. One file there holds the entire process environment, NUL-separated. Ask for that file and search the output for the marker."],
     tools: "B, C",
     how: 'Read /proc/self/environ through /lfi/procinfo.',
     link: '/lfi/procinfo',

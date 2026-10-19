@@ -16,7 +16,7 @@ const vuln = {
   name: 'Backslash Allowlist Bypass',
   difficulty: 'Medium',
   hint: 'The code allowlists URLs starting with https://pentrix.lab, but compares the raw string and accepts backslashes as separators. Browsers normalize backslash to slash.',
-  hints: ["The allowlist checks for 'https://'. But URLs can use backslashes too.", "https:\\evil.com: the check sees 'https:' and allows it, but the browser treats \\ as / and goes to evil.com.", "Try ?next=https:\\\\evil.com. The host is evil.com."],
+  hints: ["The allowlist checks for 'https://'. But URLs can use backslashes too.", "The check inspects the raw string instead of the parsed hostname. Browsers treat backslash as a path separator, so the string the check reads and the host the browser resolves can disagree.", "Craft a value whose raw string starts like an allowlisted URL while its parsed hostname points somewhere else. The key insight: the server validates the string, the browser parses the URL, and those two can disagree on the destination."],
   tools: "C",
   how: 'Pass ?next=https:%5C%5Cevil.com (https:\\\\evil.com URL-encoded) to /redirect/trusted and watch the check pass.',
   link: '/redirect#redirect-backslash',

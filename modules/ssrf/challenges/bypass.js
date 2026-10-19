@@ -17,7 +17,7 @@ const vuln = {
   name: 'Blocklist bypass',
   difficulty: 'Hard',
   hint: 'The blocklist is a naive substring check. Loopback has more than one spelling.',
-  hints: ["The fetcher blocks '127.0.0.1' as a substring. But an IP address is just a number. How else can you write 127.0.0.1?", "The blocklist is a naive string check. The URL parser normalizes 2130706433 (decimal), 0x7f.0.0.1 (hex), or 0177.0.0.1 (octal) to 127.0.0.1.", "Fetch http://2130706433:PORT/ssrf/internal/secret. The string check misses it, but the request still goes to loopback."],
+  hints: ["The fetcher blocks '127.0.0.1' as a substring. But an IP address is just a number. How else can you write 127.0.0.1?", "The blocklist is a naive string check on the raw URL text. The URL parser, however, also accepts loopback written as a single decimal number, with hex octets, or with leading-zero octal octets, and normalizes each of those forms back to 127.0.0.1.", "Rebuild the internal fetch URL using one of the alternate loopback spellings. The string check will wave it through while the URL parser still delivers the request to loopback."],
   tools: "C",
   how: 'Fetch the internal secret via /ssrf/fetch2 using http://2130706433:PORT/... or http://0.0.0.0:PORT/....',
   link: '/ssrf#bypass',

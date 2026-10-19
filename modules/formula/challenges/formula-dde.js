@@ -49,7 +49,7 @@ const vuln = {
   name: 'DDE Command Execution',
   difficulty: 'Easy',
   hint: 'DDE lets a formula ask another application to run a command. The DDE() function form works too.',
-  hints: ["DDE is an old Excel feature for command execution. The payload is =cmd|...", "DDEAUTO or cmd pipe. It's in the field value.", "Submit the DDE payload. The export carries it."],
+  hints: ["DDE is an old spreadsheet feature where one application asks another to run a command. Your contact fields are exported to the CSV unchanged, so what you type is what the spreadsheet receives.", "The DDE() spreadsheet function takes a target application, a topic, and a command to run. The exporter only quotes your cell, it never neutralizes it, so a formula trigger at the start of your cell survives the download.", "Call the DDE() spreadsheet function inside a formula cell: name the target application, name the topic, and give it a system command to run. The trick is packaging that call so the exported cell still opens as a live formula."],
   tools: "B",
   how: 'Put a =DDE("cmd";...) payload in a field and download the CSV export.',
   link: '/formula#formula-dde',

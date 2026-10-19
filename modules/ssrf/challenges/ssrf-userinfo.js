@@ -19,7 +19,7 @@ const vuln = {
   name: 'Userinfo bypass',
   difficulty: 'Easy',
   hint: 'The allowlist looks for the trusted string anywhere in the URL. What comes before @ is userinfo, not the host.',
-  hints: ["URLs can have a userinfo part: http://user@host/. How does a naive blocklist read http://pentrix.lab@127.0.0.1/?", "The blocklist sees 'pentrix.lab' and allows it, but the URL parser treats everything before @ as credentials and connects to 127.0.0.1.", "Fetch http://pentrix.lab@127.0.0.1:PORT/ssrf/internal/secret."],
+  hints: ["URLs can carry credentials before the @ sign. A naive blocklist reads the left side of the URL; the URL parser connects to the right side.", "The blocklist sees the trusted name and allows it, but the URL parser treats everything before @ as credentials and connects to the host after it.", "Put a trusted-looking name before the @ and the real loopback target after it, aimed at the internal secret path."],
   tools: "C",
   how: 'Fetch http://pentrix.lab@127.0.0.1:PORT/ssrf/internal/secret via /ssrf/userinfo.',
   link: '/ssrf#ssrf-userinfo',

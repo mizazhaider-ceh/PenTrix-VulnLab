@@ -18,7 +18,7 @@ const vuln = {
   name: 'Open-redirect SSRF',
   difficulty: 'Medium',
   hint: 'The blocklist only sees the first URL; the fetcher follows 302 redirects without re-checking.',
-  hints: ["The blocklist checks the URL you submit. But what happens after the server follows a redirect?", "The check runs on the initial URL only. Point the fetcher at a URL that 302-redirects to the internal target.", "Submit the /ssrf/jump endpoint with ?to=<internal-url>. The fetcher follows the 302 without re-checking."],
+  hints: ["The blocklist checks the URL you submit. But what happens after the server follows a redirect?", "The check runs on the initial URL only. Point the fetcher at a URL that 302-redirects to the internal target.", "Point the fetcher at the app's own redirect endpoint so the submitted URL passes the check; the 302 response then pulls the fetcher to the internal target without a second check."],
   tools: "C",
   how: 'Fetch http://localhost:PORT/ssrf/jump?to=<internal secret URL> via /ssrf/fetch3 so the redirect lands on the blocked host.',
   link: '/ssrf#ssrf-redirect',

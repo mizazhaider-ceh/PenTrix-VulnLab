@@ -99,7 +99,7 @@ const vuln = {
   name: 'Forwarded-Host Header Poisoning',
   difficulty: 'Easy',
   hint: 'Behind a proxy, this reset page trusts X-Forwarded-Host (and the vendor-specific X-Host-Override) over Host. Same attack, different headers.',
-  hints: ["Behind a proxy, the app trusts X-Forwarded-Host. Can you set that header?", "Yes. X-Forwarded-Host: evil.com (or X-Host-Override: evil.com) poisons the reset link.", "POST /hostheader/forgot-xfwd with X-Forwarded-Host: evil.com."],
+  hints: ["Behind a proxy, the app trusts X-Forwarded-Host. Can you set that header?", "Yes. Send the reset request with a forwarded-host header (X-Forwarded-Host or X-Host-Override) naming a domain you control, and the reset link points there.", "Send the reset request with one of the forwarded-host headers set to a domain you control. The key insight: the app reads proxy headers before Host and never validates them, so your forged header decides where the victim's token-bearing link points. Carry that token to the collector."],
   tools: 'C',
   how: 'POST /hostheader/forgot-xfwd with X-Forwarded-Host: evil.com (or X-Host-Override: evil.com), then bring the token to the collector.',
   link: '/hostheader#host-xforwarded',

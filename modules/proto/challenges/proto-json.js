@@ -16,7 +16,7 @@ const vuln = {
   name: 'JSON Body Pollution',
   difficulty: 'Medium',
   hint: 'The merge endpoint accepts a JSON body. JSON.parse happily creates an own property literally named __proto__.',
-  hints: ["The JSON body is deep-merged with no key filtering. Same idea as query, different vector.", "Send {\"__proto__\": {\"role\": \"admin\"}} as JSON. The prototype is polluted.", "POST the JSON body and check admin access."],
+  hints: ["The JSON body is deep-merged with no key filtering. Same idea as query, different vector.", "Send a JSON body whose top-level key targets the prototype, with a nested object setting the property the admin check reads.", "POST that JSON body to the merge endpoint, then open the admin check."],
   tools: "C",
   how: 'POST {"__proto__":{"role":"admin"}} to the merge endpoint, then open the admin check.',
   link: '/proto#proto-json',

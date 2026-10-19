@@ -94,11 +94,11 @@ module.exports = {
     id: 'idor-apikey-regen',
     name: 'API Key Regeneration IDOR',
     difficulty: 'Medium',
-    hint: 'The regenerate form on /idor/apikey trusts the user_id you submit. Regenerate admin\'s key (id 1), then authenticate with the fresh key at /idor/apikey/use?key=....',
+    hint: 'The regenerate form on /idor/apikey trusts the user_id you submit. Make it rotate another account\'s key (the admin\'s is a strong target), then present the fresh key where the app accepts API keys.',
     hints: [
       'You can regenerate YOUR api key. The request carries an account id. Whose key could you regenerate?',
       'The regenerate endpoint trusts the submitted user_id. Rotate the admin\'s key, then use the fresh value.',
-      'POST /idor/apikey/regen with another account\'s user_id, then open /idor/apikey/use?key=<new-key> with the key it returns.',
+      'Submit the regeneration request for a different account by changing the user_id you send, capture the fresh key from the response, then present it where the app accepts API keys.',
     ],
     tools: 'B, C',
     how: 'Regenerate another user\'s API key via their id, then use the new key at /idor/apikey/use.',

@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "Spaces are stripped. But space isn't the only whitespace.",
     "%09 is a tab. The shell treats it as a word separator just like space.",
-    "Try ?host=127.0.0.1;cat%09/etc/passwd.",
+    "Chain a command after the ping with a statement separator, using the URL-encoded tab wherever the shell needs a word separator. Pick a command that prints a recognizable file so the response confirms the second statement actually ran.",
   ],
   tools: 'B, C',
   how: 'Use a tab as the word separator, e.g. ?host=127.0.0.1;cat%09/etc/passwd',

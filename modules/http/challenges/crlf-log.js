@@ -24,7 +24,7 @@ const vuln = {
   name: 'CRLF Log Injection',
   difficulty: 'Medium',
   hint: 'The ?ref= value is written raw into the access log. What do %0d and %0a become after URL decoding?',
-  hints: ["The ?ref= parameter is logged raw. What are %0d and %0a?", "CR/LF bytes. They split the log line and forge new entries.", "Try /http/track?ref=x%0d%0aFAKE log line, then open /http/admin/log and confirm your forged line is there."],
+  hints: ["The ?ref= parameter is logged raw. What are %0d and %0a?", "CR/LF bytes. They split the log line and forge new entries.", "The server URL-decodes your ref before logging, so encoded carriage return and line feed characters become real line breaks in the log file. Put them inside a ref value so text after them lands on new forged lines, then open the log viewer and confirm your forged entry actually renders there."],
   tools: 'C',
   how: 'Send CR/LF bytes in ref so a forged line appears in the admin log view.',
   link: '/http#crlf-log',

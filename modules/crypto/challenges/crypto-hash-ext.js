@@ -96,7 +96,7 @@ module.exports = {
     name: 'Hash Length Extension',
     difficulty: 'Hard',
     hint: 'SHA-256(secret || message) leaks its internal state in the digest. The secret is 16 bytes: rebuild the glue padding and continue the hash with ";admin=1".',
-    hints: ["The MAC is SHA-256(secret || message). Merkle-Damgard lets you extend it.", "Length extension: forge a valid MAC for message+padding+extension without knowing the secret.", "Use a length-extension tool to forge the admin MAC."],
+    hints: ["The MAC is SHA-256(secret || message). Merkle-Damgard lets you extend it.", "Length extension: forge a valid MAC for message+padding+extension without knowing the secret.", "Sign role=user, rebuild the glue padding for the 16-byte secret, then continue the hash from the leaked digest with ;admin=1 and submit the full message plus new MAC."],
     tools: 'P, C',
     how: 'Get a MAC for "role=user", forge a MAC for the extended message in pure code, and submit msghex + mac.',
     link: '/crypto#crypto-hash-ext',

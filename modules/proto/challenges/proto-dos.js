@@ -82,7 +82,7 @@ const vuln = {
   name: 'Polluting toString',
   difficulty: 'Easy',
   hint: 'The widget page stringifies an object whose prototype you control. What if toString stopped being a function?',
-  hints: ["Polluting toString breaks the widget. What happens when toString isn't a function?", "The render crashes. It's a DoS via prototype pollution.", "Pollute __proto__[toString] and load the widget. Crash = flag."],
+  hints: ["Polluting toString breaks the widget. What happens when toString isn't a function?", "The render crashes. It's a DoS via prototype pollution.", "Give the widget scope's toString a non-function value through the prototype, then reload the widget. When string coercion can no longer call it, the render crashes."],
   tools: 'B',
   how: 'Pollute toString on the widget scope so the render crashes; the crash page awards the flag.',
   link: '/proto#proto-dos',

@@ -88,7 +88,7 @@ module.exports = {
     name: 'Basic Template Evaluation',
     difficulty: 'Easy',
     hint: 'The preview renders {{ expression }} as live JavaScript. What expression evaluates to 49?',
-    hints: ["The page evaluates {{ }} client-side. Try {{7*7}}.", "The Function constructor runs it. 49 proves execution.", "Submit {{7*7}} and the beacon fires with the token."],
+    hints: ["The page evaluates {{ }} client-side as live JavaScript. Try an arithmetic expression that produces a distinctive number.", "The Function constructor runs it. 49 proves execution.", "Submit an expression whose preview renders a distinctive number, then let the page beacon fire with its page-bound token."],
     tools: "B",
     how: 'Save a greeting containing {{7*7}} and watch the preview render 49.',
     link: '/csti#basic',

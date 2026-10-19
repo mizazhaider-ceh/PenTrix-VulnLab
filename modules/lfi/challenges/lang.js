@@ -47,8 +47,8 @@ router.get('/lang', (req, res) => {
 module.exports = {
   vuln: {
     id: 'lang', name: 'Language Parameter Traversal', difficulty: 'Easy',
-    hint: 'The <code>lang</code> parameter picks a file from <code>docs/lang/</code> with no validation. It is just another filename: <code>?lang=../secret</code>.',
-    hints: ["The language parameter picks a file. Is it validated?", "The lang parameter is another file path. Traversal works there too.", "Try ?lang=../secret. Parameter discovery is part of the skill."],
+    hint: 'The <code>lang</code> parameter picks a file from <code>docs/lang/</code> with no validation. It is just another filename: climb one level and name the secret.',
+    hints: ["The language parameter picks a file. Is it validated?", "The lang parameter is another file path. Traversal works there too.", "The lang parameter picks a file from docs/lang/ with no validation. Climb out of that folder and name the secret the same way you would in the main viewer."],
     tools: "B, C",
     how: 'Traverse out of docs/lang/ via the lang parameter on /lfi/lang.',
     link: '/lfi/lang?lang=en',

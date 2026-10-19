@@ -54,8 +54,8 @@ router.get('/double', (req, res) => {
 module.exports = {
   vuln: {
     id: 'double-encode', name: 'Encoding Bypass', difficulty: 'Medium',
-    hint: 'The filter decodes your input once and rejects it if it sees <code>..</code>. But the value is decoded a second time after the check. Encode the dots and slashes twice, e.g. <code>%252e%252e%252f</code>. The same idea works when a filter checks before decoding at all: then single-encoding (<code>%2e%2e%2f</code>) slips through.',
-    hints: ["The filter decodes once and checks for ... But the value is decoded again on use.", "Double-encode: %252e becomes %2e after one decode, then . after the second. The check sees no dots.", "Try ?page=%252e%252e%252fdocs%252fsecret.txt."],
+    hint: 'The filter decodes your input once and rejects it if it sees <code>..</code>. But the value is decoded a second time after the check. Encode the dots and slashes twice, so the check sees harmless text while the final decode rebuilds the traversal. The same idea works when a filter checks before decoding at all: then encoding once is enough to slip through.',
+    hints: ["The filter decodes once and checks for ... But the value is decoded again on use.", "The check decodes your input before inspecting it. Encode your dots and slashes so that after this first decode the check sees only harmless text, while a second decode on use rebuilds the traversal.", "Decode once is the filter, decode twice is the truth. Encode your dots and slashes so the first decode leaves only harmless text for the check, then let the second decode rebuild the traversal you actually need."],
     tools: "C",
     how: 'Slip %252e%252e%252fdocs%252fsecret.txt past the one-decode filter on /lfi/double.',
     link: '/lfi/double',

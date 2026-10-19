@@ -114,7 +114,7 @@ module.exports = {
     name: 'SQL Injection in kid Lookup',
     difficulty: 'Medium',
     hint: 'The kid header goes straight into a SQL query that picks the verifying key. Make the query return a key you control.',
-    hints: ["The kid header goes into a SQL query. What happens if the kid has a quote?", "SQL injection in the key lookup. The kid is interpolated into SELECT.", "Set kid to ' UNION SELECT 'attacker-key' --  to make the lookup return your key."],
+    hints: ["The kid header goes into a SQL query. What happens if the kid has a quote?", "SQL injection in the key lookup. The kid is interpolated into SELECT.", "Craft a kid value that breaks out of the SELECT query so the lookup returns a key of your own choosing, then sign your admin token with that key and let the server verify it against the value you smuggled in."],
     tools: "N, C",
     how: 'Inject SQL through the kid header so the lookup returns your own key, then sign an admin token with it.',
     link: '/jwt#kid-sqli',

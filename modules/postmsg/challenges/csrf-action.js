@@ -111,7 +111,7 @@ module.exports = {
     id: 'csrf-action',
     name: 'Privileged Action via Forged Message',
     difficulty: 'Medium',
-    hint: 'Any message shaped like {action:"delete-account"} triggers the account deletion, with no origin check.',
+    hint: 'The victim handler runs a state-changing action when it sees a matching message, and it never checks the origin. Inspect the handler in the victim page source to find which message property and value it reacts to.',
     hints: ["A forged postMessage can trigger actions in the victim. Which action?", "The delete action. Send the right message shape.", "postMessage the delete command. The server-side state changes."],
     tools: "B, DT",
     how: 'Post that message from the attacker page into the victim iframe.',

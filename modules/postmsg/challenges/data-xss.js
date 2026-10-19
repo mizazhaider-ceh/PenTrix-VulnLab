@@ -68,7 +68,7 @@ module.exports = {
     hints: [
       "The victim renders event.data as HTML. What if data is a script?",
       "Unsanitized data -> HTML injection. Send an <img onerror>.",
-      "postMessage '<img src=x onerror=...>' to the victim. The beacon fires.",
+      "The preview renders markup from the message as live HTML. You need an element carrying an event-handler attribute that fires without any user click. Build a payload whose attribute runs the moment the markup is rendered.",
     ],
     tools: 'B, DT',
     how: 'Post {html: "<img src=x onerror=...>"} from the attacker page.',

@@ -16,7 +16,7 @@ const vuln = {
   name: 'Duplicate Username Registration',
   difficulty: 'Medium',
   hint: 'Usernames must be unique: the code checks, then inserts. Two registrations of the same name racing each other both pass the check.',
-  hints: ["Usernames must be unique. But the uniqueness check can be raced.", "Two parallel registrations with the same name both pass the check.", "POST /race/register twice in parallel with the same username. Dupes > 1."],
+  hints: ["Usernames must be unique. But the uniqueness check can be raced.", "Two parallel registrations with the same name both pass the check.", "Send several registrations for the same username at the same instant, then check whether the name appears more than once. A duplicate proves the check lost the race."],
   tools: 'P, C',
   how: 'Register the same username with parallel POSTs at /race/register so two accounts exist with one name.',
   link: '/race#race-register',

@@ -106,7 +106,7 @@ module.exports = {
     name: 'Unauthenticated HTTP PUT',
     difficulty: 'Medium',
     hint: 'The file endpoint accepts PUT with no authentication at all. Upload a file with a raw content type (curl -H "Content-Type: text/plain" --data-binary), then fetch it back with GET to prove the write.',
-    hints: ["The server allows PUT. Can you write a file into the web root?", "Unauthenticated PUT to /misconfig/files/evil.txt writes a file you can then read.", "PUT your file to /misconfig/files/pwn.txt, then GET it back."],
+    hints: ["The server accepts unauthenticated PUT requests on its file endpoint. Can you write a file into the folder it serves back publicly?", "The server lets anyone PUT a file into its writable uploads area, and anything written there is readable again over HTTP. That turns a raw write primitive into a visible readback.", "Use an unauthenticated PUT to place a file in the writable path, then GET the same file back to confirm the write and claim the flag."],
     tools: 'C',
     how: 'PUT a file to /misconfig/files/<name> with Content-Type: text/plain, then read it back via GET.',
     link: '/misconfig#put',

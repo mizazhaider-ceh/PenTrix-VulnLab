@@ -44,8 +44,8 @@ router.get('/config', (req, res) => {
 module.exports = {
   vuln: {
     id: 'config-read', name: 'Secret Config Read', difficulty: 'Easy',
-    hint: 'A config file with secrets sits one directory above the docs folder, and the config viewer filters nothing. <code>?file=../lfi_secret.conf</code>.',
-    hints: ["A config file sits one directory above docs/. No filter blocks it.", "The planted lfi_secret.conf is at ../lfi_secret.conf. Just traverse to it.", "Try ?file=../lfi_secret.conf on /lfi/config."],
+    hint: 'A config file with secrets sits one directory above the docs folder, and the config viewer filters nothing. Climb one level and name the planted config file.',
+    hints: ["A config file sits one directory above docs/. No filter blocks it.", "You already know the target filename from the page. Climb one level out of docs/ and append that filename.", "The planted config file sits exactly one directory above docs/ and nothing filters your input. Climb one level and name that config file."],
     tools: "B",
     how: 'Read the planted lfi_secret.conf via /lfi/config.',
     link: '/lfi/config',

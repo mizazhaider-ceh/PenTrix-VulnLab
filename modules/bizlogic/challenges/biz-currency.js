@@ -72,7 +72,7 @@ const vuln = {
   name: 'Currency Confusion',
   difficulty: 'Easy',
   hint: 'The $50 total is denominated in USD, but the server accepts any currency label for that number. 50 JPY is not 50 USD.',
-  hints: ["The currency parameter changes the unit. What is 50 USD in JPY?", "The server converts wrong: 50 JPY is ~$0.34 but it's charged as $50 worth. Or vice versa.", "Set currency=JPY and pay. You pay ~$0.34 for a $50 item."],
+  hints: ["The currency parameter changes the unit. What is 50 USD in JPY?", "The server converts wrong: 50 JPY is ~$0.34 but it's charged as $50 worth. Or vice versa.", "Checkout in a currency where the number 50 is worth almost nothing in dollars. The server treats the raw number the same under any currency label."],
   tools: "BZ, B",
   how: 'Pay at /bizlogic/currency with currency=JPY so a $50 order settles for about $0.34.',
   link: '/bizlogic#biz-currency',

@@ -85,7 +85,7 @@ const vuln = {
   name: 'Blacklist Bypass via constructor',
   difficulty: 'Medium',
   hint: 'Keys containing the literal string __proto__ are dropped. But the prototype chain has more than one entrance.',
-  hints: ["The filter blocks __proto__. But there's another path to the prototype.", "constructor.prototype. __proto__ is just one spelling.", "Try ?constructor[prototype][role]=admin."],
+  hints: ["The filter blocks __proto__. But there's another path to the prototype.", "constructor.prototype. __proto__ is just one spelling.", "Reach Object.prototype through constructor and prototype in the query string, setting the role property the admin check tests. Then open the admin check."],
   tools: 'C',
   how: 'Reach Object.prototype through constructor/prototype instead, then open the admin check.',
   link: '/proto#proto-constructor',

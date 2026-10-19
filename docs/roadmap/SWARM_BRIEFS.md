@@ -44,7 +44,7 @@ Steps:
    after every challenge file passes node --check.
 6. `node --check` every new file.
 7. Dump routes AFTER and diff: `diff /tmp/routes-<id>-before.txt <(DB_PATH=/tmp/dump-<id>.db node scripts/dump-routes.js <id>)`. Must be identical.
-8. `grep -rn '—' modules/<id>/` must print nothing.
+8. `grep -rn $'\u2014' modules/<id>/` must print nothing.
 9. Report: files created, route-diff result (paste it), clay elements fixed
    per challenge, any deviation or blocker. Do not claim what you did not run.
 
@@ -67,7 +67,7 @@ Per challenge, prove ALL FOUR:
     confirm the flag is captured (scoreboard or claim-status shows captured;
     NEVER print or report flag values). Then run the trivial bypass
     (pattern match, token-less beacon, direct URL) and confirm NO flag.
-(c) Zero em dashes: `grep -rn '—' modules/<id>/` empty.
+(c) Zero em dashes: `grep -rn $'\u2014' modules/<id>/` empty.
 (d) Each challenge file contains only that challenge's code (read it; no
     strays from siblings, no duplicated helpers that belong in shared.js).
 

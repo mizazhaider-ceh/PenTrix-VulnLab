@@ -17,7 +17,7 @@ const vuln = {
   name: 'Exposed Admin Token Header',
   difficulty: 'Easy',
   hint: 'The response carries X-Admin-Token and the endpoint lists it in Access-Control-Expose-Headers.',
-  hints: ["The API exposes X-Admin-Token via ACAO: *. Can JS read response headers cross-origin?", "Only if listed in Access-Control-Expose-Headers. It is.", "Fetch /cors/api/token from the attacker page and read the X-Admin-Token header."],
+  hints: ["The API exposes X-Admin-Token via ACAO: *. Can JS read response headers cross-origin?", "Only if listed in Access-Control-Expose-Headers. It is.", "From your own page, fetch the token endpoint and read the response headers. The key insight: cross-origin scripts can only read headers named in Access-Control-Expose-Headers, and one of those carries the prize."],
   tools: "B",
   how: 'Prove it: /cors/prove?vuln=cors-expose-headers&origin=https://evil.com',
   link: '/cors#cors-expose-headers',

@@ -65,7 +65,7 @@ module.exports = {
     name: 'Underscore Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'Underscores are deleted from your input. JavaScript can build any character from its code: String.fromCharCode(95) is _.',
-    hints: ["Underscores are blocked. But every character has a char code.", "String.fromCharCode(95) is '_'. Build the underscore without typing it.", "Use {{eval('db'+String.fromCharCode(95)+'pass')}} or similar to bypass."],
+    hints: ["Underscores are blocked. But every character has a char code.", "String.fromCharCode(95) is '_'. Build the underscore without typing it.", "Assemble the variable name from its typeable pieces plus a char-code-built underscore, then evaluate the assembled string. The filter only ever sees your raw input, not what eval builds from it."],
     tools: 'B, C',
     how: 'Evaluate the variable name assembled at run time, e.g. input={{eval("db"+String.fromCharCode(95)+"pass")}}.',
     link: '/ssti#ssti-nounderscore',

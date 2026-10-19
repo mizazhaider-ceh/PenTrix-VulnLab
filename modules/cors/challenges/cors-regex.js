@@ -12,7 +12,7 @@ const vuln = {
   name: 'Regex Allowlist Bypass',
   difficulty: 'Medium',
   hint: 'The regex is ^https://.*pentrix\\.lab with no subdomain boundary and no end anchor. It matches strings, not domain boundaries.',
-  hints: ["The allowlist is the regex ^https://.*pentrix\\.lab. What strings does it match?", "No subdomain boundary and no end anchor: any https:// origin merely containing 'pentrix.lab' passes.", "Try https://pentrix.lab.evil.com. It is not under pentrix.lab, but the regex matches and the endpoint echoes it back."],
+  hints: ["The allowlist is the regex ^https://.*pentrix\\.lab. What strings does it match?", "No subdomain boundary and no end anchor: any https:// origin merely containing 'pentrix.lab' passes.", "Build an origin that merely contains the expected string instead of sitting under it. The regex checks characters, not domain boundaries, so the endpoint echoes whatever you send."],
   tools: "B",
   how: 'Prove it with origin https://pentrix.lab.evil.com, which passes the regex but is not under pentrix.lab.',
   link: '/cors#cors-regex',

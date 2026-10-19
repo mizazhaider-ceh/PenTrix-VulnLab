@@ -74,7 +74,7 @@ module.exports = {
     id: 'referer-bypass',
     name: 'Weak Referer Check Bypass',
     difficulty: 'Medium',
-    hint: 'The check is referer.includes("pentrix.lab"). The attacker controls the referer of requests from their own page, so https://evil.com/?pentrix.lab contains the magic string.',
+    hint: 'The Referer check is a substring match against a domain name the page itself reveals. The key insight: you control the Referer of requests from your own page, so craft a URL on an untrusted host that merely contains that trusted domain string.',
     hints: ["The nickname change checks the Referer header. Who controls the Referer?", "You do. The check is a substring match, so any URL that merely contains the trusted domain name passes.", "POST the nickname form to the API with a Referer header you craft: an untrusted host whose URL still contains the trusted domain name."],
     tools: "C",
     how: 'POST the nickname change with a Referer header of https://evil.com/?pentrix.lab.',

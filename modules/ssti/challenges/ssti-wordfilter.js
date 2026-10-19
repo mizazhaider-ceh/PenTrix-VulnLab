@@ -66,7 +66,7 @@ module.exports = {
     name: 'Word Blacklist Bypass',
     difficulty: 'Medium',
     hint: 'The words flag, secret and config are deleted from your input. Build the blocked word at run time instead of typing it.',
-    hints: ["The filter blocks words like 'secret'. But strings can be built without typing the word.", "Concatenate: 'vaultSec'+'ret'. Or use template tricks to assemble the blocked word at runtime.", "Submit {{eval('vaultSec'+'ret')}} to reach the flag variable."],
+    hints: ["The filter blocks words like 'secret'. But strings can be built without typing the word.", "Split the blocked word into innocent-looking fragments and join them at runtime with concatenation or eval, so the filter never sees the whole word in your raw input.", "Assemble the blocked word from fragments you CAN type, inside an evaluated string. Work out how the variable name splits into harmless pieces and the flag variable becomes reachable."],
     tools: 'B, C',
     how: 'Use nested eval with string concatenation, e.g. input={{eval("vaultSec"+"ret")}}, to read the filtered variable name.',
     link: '/ssti#ssti-wordfilter',

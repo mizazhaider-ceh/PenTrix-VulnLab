@@ -76,7 +76,7 @@ module.exports = {
     name: 'External DTD Exfiltration',
     difficulty: 'Medium',
     hint: 'Host a malicious DTD on the in-lab OOB collector, pull it in with a parameter entity, and make the DTD ping the collector back with the file content in the URL.',
-    hints: ["The DTD doesn't have to be inline. Can it be fetched from a URL?", "An external DTD (SYSTEM \"http://your-server/evil.dtd\") lets you define parameter entities that exfiltrate file content OOB.", "Host a DTD that reads the secret and pings your collector. The flag lands when the collector receives it."],
+    hints: ["The DTD doesn't have to be inline. Can it be fetched from a URL?", "Point your DOCTYPE's external subset at a DTD file you control. The parser fetches it, and anything declared there runs with the same privileges as inline entities.", "Host a DTD on the in-lab collector that reads the secret file into a parameter entity and sends it back to the collector inside a callback URL, then make your imported XML pull in that DTD. Key insight: parameter entities can declare other entities, so the DTD defines the exfiltration logic once the file content is known to the parser."],
     tools: "C",
     how: 'Upload a DTD that reads secret.txt into %file; and declares a pingback entity to /xxe/collector/log?d=%file;, then import XML that fetches your DTD.',
     link: '/xxe#xxe-external-dtd',

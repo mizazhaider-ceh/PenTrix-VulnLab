@@ -70,7 +70,7 @@ const vuln = {
   name: 'Protocol-Relative Redirect',
   difficulty: 'Easy',
   hint: 'The ?next= parameter is passed straight to the redirect with no validation. What does a URL starting with // mean to a browser?',
-  hints: ["The redirector checks if the URL starts with '/'. What about '//evil.com'?", "Protocol-relative URLs start with //. The check sees a leading slash and allows it, but the browser goes to evil.com.", "Try ?next=//evil.com. The Location header points at evil.com."],
+  hints: ["The redirector checks whether the URL starts with '/'. What does a browser do with a URL that starts with two slashes?", "Protocol-relative URLs start with //. The check sees a leading slash and allows it, but the browser resolves the whole thing to an external host you control.", "Make the browser keep the current scheme but navigate to a host you control. The key insight: the check only sees a leading slash, while the browser resolves the whole URL, and a protocol-relative target resolves to an external host."],
   tools: 'B, C',
   how: 'Request /redirect/go?next=//evil.com and confirm the Location header points at evil.com.',
   link: '/redirect#redirect-double-slash',

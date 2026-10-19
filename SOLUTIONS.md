@@ -1428,7 +1428,7 @@ Why it works: the password change is a state-changing GET with no CSRF token, so
 1. Log in: open `/csrf/login/alice`.
 2. Open `/csrf/theme` and submit the plain HTML form (urlencoded) to `POST /csrf/api/theme`.
    Equivalent curl: `curl -b cookies -X POST -d "theme=dark" /csrf/api/theme`
-3. The theme changes and the flag is awarded. (The intended JSON client — `Content-Type: application/json` — also works but earns no flag.)
+3. The theme changes and the flag is awarded. (The intended JSON client, `Content-Type: application/json`, also works but earns no flag.)
 Why it works: the developers assumed only JSON clients would call the endpoint, but the urlencoded body parser also populates `req.body`, so a plain cross-site form with no preflight drives the "JSON-only" API.
 
 **10. HTTP Method Override Smuggling (_method=DELETE)** – `PENTRIX{...}`

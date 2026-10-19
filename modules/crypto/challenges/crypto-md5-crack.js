@@ -14,7 +14,7 @@ const vuln = {
   name: 'Crack the MD5',
   difficulty: 'Easy',
   hint: 'Unsalted MD5 of a weak password. The password is in the in-lab wordlist: hash every candidate until one matches.',
-  hints: ["The hash is unsalted MD5 of a dictionary word. What's the attack?", "Offline cracking with a wordlist (or hashcat).", "Crack the MD5 with rockyou or a small list. Submit the password."],
+  hints: ["The hash is unsalted MD5 of a dictionary word. What's the attack?", "Offline cracking with a wordlist (or hashcat).", "Hash every entry in the in-lab wordlist with MD5 until one matches the leak, then log in with it."],
   tools: 'W, P',
   how: 'Crack the hash with the wordlist, then log in with the password.',
   link: '/crypto#crypto-md5-crack',

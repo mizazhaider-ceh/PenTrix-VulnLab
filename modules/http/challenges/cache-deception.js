@@ -20,7 +20,7 @@ const vuln = {
   name: 'Cache Deception',
   difficulty: 'Medium',
   hint: 'The cache key is the path only. Cache the victim\'s personalized CSS, then fetch it as someone else.',
-  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. What happens?", "Log in as alice, visit the CSS (caches her version), then fetch it as someone else. You get her data.", "As alice: GET /http/account.css. Then in a fresh session: GET it again. Her secret is in the X-Flag header."],
+  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. What happens?", "Log in as alice, visit the CSS (caches her version), then fetch it as someone else. You get her data.", "Prime the cache with alice's version of the stylesheet, then request the same path from a fresh session that is not logged in. The key insight: the cache key is the path alone, so the second request is served her personalized copy, and the flag rides in its response headers, not the body."],
   tools: 'B, C',
   how: 'As alice, visit /http/account.css; then fetch it again in a fresh session to read her data.',
   link: '/http#cache-deception',

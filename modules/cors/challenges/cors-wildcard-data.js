@@ -13,7 +13,7 @@ const vuln = {
   name: 'Wildcard on Sensitive Data',
   difficulty: 'Easy',
   hint: 'Access-Control-Allow-Origin: * on an endpoint that returns every user\'s email address.',
-  hints: ["The API sends ACAO: * with user emails. What does * mean?", "Any website can read it. No credentials needed, just fetch.", "From the attacker page, fetch /cors/api/users. The emails are readable."],
+  hints: ["The API sends ACAO: * with user emails. What does * mean?", "Any website can read it. No credentials needed, just fetch.", "The data endpoint answers any origin, so your page only needs to ask for it and read the response body. No special setup is needed on the attacker's side."],
   tools: "B",
   how: 'Prove it: /cors/prove?vuln=cors-wildcard-data&origin=https://evil.com',
   link: '/cors#cors-wildcard-data',

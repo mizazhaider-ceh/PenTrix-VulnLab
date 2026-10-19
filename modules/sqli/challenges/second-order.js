@@ -132,7 +132,7 @@ module.exports = {
     name: 'Second-Order SQL Injection',
     difficulty: 'Hard',
     hint: 'Registration stores your display name safely, but the profile page interpolates that stored value into a brand-new query later. A payload that is harmless at rest becomes SQL when it is reused.',
-    hints: ["Registration stores your display name safely. But where does that stored value get used later?", "The profile page takes your stored display name and puts it into a NEW query without protection. A payload that is harmless when stored becomes SQL when it is reused.", "Register with display name: ' UNION SELECT ... --  (or a quote-breakout), then view your profile to trigger the stored injection."],
+    hints: ["Registration stores your display name safely. But where does that stored value get used later?", "The profile page takes your stored display name and puts it into a NEW query without protection. A payload that is harmless when stored becomes SQL when it is reused.", "Register with a display name that is harmless while it sits in storage but turns into SQL once the profile page drops that stored value into a brand-new query. Visit your profile to detonate the stored input, then read back whatever the second query returns."],
     tools: "B",
     how: 'Register with a display name containing a quote-breakout, then view your profile to trigger the stored injection and land on the admin account.',
     link: '/sqli/register',

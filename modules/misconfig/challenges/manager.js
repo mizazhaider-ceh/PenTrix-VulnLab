@@ -51,7 +51,7 @@ module.exports = {
     name: 'Default Credentials',
     difficulty: 'Easy',
     hint: 'The manager panel uses HTTP Basic auth and the vendor default was never changed. Try the most common pair there is.',
-    hints: ["The manager panel uses HTTP Basic auth. What are the vendor defaults?", "admin:admin. Nobody changed it.", "Login with admin:admin."],
+    hints: ["The manager panel uses HTTP Basic auth. What are the vendor defaults?", "The panel still runs the vendor's factory default login, unchanged. The most common default pair will open it.", "Open the manager panel in your browser, enter the unchanged factory default credentials when the login prompt appears, and read the flag the panel displays."],
     tools: 'B',
     how: 'Log in to /misconfig/manager with admin:admin.',
     link: '/misconfig#manager',

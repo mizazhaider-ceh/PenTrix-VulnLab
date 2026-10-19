@@ -54,8 +54,8 @@ module.exports = {
     hint: 'Brackets are deleted and the object key has a dash, so neither indexing nor dot access works directly. Dump the whole object instead.',
     hints: [
       'Brackets [] are blocked. What can you do to an object that needs no indexing at all?',
-      'The flag object is cfg and its dashed key defeats dot access too. But the whole object can be printed as text.',
-      'Try {{JSON.stringify(cfg)}} to dump the whole object and read the flag.',
+      'The flag lives in an object whose dashed key also defeats dot access. But you never need to index it: once you know the object name, the whole thing can be printed as text.',
+      'There is a built-in that converts an entire object into readable text. Wrap the flag-bearing object in it and the flag value will appear in the dump, dashed key and all.',
     ],
     tools: 'B, C',
     how: 'Serialize the object to text, e.g. input={{JSON.stringify(cfg)}}, to reveal the flag without indexing.',

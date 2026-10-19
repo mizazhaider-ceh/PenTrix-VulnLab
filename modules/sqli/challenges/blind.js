@@ -77,7 +77,7 @@ module.exports = {
     name: 'Boolean Blind Injection',
     difficulty: 'Medium',
     hint: 'The product page only tells you whether a row exists. Extract the admin secret one character at a time with true/false conditions, then submit it.',
-    hints: ["The product page only tells you if a row exists or not. That's one bit of information. How can one bit leak a whole secret?", "Build a boolean oracle: inject a condition that is true only when your guess about the secret is right (e.g. the first character is 'P'). The page's yes/no answer tells you if you guessed right.", "Extract the admin secret one character at a time with conditions like ' AND (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' -- , then submit the full secret."],
+    hints: ["The product page only tells you if a row exists or not. That's one bit of information. How can one bit leak a whole secret?", "Build a boolean oracle: inject a condition that is true only when your guess about the secret is right (e.g. the first character is 'P'). The page's yes/no answer tells you if you guessed right.", "Extract the admin secret one character at a time: build a condition that is true only when your current character guess is right, watch the page flip between its two answers, and submit the full secret once you have pieced it together."],
     tools: "B, C",
     how: "Extract the admin secret via boolean conditions, then submit it in the form on the product page.",
     link: '/sqli/product',

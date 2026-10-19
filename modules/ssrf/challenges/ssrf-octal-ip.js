@@ -22,7 +22,7 @@ module.exports = {
     name: 'Octal IP bypass',
     difficulty: 'Medium',
     hint: 'Leading zeros mean octal to the URL parser, and the blocklist only knows dotted decimal.',
-    hints: ["Leading zeros change how an IP is parsed. What is 0177 in octal?", "0177.0.0.1 is 127.0.0.1 in octal. The substring blocklist misses it.", "Fetch http://0177.0.0.1:PORT/ssrf/internal/secret."],
+    hints: ["Leading zeros change how an IP is parsed. What is 0177 in octal?", "127 written in octal is 0177. Spell the loopback octets with leading zeros and the parser reads them as octal, while the substring blocklist misses them.", "Spell the loopback address with leading zeros, then use that spelling in the fetch URL aimed at the internal secret path."],
     tools: 'C',
     how: 'Fetch http://0177.0.0.1:PORT/ssrf/internal/secret via /ssrf/octal-ip.',
     link: '/ssrf#ssrf-octal-ip',

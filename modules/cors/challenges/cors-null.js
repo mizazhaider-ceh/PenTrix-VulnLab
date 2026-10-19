@@ -12,7 +12,7 @@ const vuln = {
   name: 'Null Origin Trusted',
   difficulty: 'Medium',
   hint: 'Only one origin value is trusted here, and it is the one sandboxed iframes and file:// pages send.',
-  hints: ["The API trusts Origin: null with credentials. When is the origin null?", "Sandboxed iframes and file:// pages send Origin: null.", "Load the attacker in a sandboxed iframe (null origin) and fetch with credentials."],
+  hints: ["The API trusts Origin: null with credentials. When is the origin null?", "Sandboxed iframes and file:// pages send Origin: null.", "Give your attacker page a null origin, then fetch with credentials. The key detail: an iframe with a plain sandbox attribute (no allow-same-origin) loses its real origin, which is exactly what the API trusts."],
   tools: 'B',
   how: 'Prove it: /cors/prove?vuln=cors-null&origin=null',
   link: '/cors#cors-null',

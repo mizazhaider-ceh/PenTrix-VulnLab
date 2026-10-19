@@ -14,7 +14,7 @@ const vuln = {
   name: 'Single-Use Coupon Redeemed Twice',
   difficulty: 'Medium',
   hint: 'The coupon is marked "used" only after an async gap. What happens when 20 requests check "is it used?" at the same moment?',
-  hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. Parallel redeems double-spend.", "Fire 10 parallel POSTs to /race/coupon/redeem with the same code. Count redeems > 1."],
+  hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. Parallel redeems double-spend.", "Fire a burst of parallel redeems using the same coupon code, then count how many succeeded. More than one success means the coupon was double-spent."],
   tools: 'P, C',
   how: 'Fire parallel POSTs at /race/coupon/redeem so the coupon is redeemed more than once.',
   link: '/race#race-coupon',

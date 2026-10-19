@@ -16,7 +16,7 @@ const vuln = {
   name: 'RS256 / HS256 Algorithm Confusion',
   difficulty: 'Hard',
   hint: 'The server verifies RS256 but also accepts HS256. For HS256 it needs a shared secret. Which "secret" does it use, and who else can read it?',
-  hints: ["The server has an RSA public key. What if you use it as an HMAC secret?", "RS256 public key -> HS256 secret. Sign with HS256 using the public key bytes.", "Get the public key, sign {\"role\":\"admin\"} with HS256 and the public key as secret."],
+  hints: ["The server has an RSA public key. What if you use it as an HMAC secret?", "RS256 public key -> HS256 secret. Sign with HS256 using the public key bytes.", "Pull the published RSA public key, switch your token to alg HS256, and use the public key bytes themselves as the HMAC secret while minting admin claims. The server will verify your forgery against its own public key."],
   tools: 'N',
   how: 'Take the published RSA public key, use it as the HMAC secret to sign an HS256 admin token, and submit it.',
   link: '/jwt#alg-confusion',

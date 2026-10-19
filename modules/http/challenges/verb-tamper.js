@@ -24,7 +24,7 @@ const vuln = {
   name: 'Verb Tampering',
   difficulty: 'Easy',
   hint: 'The docs say POST-only. Try the exact same request as a GET.',
-  hints: ["The docs say POST-only. But what happens if you send a GET?", "The GET route runs the same handler. The action fires.", "Open /http/feedback?msg=hi as a GET. The feedback is recorded."],
+  hints: ["The docs say POST-only. But what happens if you send a GET?", "The GET route runs the same handler. The action fires.", "The GET route is wired to the same submit handler as POST. Replay the submission over GET, moving the form's parameter into the URL query, and the feedback is recorded without any POST at all."],
   tools: 'B',
   how: 'Submit feedback with GET instead of POST.',
   link: '/http#verb-tamper',

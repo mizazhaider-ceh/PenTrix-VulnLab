@@ -25,7 +25,7 @@ const vuln = {
   name: 'Email Change Without Re-Authentication',
   difficulty: 'Medium',
   hint: 'You can change the account email with no password confirmation. Then "forgot password" sends the reset to the new address: yours.',
-  hints: ["Change your email without re-entering your password. Then request a password reset.", "The reset link goes to the new email. No re-auth means account takeover.", "Change email to attacker@evil.com, then request a reset. The link works."],
+  hints: ["Change your email without re-entering your password. Then request a password reset.", "The reset link goes to the new email. No re-auth means account takeover.", "Point the account at an email address you control, then run the forgot-password flow. The reset link follows the email, not the password."],
   tools: 'B',
   how: 'Change the email at /bizlogic/account, trigger forgot-password, and use the reset link to take over the account.',
   link: '/bizlogic#biz-email-noreauth',

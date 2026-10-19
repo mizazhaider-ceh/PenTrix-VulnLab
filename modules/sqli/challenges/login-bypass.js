@@ -69,7 +69,7 @@ module.exports = {
     name: 'Login Bypass',
     difficulty: 'Easy',
     hint: 'The login query is built by string interpolation. Make the WHERE clause always true and comment out the password check.',
-    hints: ["The login form asks for a username and password. What does the database query look like, and where does your input end up in it?", "The query is built by gluing your input into a SQL string. If your username contains a quote, you can break out of the string and rewrite the WHERE clause.", "Make the WHERE clause always true and comment out the password check: try ' OR '1'='1' --  as the username."],
+    hints: ["The login form asks for a username and password. What does the database query look like, and where does your input end up in it?", "The query is built by gluing your input into a SQL string. If your username contains a quote, you can break out of the string and rewrite the WHERE clause.", "Make the WHERE clause evaluate to true for every row and neutralize the password check with a SQL comment, all from inside the username field. If the query returns a row, the app logs you in."],
     tools: "B, C",
     how: "Log in as admin with the classic ' OR '1'='1 payload.",
     link: '/sqli/login',

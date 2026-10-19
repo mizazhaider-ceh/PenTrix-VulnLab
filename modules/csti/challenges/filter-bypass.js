@@ -98,7 +98,7 @@ module.exports = {
     name: 'Filter Bypass via Alternative Delimiter',
     difficulty: 'Medium',
     hint: 'The server rejects {{ and }}. But the client engine understands a second delimiter syntax, which the filter never heard of.',
-    hints: ["The filter blocks {{ }}. But the engine has another delimiter.", "[[ ]] works too. The blacklist only knows {{ }}.", "Try [[7*7]]."],
+    hints: ["The filter blocks {{ }}. But the engine has another delimiter.", "[[ ]] works too. The blacklist only knows {{ }}.", "Probe the alternative delimiter with an arithmetic expression that yields a distinctive number: the blacklist never heard of it."],
     tools: "B",
     how: 'Use the [[ expression ]] syntax to evaluate 7*7 without touching {{ }}.',
     link: '/csti#filter-bypass',

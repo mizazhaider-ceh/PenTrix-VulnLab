@@ -20,8 +20,8 @@ const vuln = {
   hint: "Declare an external entity with a file:// URI pointing at the module's secret.txt (absolute path), then reference &name; inside <data>.",
   hints: [
     "The app parses your XML. Does it resolve external entities?",
-    "A DOCTYPE with <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> makes the parser read the file. Reference &xxe; where the output appears.",
-    "Submit XML with <!DOCTYPE r [<!ENTITY xxe SYSTEM \"file:///path/to/secret\">]> and use &xxe; in the body.",
+    "A DOCTYPE can declare a general entity whose SYSTEM identifier is a local file URI. The parser reads that file and substitutes the entity reference wherever it appears in the output.",
+    "Your DOCTYPE must declare an external file-reading entity, then plant the entity reference where the import result renders. Key insight: the file path must be absolute, and the success response shows you exactly where injected content echoes back. Find that echo location first, then aim the reference there.",
   ],
   tools: 'B, C',
   how: 'Inject an XML external entity (SYSTEM "file://...") and get the server to read a local file into the import result.',

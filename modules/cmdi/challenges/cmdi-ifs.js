@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "Spaces are deleted from your input. But the shell needs word separators. What else expands to whitespace?",
     "Bash's $IFS variable expands to whitespace. Use it where you'd put a space.",
-    "Try ?host=127.0.0.1;cat$IFS/etc/passwd.",
+    "Chain a second command after the ping with a statement separator, replacing every space with the whitespace variable the filter forgot to strip. The award needs that command's output visible in the response, so read a file you will recognize.",
   ],
   tools: 'B, C',
   how: 'Replace spaces with $IFS, e.g. ?host=127.0.0.1;cat$IFS/etc/passwd',

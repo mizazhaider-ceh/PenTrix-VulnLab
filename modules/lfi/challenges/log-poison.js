@@ -50,8 +50,8 @@ router.get('/log-demo', (req, res) => {
 module.exports = {
   vuln: {
     id: 'log-poison', name: 'Log Poisoning Chain', difficulty: 'Hard',
-    hint: 'Two steps: first, visit <code>/lfi/log-demo</code> with the marker string in your User-Agent header so it lands in the access log. Then read that log back through the document viewer with <code>?file=../lfi_access.log</code>.',
-    hints: ["You need to read a file you can write to. What files does the app write that you influence?", "The access log records your User-Agent. Poison it with a recognizable marker string, then include the log via traversal.", "Set User-Agent to your marker on /lfi/log-demo, then ?file=../lfi_access.log on /lfi/view to trigger it."],
+    hint: 'Two steps: first, plant a recognizable marker string in the access log by visiting <code>/lfi/log-demo</code> with a custom User-Agent. Then read that log back through the document viewer using traversal, so the poisoned entry is included.',
+    hints: ["You need to read a file you can write to. What files does the app write that you influence?", "The access log records your User-Agent. Poison it with a recognizable marker string, then include the log via traversal.", "You control your User-Agent, and the access log is just a file you can include. Poison it with a recognizable marker, then pull the log back through the viewer with traversal so the poisoned entry gets read."],
     tools: "C",
     how: 'Poison the access log via User-Agent, then read it through /lfi/view.',
     link: '/lfi/log-demo',

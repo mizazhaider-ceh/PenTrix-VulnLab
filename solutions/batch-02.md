@@ -1,4 +1,4 @@
-# Batch 02 Solutions — sqli (+8) and api (+8)
+# Batch 02 Solutions: sqli (+8) and api (+8)
 
 All commands assume the lab runs at `http://localhost:3000`. Every payload below
 was verified against a live instance. URL-encode payloads when pasting them into

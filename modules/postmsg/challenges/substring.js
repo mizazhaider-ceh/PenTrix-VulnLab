@@ -79,8 +79,8 @@ module.exports = {
     hint: 'The check is origin.includes("pentrix.lab"), not an exact match. Which attacker domain contains that string?',
     hints: [
       "The origin check is a substring match. What origins contain 'pentrix.lab'?",
-      "https://pentrix.lab.evil.com. The check passes but it's your domain.",
-      "Serve the attacker from pentrix.lab.evil.com (or simulate) and postMessage.",
+      "Any domain that contains the trusted string passes the check. Craft an attacker domain of your own that includes that string.",
+      "Host your attacker page on a domain that satisfies the substring test, then post your payload from it. The widget renders your message because the origin string passes the check.",
     ],
     tools: 'B, DT',
     how: 'Serve the attack from https://pentrix.lab.evil.com (simulated in the lab) and post the payload.',

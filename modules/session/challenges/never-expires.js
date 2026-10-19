@@ -13,7 +13,7 @@ const vuln = {
   name: 'Sessions Never Expire',
   difficulty: 'Easy',
   hint: 'Sessions live for 10 years here. The archive keeps a decade-old admin session, and it still works.',
-  hints: ["The session lasts 10 years. What about an old archived sid?", "A leaked old sid still works. Expiry is the only thing that kills sessions.", "Use the archived admin sid from the hints. It's still valid."],
+  hints: ["The session lasts 10 years. What about an old archived sid?", "A leaked old sid still works. Expiry is the only thing that kills sessions.", "Open the session archive linked from the challenge page, copy the decade-old admin sid, and set it as your lab_sid cookie. Key insight: this app never expires sessions, so age alone never invalidates them."],
   tools: 'B, DT',
   how: 'Copy the archived admin session id, set it as your lab_sid cookie, and open the legacy admin panel.',
   link: '/session#never-expires',

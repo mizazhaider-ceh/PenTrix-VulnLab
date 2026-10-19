@@ -105,7 +105,7 @@ module.exports = {
     name: 'Pipe Prefix (LibreOffice)',
     difficulty: 'Easy',
     hint: 'LibreOffice-flavored variant: the pipe character at the start of a cell is another formula trigger.',
-    hints: ["LibreOffice uses the pipe prefix for formulas. The payload starts with |.", "Pipe formulas run in LibreOffice. Same idea, different app.", "Submit |'cmd'!A0 or similar. The export has it."],
+    hints: ["LibreOffice uses the pipe prefix for formulas. The payload starts with |.", "Once the cell is live, the rest of it is a formula, so it can invoke an application with a command, anchored by a cell reference like the other formula challenges.", "Prefix the cell with a pipe so LibreOffice reads it as a formula, then route a shell command through it with a cell reference. The key insight: the leading pipe alone is enough to turn the cell from plain text into something the spreadsheet executes."],
     tools: "B",
     how: 'Put a pipe-prefixed payload (starting with |) in a field and download the CSV export.',
     link: '/formula#formula-pipe',

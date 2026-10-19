@@ -18,7 +18,7 @@ const vuln = {
   name: 'Unicode Escape Bypass',
   difficulty: 'Hard',
   hint: 'The blacklist scans the raw JSON text for __proto__. JSON string escapes are decoded after that scan.',
-  hints: ["The blacklist blocks '_' as text. But \\u005f is also underscore.", "Unicode escapes bypass text filters. The JSON parser decodes them.", "Send {\"__proto__\": ...} with \\u005f escapes for the underscores."],
+  hints: ["The blacklist blocks '_' as text. But \\u005f is also underscore.", "Unicode escapes bypass text filters. The JSON parser decodes them.", "Craft the JSON document so the raw bytes never contain the forbidden literal, yet JSON.parse rebuilds it after the scan. Send it as text/plain, then open the admin check."],
   tools: "C",
   how: 'Smuggle the key past the blacklist with \\u005f escapes, then open the admin check.',
   link: '/proto#proto-unicode-bypass',

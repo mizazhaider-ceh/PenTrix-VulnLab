@@ -160,8 +160,8 @@ module.exports = {
     hint: 'Scripts are stripped, but form and input tags survive. The page script trusts window.settings.isAdmin. Named elements in the DOM become window properties.',
     hints: [
       'The page has a script that reads window.settings.isAdmin. What else can create window properties?',
-      'Named HTML elements (id= or name=) become properties of window. A form with id="settings" containing an input named isAdmin shadows the real settings object.',
-      'Save profile HTML with a form whose id is settings and an input inside it whose name is isAdmin (case matters), then reload the profile and open the admin panel.',
+      'Named HTML elements (id= or name=) become properties of window. A DOM-created property can shadow the object the page script trusts, and the filter only strips scripts, so your weapon must be a tag the filter lets through.',
+      'The admin panel only unlocks when window.settings.isAdmin is truthy. Find surviving tags whose id or name attributes can rebuild that truthy property from DOM elements alone, save them in your profile, reload the profile, then open the admin panel.',
     ],
     tools: 'B, DT',
     how: 'Inject <form id="settings"><input name="isAdmin" value="1"> so window.settings.isAdmin becomes truthy, then open the admin panel.',

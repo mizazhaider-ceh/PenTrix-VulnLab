@@ -75,7 +75,7 @@ module.exports = {
     name: 'Nested Quantifier Username',
     difficulty: 'Easy',
     hint: 'The pattern is shown on the page: ^(a+)+$. Give it what it wants, then take it away at the last character.',
-    hints: ["The pattern is (a+)+. Classic catastrophic backtracking.", "Each 'a' can be grouped many ways. Exponential.", "Submit 'aaaaaaaaaaaaaaaaaaaaaaaa!' and time it."],
+    hints: ["The pattern is (a+)+. Classic catastrophic backtracking.", "Each 'a' can be grouped many ways. Exponential.", "Fill the input with the one character the pattern wants, repeated many times, then break the match with a final character it rejects. Time the response."],
     tools: "B, C",
     how: 'Submit 27 a\'s plus a trailing character that breaks the match (add a few more, up to the length cap, if your machine is very fast).',
     link: '/redos#redos-username',

@@ -15,8 +15,8 @@ const vuln = {
   hint: 'The filter removes $(, killing the modern command-substitution syntax. The shell has an older syntax that does the same job.',
   hints: [
     "The filter removes $(, killing modern command substitution. But shells are old. What came before $()?",
-    "Backticks: `id` runs id. The filter never mentions them.",
-    "Try ?host=127.0.0.1;echo `id`.",
+    "Backticks are the legacy command-substitution syntax: whatever sits between a pair of them runs, and its output lands in place. The filter never mentions them.",
+    "Join the ping to a second statement with a separator, and inside your input use the legacy substitution syntax to run a command whose output gets dropped in place. The injected command's output must show up in the response for the flag to fire.",
   ],
   tools: 'B, C',
   how: 'Use backticks for command substitution, e.g. ?host=127.0.0.1;echo `id`',

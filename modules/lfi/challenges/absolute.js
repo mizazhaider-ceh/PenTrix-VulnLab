@@ -48,8 +48,8 @@ router.get('/abs', (req, res) => {
 module.exports = {
   vuln: {
     id: 'absolute', name: 'Absolute Path Read', difficulty: 'Easy',
-    hint: 'The page reader uses absolute paths verbatim instead of confining reads to the docs folder. No <code>../</code> needed: just name the file, e.g. <code>?page=/etc/passwd</code>.',
-    hints: ["The viewer uses your input as a path. Does it have to be relative?", "Absolute paths are used verbatim. /etc/passwd is a classic.", "Try ?page=/etc/passwd and look for 'root:' in the output."],
+    hint: 'The page reader uses absolute paths verbatim instead of confining reads to the docs folder. No <code>../</code> needed: just request the system user list by its full absolute path.',
+    hints: ["The viewer uses your input as a path. Does it have to be relative?", "The path is used verbatim, so ../ games are unnecessary. Name one standard Linux file that lists user accounts, then ask for it by its full system path.", "Forget ../. The viewer accepts a complete system path verbatim, so think about which file always lists user accounts and request it by its full absolute path, then look for the root entry."],
     tools: "B, C",
     how: 'Read /etc/passwd with an absolute path via /lfi/abs.',
     link: '/lfi/abs',

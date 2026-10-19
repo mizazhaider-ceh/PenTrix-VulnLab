@@ -24,7 +24,7 @@ const vuln = {
   hints: [
     'The URL regex has nested quantifiers in the path group.',
     'Same as email: long run + bad tail.',
-    'Craft the evil URL and measure.',
+    'Feed the validator a URL whose path repeats one simple segment many times, then ends with a character the pattern cannot match, forcing the nested group to retry every split. Time the response.',
   ],
   tools: 'B, C',
   how: 'Submit http://example.com/ with the path segment a/ repeated 12 times and a trailing !.',

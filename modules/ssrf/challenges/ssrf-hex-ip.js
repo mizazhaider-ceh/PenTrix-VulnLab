@@ -22,7 +22,7 @@ module.exports = {
     name: 'Hex IP bypass',
     difficulty: 'Medium',
     hint: 'The blocklist compares raw strings, but the URL parser normalizes hex IP parts.',
-    hints: ["The blocklist looks for '127.0.0.1' as text. But IP addresses have hex spellings too.", "0x7f.0.0.1 is 127.0.0.1 in hex. The string check doesn't recognize it, but the URL parser does.", "Fetch http://0x7f.0.0.1:PORT/ssrf/internal/secret."],
+    hints: ["The blocklist looks for '127.0.0.1' as text. But IP addresses have hex spellings too.", "Write the loopback address using hex octets instead of decimal ones (127 is 0x7f in hex). The raw string check will not match that spelling, but the URL parser still resolves it to 127.0.0.1.", "Spell the loopback address in hex, then use that spelling in the fetch URL aimed at the internal secret path."],
     tools: 'C',
     how: 'Fetch http://0x7f.0.0.1:PORT/ssrf/internal/secret via /ssrf/hex-ip.',
     link: '/ssrf#ssrf-hex-ip',

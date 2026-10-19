@@ -22,7 +22,7 @@ const vuln = {
   hints: [
     "Avatars are stored at a predictable path per user. Can you write to someone else's path?",
     "The avatar path is derived from the username with no ownership check. Upload with the victim's name.",
-    "Upload an avatar with filename=bob.svg (or the victim's name) to overwrite their avatar.",
+    "KEY INSIGHT: the avatar storage path is derived from the username with no ownership check. Craft your upload so the stored name collides with the victim's existing avatar path, replacing their avatar with your content.",
   ],
   tools: 'C',
   how: 'POST your bytes to /upload/avatar?user=bob so the victim avatar URL /upload/avatar/bob serves attacker content.',

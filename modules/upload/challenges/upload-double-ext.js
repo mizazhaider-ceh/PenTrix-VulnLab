@@ -130,7 +130,7 @@ module.exports = {
     hints: [
       "The filter blocks .svg by exact final extension. What does path.extname('shell.svg.jpg') return?",
       'The check sees \'.jpg\' and allows it, but the viewer guesses the content type from the full name and serves it as SVG.',
-      'Upload shell.svg.jpg containing SVG+script to /upload/ext-blacklist, then open its /upload/view/ link.',
+      'KEY INSIGHT: the blocklist only inspects the final extension, while the viewer guesses the type from the whole name. Upload a file whose final extension is allowed but whose full name still resolves to SVG, carrying SVG plus script, to the ext-blacklist endpoint, then open its view link.',
     ],
     tools: 'C',
     how: 'Upload shell.svg.jpg to POST /upload/ext-blacklist?filename=..., then open its /upload/view/ link to see it served as SVG. The same bypass shape defeats exact-match extension blacklists generally.',

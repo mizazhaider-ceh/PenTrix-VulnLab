@@ -101,7 +101,7 @@ const vuln = {
   name: 'SSRF via Host Header',
   difficulty: 'Medium',
   hint: 'The health check fetches http://<Host>/hostheader/internal/metrics server-side. A loopback-only agent on 127.0.0.1:13919 holds secrets.',
-  hints: ["The health check builds a URL from the Host header. What URL?", "http://<Host>/internal. Send Host: 127.0.0.1:PORT and it fetches the internal endpoint.", "Set Host to the internal address. The agent key appears in the response."],
+  hints: ["The health check builds a URL from the Host header. What URL?", "The fetch target is http://<Host>/hostheader/internal/metrics, and the page tells you where the loopback-only agent listens. Make the server's fetch reach that agent by choosing Host accordingly.", "Point the Host header at the loopback address and port the internal agent listens on, so the server-side fetch reaches it. The key insight: the fetch runs from the server's network position, so an address your browser could never reach becomes reachable when the server fetches it."],
   tools: 'C',
   how: 'GET /hostheader/status with Host: 127.0.0.1:13919 so the server fetches the internal agent for you.',
   link: '/hostheader#host-ssrf',

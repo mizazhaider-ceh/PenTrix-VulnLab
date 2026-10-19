@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "The ping tool takes a host and runs ping. Where does your input go in the command?",
     "Your input is concatenated into a shell command with no escaping. A semicolon ends the ping and starts a new command.",
-    "Try ?host=127.0.0.1;id or ?host=127.0.0.1;cat /etc/passwd. The flag needs the second command's output (uid= or root:) in the response.",
+    "End the ping statement with a command separator after a valid host, then add a second command of your choosing. The award only fires when the second command's output actually appears in the response, so pick a command that prints something unmistakable.",
   ],
   tools: 'B, C',
   how: 'Inject an extra shell command through the host field, e.g. ?host=127.0.0.1;id',

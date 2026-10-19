@@ -24,7 +24,7 @@ const vuln = {
   hints: [
     "The uploader checks magic bytes. What are the first 6 bytes of a GIF?",
     "GIF89a. A file starting with GIF89a but containing HTML is a polyglot: it passes the sniffing but renders as HTML.",
-    "Craft a file starting with GIF89a followed by <script>, upload it, and get it served as HTML.",
+    "KEY INSIGHT: a polyglot must satisfy both parsers at once. The magic-byte check only reads the first bytes, so build a file that passes that check while the browser parses the rest as HTML with script, then get it served as HTML.",
   ],
   tools: 'C',
   how: 'Upload bytes starting with GIF89a followed by HTML/JS (e.g. GIF89a<script>alert(1)</script>) to POST /upload/polyglot?filename=..., then open its /upload/poly/ link.',

@@ -11,7 +11,7 @@ const vuln = {
   name: 'Vim Swap File Leak',
   difficulty: 'Easy',
   hint: 'Editors leave backup artifacts next to the files they edit. The running app is app.js; what would its swap file be called?',
-  hints: ["Vim swap files end in .swp. Is there one in the web root?", "The .swp file has the source with secrets. It's a backup the editor left behind.", "Fetch /misconfig/.index.php.swp (or similar) and read it."],
+  hints: ["Vim swap files end in .swp. Is there one in the web root?", "The .swp file has the source with secrets. It's a backup the editor left behind.", "Vim builds the swap name by wrapping the edited filename: a leading dot, then the filename, then .swp. The app entry file here is app.js. Build that name, request it from the web root, and read the recovered source for the embedded secret."],
   tools: 'C',
   how: 'Download /misconfig/app.js.swp and read the recovered source for secrets.',
   link: '/misconfig/app.js.swp',

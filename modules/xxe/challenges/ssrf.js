@@ -22,7 +22,7 @@ const vuln = {
   hints: [
     "Entities can have http:// URLs too. What happens when the parser fetches one?",
     "An external entity with SYSTEM \"http://127.0.0.1:PORT/...\" makes the server request that URL. It's SSRF via XML.",
-    "Use <!ENTITY xxe SYSTEM \"http://127.0.0.1:PORT/xxe/internal\"> and reference &xxe;.",
+    "You need an external entity whose SYSTEM identifier is an http:// URL aimed at an internal-only endpoint, referenced where the output appears. Key insight: the server makes the request, not your browser, so addresses only reachable from inside the lab are in play. Probe the module's internal endpoints and see which one returns secret data.",
   ],
   tools: 'C',
   how: 'Use an XML external entity with an http:// SYSTEM URI to make the server request an internal endpoint and leak its response.',

@@ -108,7 +108,7 @@ const vuln = {
   name: 'Absolute Continue URL',
   difficulty: 'Easy',
   hint: 'The login page renders an absolute continue URL built from Host, and the post-login 302 uses it too.',
-  hints: ["After login, the continue URL is absolute and built from Host.", "The 302 Location uses your Host. Set it to evil.com.", "Login with Host: evil.com. The Location points at evil.com."],
+  hints: ["After login, the continue URL is absolute and built from Host.", "The 302 Location is built from your Host header with no allowlist. Claim a host you control and watch where the post-login redirect sends the browser.", "Sign in with a Host header naming a domain you control. The key insight: the app never checks your Host against any allowlist, so whatever host you claim becomes the destination of the post-login 302."],
   tools: 'B, C',
   how: 'Log in at /hostheader/login with Host: evil.com and watch the 302 Location point at evil.com.',
   link: '/hostheader#host-abs-url',

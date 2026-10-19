@@ -15,8 +15,8 @@ const vuln = {
   hint: 'The words "cat" and "/" are stripped as standalone tokens. The shell expands ? into any single character, including inside paths and command names.',
   hints: [
     "The filter strips the word 'cat' and standalone '/'. But the shell expands wildcards before running.",
-    "? matches any single character. /???/bin/?at expands to /bin/cat at runtime, after the filter ran.",
-    "Try ?host=127.0.0.1;/???/bin/?at /???/p?sswd.",
+    "Wildcards expand after the filter has already run, and ? stands for any single character. So you can spell a banned word without typing any of its letters: count the letters and build a pattern that matches them.",
+    "Rebuild the blocked command name and path with ? placeholders, one per character, and chain it after the ping with a statement separator. Look for the file's content in the response.",
   ],
   tools: 'B, C',
   how: 'Glob your way around both words, e.g. ?host=127.0.0.1;/???/bin/?at /???/p?sswd',

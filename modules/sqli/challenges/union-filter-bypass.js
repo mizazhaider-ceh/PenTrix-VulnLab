@@ -64,7 +64,7 @@ module.exports = {
     name: 'UNION Filter Bypass',
     difficulty: 'Medium',
     hint: 'This shop strips the lowercase word "union" from your search. The filter is case-sensitive and knows nothing about SQL comments or mixed case.',
-    hints: ["The shop strips the word 'union' from your search. But filters are code, and code has assumptions. What assumptions is this one making?", "The filter is case-sensitive and only strips the exact lowercase word. Try uppercase (UNION), mixed case (UnIoN), or SQL comments (/**/ ) to smuggle the keyword past it.", "Inject with UN/**/ION SELECT or ' UnIoN SELECT id, username, password, secret FROM users --  to bypass the naive blacklist."],
+    hints: ["The shop strips the word 'union' from your search. But filters are code, and code has assumptions. What assumptions is this one making?", "The filter is case-sensitive and only strips the exact lowercase word. Try uppercase (UNION), mixed case (UnIoN), or SQL comments (/**/ ) to smuggle the keyword past it.", "Smuggle the UNION keyword past the filter by changing its shape (case tricks or comment tricks), then UNION a SELECT against the users table into the search results to pull the admin secret."],
     tools: "B, C",
     how: 'Bypass the naive blacklist (uppercase, mixed case, or /**/ comments) and UNION out the admin secret.',
     link: '/sqli/shop',

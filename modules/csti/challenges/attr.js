@@ -20,7 +20,7 @@ const vuln = {
   hints: [
     "The template is inside an HTML attribute. When is it evaluated?",
     "After HTML decoding. The attribute value becomes template code.",
-    "Inject into the attribute so the decoded value is {{7*7}}.",
+    "Inject into the attribute so the decoded value is a template expression whose result proves evaluation: an arithmetic result is enough.",
   ],
   tools: 'B, DT',
   how: 'Save {{7*7}} as the badge text; the attribute decodes and the engine renders 49.',

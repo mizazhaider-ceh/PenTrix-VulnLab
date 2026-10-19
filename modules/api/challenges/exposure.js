@@ -53,7 +53,7 @@ module.exports = {
     id: 'exposure',
     name: 'Excessive Data Exposure',
     difficulty: 'Easy',
-    hint: 'GET /api/users runs SELECT * and returns the rows as JSON. Read the response body, or check the X-Pentrix-Flag response header.',
+    hint: 'GET /api/users runs SELECT * and returns the rows as JSON. The viewer page hides some things, so fetch the raw response and look at everything the server sends back, not just the body.',
     hints: ["The /users endpoint returns user objects. Compare what the UI shows versus what the JSON contains.", "The response includes fields the client should never see. APIs must return only what the client needs.", "Fetch /api/users and inspect the full JSON, including headers, for sensitive fields."],
     tools: 'B, C',
     how: 'Fetch the user list and read fields the client should never see.',

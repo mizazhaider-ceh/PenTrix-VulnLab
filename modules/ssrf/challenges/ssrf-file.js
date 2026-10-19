@@ -16,7 +16,7 @@ const vuln = {
   name: 'file:// scheme SSRF',
   difficulty: 'Medium',
   hint: 'This fetcher allows an extra URL scheme that reads from the local disk.',
-  hints: ["The fetcher accepts URLs. Are http(s) the only schemes that fetch data?", "The file:// scheme turns the fetcher into a local file reader. Try file:///etc/passwd.", "Submit file:///etc/passwd as the URL. Look for 'root:' in the response."],
+  hints: ["The fetcher accepts URLs. Are http(s) the only schemes that fetch data?", "The file:// scheme turns the fetcher into a local file reader. Aim it at a classic world-readable system file, like the Unix user database.", "Point the file scheme at the Unix user database and look for the root account entry in the response."],
   tools: 'C',
   how: 'Fetch file:///etc/passwd via /ssrf/fetch-file.',
   link: '/ssrf#ssrf-file',

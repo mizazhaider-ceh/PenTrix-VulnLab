@@ -20,7 +20,7 @@ const vuln = {
   hints: [
     'The endpoint takes ?next=. What if next appears twice?',
     'Duplicate parameters: the validator checks the first, but the redirect uses the last.',
-    'Try ?next=safe&next=https://evil.com. The Location has the evil host.',
+    'Supply the parameter twice, once with a value that looks safe and once with an external URL. The key insight: the server validates one value and redirects on another, honoring the last while reviewers see the first.',
   ],
   tools: 'C',
   how: 'Request /redirect/polluted?next=safe&next=https://evil.com and check which value lands in the Location header.',
