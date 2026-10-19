@@ -36,7 +36,10 @@ router.get('/double', (req, res) => {
       const r = readTarget(file);
       if (r.ok) {
         body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
-        if (r.data.includes(SECRET_MARKER)) {
+        // Real success only: an encoded payload slipped past the one-decode
+        // pre-check, so the raw value must have carried percent-encoding.
+        // A plain in-docs name like secret.txt must not award this challenge.
+        if (r.data.includes(SECRET_MARKER) && raw.includes('%')) {
           const flag = award(req, 'lfi', 'double-encode');
           body += flagBox(flag) + fixPanel('lfi', 'double-encode');
         }

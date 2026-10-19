@@ -3,11 +3,24 @@
 // accepts full expressions, including a CASE WHEN boolean oracle.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { shopShell } = require('../shared');
 
 const router = express.Router();
+
+// Strip string literals and SQL comments before looking for the oracle
+// keywords. Without this, the flag could be earned by smuggling the words
+// "case when" and "users" inside a string literal (e.g.
+// sort=(SELECT 'case when users')) or a comment (sort=name /* case when
+// users */), with no real boolean oracle ever executing against the users
+// table. After stripping, any remaining keywords are live SQL tokens.
+function stripSqlNoise(s) {
+  return s
+    .replace(/'(?:[^']|'')*'/g, ' ')
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+}
 
 router.get('/sort', (req, res) => {
   const sort = req.query.sort !== undefined ? String(req.query.sort) : 'name';
@@ -47,9 +60,13 @@ router.get('/sort', (req, res) => {
   let flagHtml = '';
   // The exploit genuinely ran when a CASE WHEN oracle against the users table
   // executed inside ORDER BY without error: the row order is the oracle.
-  if (!error && /case\s+when/i.test(sort) && /\busers\b/i.test(sort)) {
+  // Keywords are matched against the noise-stripped input so that string
+  // literals and comments cannot smuggle them in.
+  const probe = stripSqlNoise(sort);
+  if (!error && /case\s+when/i.test(probe) && /\busers\b/i.test(probe)) {
     flagHtml = flagBox(award(req, 'sqli', 'order-by'));
     flagHtml += fixPanel('sqli', 'order-by');
+    flagHtml += fixCta('sqli', 'order-by');
   }
   res.send(page('Sortable Catalog (ORDER BY Injection)', shopShell('Catalog', body + flagHtml + `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/sqli">Back</a></p>`)));
 });

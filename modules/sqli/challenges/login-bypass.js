@@ -3,7 +3,7 @@
 // breakout can rewrite the WHERE clause and skip the password check entirely.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { shopShell } = require('../shared');
 
@@ -53,6 +53,7 @@ router.post('/login', (req, res) => {
       <p>Logged in as <strong>${esc(row.username)}</strong> (role: ${esc(row.role)}).</p>
       ${flagBox(flag)}
       ${fixPanel('sqli', 'login-bypass')}
+      ${fixCta('sqli', 'login-bypass')}
     `)));
   }
   res.send(page('Login Bypass', shopShell('Sign in', `

@@ -51,8 +51,8 @@ router.post('/apikey/regen', (req, res) => {
     'INSERT INTO idor_apikeys (user_id, api_key) VALUES (?,?) ' +
     'ON CONFLICT(user_id) DO UPDATE SET api_key = excluded.api_key'
   ).run(target.id, fresh);
-  db.prepare('INSERT OR REPLACE INTO idor_apikey_rotations (api_key, via_idor) VALUES (?,?)')
-    .run(fresh, target.id !== u.id ? 1 : 0);
+  db.prepare('INSERT OR REPLACE INTO idor_apikey_rotations (api_key, via_idor, by_user_id) VALUES (?,?,?)')
+    .run(fresh, target.id !== u.id ? 1 : 0, u.id);
   res.send(shopPage(u, 'Key regenerated', `
     <div class="note"><p>New API key for <strong>${esc(target.username)}</strong> (id ${Number(target.id)}):</p></div>
     ${payloadBlock('New API key', fresh)}
@@ -75,10 +75,11 @@ router.get('/apikey/use', (req, res) => {
       '<p class="muted">That key is not valid.</p><p><a href="/idor/apikey">Back to API keys</a></p>');
   }
   let flagHtml = '';
-  // Award: authenticating with another user's key that you rotated for them
-  // through the IDOR. Reusing a key you were merely shown does not count.
-  const rotation = getDb().prepare('SELECT via_idor FROM idor_apikey_rotations WHERE api_key = ?').get(key);
-  if (row.user_id !== u.id && u.role !== 'admin' && rotation && rotation.via_idor === 1) {
+  // Award: authenticating with another user's key that YOU rotated for them
+  // through the IDOR. Reusing a key you were merely shown (or that someone
+  // else rotated and shared with you) does not count.
+  const rotation = getDb().prepare('SELECT via_idor, by_user_id FROM idor_apikey_rotations WHERE api_key = ?').get(key);
+  if (row.user_id !== u.id && u.role !== 'admin' && rotation && rotation.via_idor === 1 && rotation.by_user_id === u.id) {
     flagHtml = flagBox(award(req, 'idor', 'idor-apikey-regen')) + fixPanel('idor', 'idor-apikey-regen');
   }
   res.send(shopPage(u, 'API key check', `

@@ -3,7 +3,7 @@
 // word "union" but knows nothing about mixed case or SQL comments.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { adminSecret, shopShell } = require('../shared');
 
@@ -53,7 +53,7 @@ router.get('/shop', (req, res) => {
   // from being UNIONed into the output.
   if (!error && secret && html.includes(secret)) {
     const flag = award(req, 'sqli', 'union-filter-bypass');
-    html = page('Filtered Shop (UNION Filter Bypass)', shopShell('Shop', body + flagBox(flag) + fixPanel('sqli', 'union-filter-bypass')));
+    html = page('Filtered Shop (UNION Filter Bypass)', shopShell('Shop', body + flagBox(flag) + fixPanel('sqli', 'union-filter-bypass') + fixCta('sqli', 'union-filter-bypass')));
   }
   res.send(html);
 });

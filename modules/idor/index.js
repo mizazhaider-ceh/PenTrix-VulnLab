@@ -2,7 +2,7 @@
 // Broken Access Control (IDOR): a small fictional store whose endpoints trust ids from the client.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
 const { currentUser, deny } = require('./shared');
 
 const challenges = [
@@ -61,6 +61,13 @@ router.get('/', (req, res) => {
       ${toolsPill(v)}
     </article>`).join('');
 
+  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
+  const fixSectionHtml = `
+    <section class="fix-mode-section">
+      <h2>Break then fix</h2>
+      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
+      ${challenges.map((c) => fixCta('idor', c.vuln.id)).join('')}
+    </section>`;
   res.send(page('Broken Access Control', `
     ${brief('Broken Access Control (IDOR)', `
       PenShop is a tiny store with member profiles, invoices, account settings,
@@ -98,7 +105,8 @@ router.get('/', (req, res) => {
     <p>Seven access-control flaws hide in the pages above. Each challenge card has a hint
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the shape of the request.</p>
     ${cards}
-  `));
+  ${fixSectionHtml}
+`));
 });
 
 for (const c of challenges) router.use(c.router);

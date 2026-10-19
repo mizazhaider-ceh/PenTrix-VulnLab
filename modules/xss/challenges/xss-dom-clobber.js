@@ -1,7 +1,7 @@
 'use strict';
 // DOM clobbering to admin: a script-only sanitizer lets form/input markup shadow window.settings.
 const express = require('express');
-const { page, esc, errorPage, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, errorPage, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { siteFrame, backLinks } = require('../shared');
 
@@ -16,7 +16,13 @@ function getClobberHtml(req) {
 }
 
 function stripScripts(html) {
-  return String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  return String(html)
+    // A closed <script> element is script text up to its </script>, exactly
+    // like the browser treats it.
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    // An unclosed <script> swallows the rest of the document as script text,
+    // so nothing after it is a live element.
+    .replace(/<script\b[^>]*>[\s\S]*$/gi, '');
 }
 
 // Mirrors what a browser would build from the sanitized markup: does it create
@@ -26,7 +32,9 @@ function stripScripts(html) {
 //      through its form="settings" attribute.
 //   2. Two <a id="settings"> elements, one with name="isAdmin"
 //      (window.settings becomes an HTMLCollection, .isAdmin its named item).
-// Comments, <textarea>/<title>/<style> text, wrong-case names and attribute
+// Comments, <textarea>/<title>/<style> text, <template> subtrees (inert
+// document fragment), <noscript> subtrees (raw text while scripting is
+// enabled, which this page requires), wrong-case names and attribute
 // look-alikes (data-id, title="id=settings") do not count.
 const NAMEABLE = new Set(['input', 'img', 'select', 'textarea', 'button', 'object', 'embed', 'fieldset']);
 
@@ -42,9 +50,16 @@ function parseAttrs(src) {
 }
 
 function clobbersSettings(html) {
-  const s = stripScripts(html)
+  // Strip everything a browser would not turn into live elements, in an order
+  // that mirrors parsing: comments first (so a <script> inside a comment is
+  // not mistaken for a real one), then inert <template>/<noscript> subtrees,
+  // then raw-text elements whose content is never parsed as markup, and only
+  // then scripts (an unclosed <script> swallows the rest of the document).
+  const s = String(html)
     .replace(/<!--[\s\S]*?(?:-->|$)/g, '')
+    .replace(/<(template|noscript)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
     .replace(/<(textarea|title|style|xmp|noembed|noframes|iframe)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '');
+  const noScripts = stripScripts(s);
   const tagRe = /<(\/?)([a-zA-Z][^\s\/>]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
   let m;
   let inForm = null; // null, 'settings' or 'other'
@@ -53,7 +68,7 @@ function clobbersSettings(html) {
   let nestedControl = false;
   let anchorsWithId = 0;
   let anchorNamed = false;
-  while ((m = tagRe.exec(s))) {
+  while ((m = tagRe.exec(noScripts))) {
     const closing = m[1] === '/';
     const tag = m[2].toLowerCase();
     if (closing) {
@@ -66,7 +81,10 @@ function clobbersSettings(html) {
       if (a.id === 'settings') settingsForm = true;
     } else if (NAMEABLE.has(tag)) {
       const named = a.name === 'isAdmin' || a.id === 'isAdmin';
-      if (named && inForm === 'settings') nestedControl = true;
+      // A form="..." attribute overrides ancestry: the control joins the
+      // referenced form (or no form at all), never the form element it sits
+      // inside, so only controls without one count as nested.
+      if (named && !('form' in a) && inForm === 'settings') nestedControl = true;
       if (named && a.form === 'settings') tiedControl = true;
     } else if (tag === 'a' && a.id === 'settings') {
       anchorsWithId += 1;
@@ -126,6 +144,7 @@ router.get('/clobber-admin', (req, res) => {
       truthy <code>window.settings.isAdmin</code> and treated you as an admin.</p>
       ${flagBox(flag)}
       ${fixPanel('xss', 'xss-dom-clobber')}
+      ${fixCta('xss', 'xss-dom-clobber')}
       <p><a href="/xss">Back to the XSS module</a></p>
     `));
   }

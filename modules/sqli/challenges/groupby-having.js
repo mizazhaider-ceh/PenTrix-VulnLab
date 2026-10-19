@@ -3,7 +3,7 @@
 // echoed back as the group label, so a subquery leaks data through it.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { adminSecret, shopShell } = require('../shared');
 
@@ -50,6 +50,7 @@ router.get('/stats', (req, res) => {
   if (!error && secret && rows.some((r) => String(r.grp).includes(secret))) {
     flagHtml = flagBox(award(req, 'sqli', 'groupby-having'));
     flagHtml += fixPanel('sqli', 'groupby-having');
+    flagHtml += fixCta('sqli', 'groupby-having');
   }
   res.send(page('Sales Stats (GROUP BY Injection)', shopShell('Insights', body + flagHtml + `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/sqli">Back</a></p>`)));
 });

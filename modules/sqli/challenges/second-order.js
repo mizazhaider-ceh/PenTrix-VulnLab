@@ -3,7 +3,7 @@
 // but the profile page later interpolates that stored value into a new query.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { shopShell } = require('../shared');
 
@@ -110,10 +110,14 @@ router.get('/profile', (req, res) => {
         </tbody>
       </table></div>`;
       // The stored payload genuinely executed when the lookup lands on the
-      // admin account for a member who is not admin.
-      if (account.username === 'admin' && member.username !== 'admin') {
+      // admin account for a member who is not admin. The stored display name
+      // must contain a quote: without one the value cannot break out of the
+      // string literal, so registering display_name='admin' with no injection
+      // at all must not award the flag.
+      if (account.username === 'admin' && member.username !== 'admin' && member.display_name.includes("'")) {
         flagHtml = flagBox(award(req, 'sqli', 'second-order'));
         flagHtml += fixPanel('sqli', 'second-order');
+        flagHtml += fixCta('sqli', 'second-order');
       }
     } else {
       body += '<p>No user account matches this display name.</p>';

@@ -5,7 +5,7 @@
 const express = require('express');
 const fs = require('fs');
 const { esc, page } = require('../../../lib/page');
-const { LOG_PATH, LOG_MARKER, docsPage, showCaptured } = require('../shared');
+const { LOG_PATH, LOG_MARKER, docsPage, showCaptured, readTailCapped, MAX_READ_BYTES } = require('../shared');
 
 const router = express.Router();
 
@@ -14,13 +14,22 @@ router.get('/log-demo', (req, res) => {
   const ua = req.get('User-Agent') || '-';
   try {
     // VULN: the raw User-Agent header is appended to the access log with no filtering.
+    // Keep the log from growing without bound (every visit appends a line):
+    // past 1 MiB, retain only the tail before appending.
+    try {
+      const st = fs.statSync(LOG_PATH);
+      if (st.size > 1024 * 1024) {
+        const tail = fs.readFileSync(LOG_PATH, 'utf8').slice(-262144);
+        fs.writeFileSync(LOG_PATH, tail);
+      }
+    } catch (e) { /* no log yet, or unreadable: append anyway */ }
     fs.appendFileSync(LOG_PATH, new Date().toISOString() + ' ' + (req.ip || '-') +
       ' "' + ua.replace(/[\r\n"]/g, "'") + '"\n');
   } catch (e) { /* render the page anyway */ }
   let tail = '(log is empty so far)';
   try {
-    const lines = fs.readFileSync(LOG_PATH, 'utf8').trim().split('\n');
-    tail = lines.slice(-10).join('\n');
+    const r = readTailCapped(LOG_PATH, MAX_READ_BYTES);
+    if (r.ok) tail = r.data.trim().split('\n').slice(-10).join('\n');
   } catch (e) { /* keep placeholder */ }
   res.send(page('LFI - Access Log Demo', docsPage('Settings / Access Log', `
     <h1>Access Log Demo</h1>

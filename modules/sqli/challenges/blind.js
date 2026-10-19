@@ -3,7 +3,7 @@
 // that single bit is enough to build a true/false oracle against any table.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { adminSecret, shopShell } = require('../shared');
 
@@ -60,6 +60,7 @@ router.post('/blind-submit', (req, res) => {
       <p><strong>Correct.</strong> You extracted the admin secret via boolean blind injection.</p>
       ${flagBox(flag)}
       ${fixPanel('sqli', 'blind')}
+      ${fixCta('sqli', 'blind')}
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/sqli/product">Back</a></p>
     `)));
   }

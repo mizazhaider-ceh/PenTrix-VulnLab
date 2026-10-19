@@ -26,6 +26,14 @@ function resetTokenFor(username) {
   return Buffer.from(username, 'utf8').toString('base64');
 }
 
+// Usernames the reset flow has ever issued a token for, across all sessions.
+// The token is deterministic (base64(username)), so a token shown on screen
+// in session A is byte-identical to a forged one. Without this record, that
+// token could be replayed from a fresh session B for the flag without any
+// forging. The intended solve still works: forging a token for a user that
+// was never issued one still awards.
+const issuedUsernames = new Set();
+
 function failure(message) {
   return page(
     'Reset failed',
@@ -47,6 +55,7 @@ router.get('/reset', (req, res) => {
       if (!req.session.issuedResets.includes(token)) {
         req.session.issuedResets.push(token);
       }
+      issuedUsernames.add(u.username);
       // VULN: the "email" with the reset link is rendered right here on the
       // page for anyone to read, and the token is trivially predictable.
       const link = `/auth/reset/confirm?token=${encodeURIComponent(token)}`;
@@ -121,13 +130,14 @@ router.post('/reset/confirm', (req, res) => {
   }
 
   const issued = req.session.issuedResets || [];
-  const wasLegit = issued.includes(token);
+  const wasLegit = issued.includes(token) || issuedUsernames.has(user.username);
   getDb()
     .prepare('UPDATE users SET password = ? WHERE username = ?')
     .run(newPassword, user.username);
 
-  // Award when a password was changed with a token this session never issued
-  // (i.e. a forged / guessed token), the classic outcome being admin's password.
+  // Award when a password was changed with a token that was neither issued to
+  // this session nor ever issued for that user (i.e. a forged / guessed
+  // token), the classic outcome being admin's password.
   let extra = '';
   if (!wasLegit) {
     extra = flagBox(award(req, 'auth', 'reset')) + fixPanel('auth', 'reset');

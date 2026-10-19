@@ -2,7 +2,7 @@
 // Stored XSS: guestbook entries are saved verbatim and rendered unencoded.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, emptyState, errorPage, claimBox } = require('../../../lib/page');
+const { page, esc, emptyState, errorPage, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -36,6 +36,7 @@ router.get('/guestbook', (req, res) => {
     <h3>Messages</h3>
     ${items || emptyState('No messages yet', '<p>Be the first to sign the guestbook.</p>')}
     ${claimBox({ vulnId: 'stored', payload: esc(`<script>${beacon('stored')}</script>`), statusUrl: '/xss/claim-status?v=stored' })}
+    ${fixCta('xss', 'stored')}
     ${backLinks('stored')}
   `));
 });

@@ -3,7 +3,7 @@
 // breakout turns the search into a full boolean oracle against any table.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { adminSecret, shopShell } = require('../shared');
 
@@ -70,6 +70,7 @@ router.post('/wildcard/submit', (req, res) => {
       <p>The submitted secret matches the admin secret.</p>
       ${flagBox(flag)}
       ${fixPanel('sqli', 'like-wildcard')}
+      ${fixCta('sqli', 'like-wildcard')}
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/sqli">Back</a></p>
     `)));
   }

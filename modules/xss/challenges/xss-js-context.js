@@ -1,7 +1,7 @@
 'use strict';
 // XSS in a JavaScript string: input is reflected raw inside a single-quoted literal.
 const express = require('express');
-const { page, esc, claimBox } = require('../../../lib/page');
+const { page, esc, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -29,6 +29,7 @@ router.get('/jsctx', (req, res) => {
       ${script}
       </script>`)}
     ${claimBox({ vulnId: 'xss-js-context', payload: esc(`';${beacon('xss-js-context')};//`), statusUrl: '/xss/claim-status?v=xss-js-context' })}
+    ${fixCta('xss', 'xss-js-context')}
     ${backLinks('xss-js-context')}
   `));
 });

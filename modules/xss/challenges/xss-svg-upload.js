@@ -4,7 +4,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { DB_PATH } = require('../../../lib/db');
-const { page, esc, errorPage, claimBox } = require('../../../lib/page');
+const { page, esc, errorPage, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonce, xssNonceTag, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -58,6 +58,7 @@ router.get('/svg', (req, res) => {
       <h3>Recent avatars</h3>
       ${list}`)}
     ${claimBox({ vulnId: 'xss-svg-upload', payload: esc(SVG_PAYLOAD), statusUrl: '/xss/claim-status?v=xss-svg-upload', beaconInfo: 'The SVG opens as its own document, so window.__px is not defined there. The file link carries the token in ?n=; read it with new URLSearchParams(location.search).get(&quot;n&quot;). The file is parsed as XML, so a bare &amp; in the script would break parsing: keep the code inside a CDATA section.' })}
+    ${fixCta('xss', 'xss-svg-upload')}
     ${backLinks('xss-svg-upload')}
   `));
 });

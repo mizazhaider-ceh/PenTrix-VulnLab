@@ -37,8 +37,14 @@ function ensureIdorTables() {
     user_id INTEGER PRIMARY KEY, api_key TEXT NOT NULL)`);
   // Remembers which keys were rotated for someone else (through the IDOR),
   // so that merely reusing a key you were shown does not count as the exploit.
+  // by_user_id records WHO performed the rotation, so a key rotated by one
+  // student cannot award the flag to a different student who only pastes it.
   db.exec(`CREATE TABLE IF NOT EXISTS idor_apikey_rotations (
-    api_key TEXT PRIMARY KEY, via_idor INTEGER NOT NULL)`);
+    api_key TEXT PRIMARY KEY, via_idor INTEGER NOT NULL, by_user_id INTEGER)`);
+  const rotCols = db.prepare('PRAGMA table_info(idor_apikey_rotations)').all().map((c) => c.name);
+  if (!rotCols.includes('by_user_id')) {
+    db.exec('ALTER TABLE idor_apikey_rotations ADD COLUMN by_user_id INTEGER');
+  }
   const idOf = (n) => db.prepare('SELECT id FROM users WHERE username = ?').get(n).id;
 
   if (db.prepare('SELECT COUNT(*) AS c FROM idor_invoices').get().c === 0) {

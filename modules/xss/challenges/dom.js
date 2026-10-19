@@ -1,7 +1,7 @@
 'use strict';
 // DOM-based XSS: location.hash flows into innerHTML in the browser.
 const express = require('express');
-const { page, esc, claimBox } = require('../../../lib/page');
+const { page, esc, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -22,6 +22,7 @@ router.get('/dom', (req, res) => {
       </script>
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="${esc(demoUrl)}">Preview a greeting</a></p>`)}
     ${claimBox({ vulnId: 'dom', payload: esc(`<img src=x onerror="${beacon('dom')}">`), statusUrl: '/xss/claim-status?v=dom', beaconInfo: 'For DOM XSS, put the payload in the URL fragment (after #). The fragment is URL-decoded before it is used.' })}
+    ${fixCta('xss', 'dom')}
     ${backLinks('dom')}
   `));
 });

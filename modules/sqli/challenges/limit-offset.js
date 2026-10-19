@@ -3,7 +3,7 @@
 // LIMIT clause, which accepts more than a plain page-size number.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { shopShell } = require('../shared');
 
@@ -45,10 +45,19 @@ router.get('/paged', (req, res) => {
         <tbody>${table}</tbody>
       </table></div>`;
   let flagHtml = '';
-  // Genuine LIMIT-syntax injection: non-numeric LIMIT content that still runs.
+  // Genuine LIMIT-syntax injection: non-numeric LIMIT content that still runs
+  // AND actually changes the page (more rows, or different rows, than the
+  // default LIMIT 2 page). A no-op suffix such as "2--x", "+2" or "2.0" runs
+  // fine but shows the same page, so it earns nothing.
   if (!error && /[^0-9]/.test(limit) && rows.length > 0) {
-    flagHtml = flagBox(award(req, 'sqli', 'limit-offset'));
-    flagHtml += fixPanel('sqli', 'limit-offset');
+    const firstPage = db.prepare('SELECT id FROM products ORDER BY id LIMIT 2').all().map((r) => r.id);
+    const got = rows.map((r) => r.id);
+    const samePage = got.length === firstPage.length && got.every((id, i) => id === firstPage[i]);
+    if (!samePage) {
+      flagHtml = flagBox(award(req, 'sqli', 'limit-offset'));
+      flagHtml += fixPanel('sqli', 'limit-offset');
+      flagHtml += fixCta('sqli', 'limit-offset');
+    }
   }
   res.send(page('Paged Catalog (LIMIT Injection)', shopShell('Catalog', body + flagHtml + `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/sqli">Back</a></p>`)));
 });

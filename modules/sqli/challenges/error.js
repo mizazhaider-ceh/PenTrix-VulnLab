@@ -3,7 +3,7 @@
 // the query and leaks raw database errors, which is an oracle on its own.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { shopShell } = require('../shared');
 
@@ -40,7 +40,7 @@ router.get('/detail', (req, res) => {
       // (runtime oracle). Both prove error-based injection works.
       if (/syntax error|unrecognized token|malformed JSON|wrong number of arguments|no such column|datatype mismatch/i.test(e.message)) {
         const flag = award(req, 'sqli', 'error');
-        return res.send(page('Product Detail', shopShell('Catalog', body + flagBox(flag) + fixPanel('sqli', 'error'))));
+        return res.send(page('Product Detail', shopShell('Catalog', body + flagBox(flag) + fixPanel('sqli', 'error') + fixCta('sqli', 'error'))));
       }
     }
   }

@@ -3,7 +3,7 @@
 // a 4-column LIKE query, so a UNION SELECT can append rows from any table.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { adminSecret, shopShell } = require('../shared');
 
@@ -49,7 +49,7 @@ router.get('/products', (req, res) => {
   const target = adminSecret();
   if (target && html.includes(target)) {
     const flag = award(req, 'sqli', 'union');
-    html = page('Product Search', shopShell('Catalog', body + flagBox(flag) + fixPanel('sqli', 'union')));
+    html = page('Product Search', shopShell('Catalog', body + flagBox(flag) + fixPanel('sqli', 'union') + fixCta('sqli', 'union')));
   }
   res.send(html);
 });

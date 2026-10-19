@@ -1,7 +1,7 @@
 'use strict';
 // CSRF & Clickjacking: forged cross-site requests against the fictional Postbox webmail app.
 const express = require('express');
-const { brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
 const { currentUser, emailOf } = require('./shared');
 
 const challenges = [
@@ -47,6 +47,13 @@ router.get('/', (req, res) => {
       <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(v.link)}">Open challenge</a></p>
     </article>`).join('');
 
+  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
+  const fixSectionHtml = `
+    <section class="fix-mode-section">
+      <h2>Break then fix</h2>
+      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
+      ${challenges.map((c) => fixCta('csrf', c.vuln.id)).join('')}
+    </section>`;
   res.send(page('CSRF & Clickjacking', `
     <h1>CSRF &amp; Clickjacking</h1>
     ${brief('Briefing', `
@@ -91,7 +98,8 @@ router.get('/', (req, res) => {
     nudges, level 2 teaches the technique, level 3 shows the shape of the
     request.</p>
     ${cards}
-  `));
+  ${fixSectionHtml}
+`));
 });
 
 for (const c of challenges) router.use(c.router);

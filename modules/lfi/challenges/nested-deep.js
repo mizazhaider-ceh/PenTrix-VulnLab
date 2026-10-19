@@ -31,7 +31,11 @@ router.get('/nested', (req, res) => {
     const r = readTarget(file);
     if (r.ok) {
       body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
-      if (r.data.includes(SECRET_MARKER) && raw.includes('..')) {
+      // Real success only: the secret shows while the post-strip file still
+      // carries "..", i.e. nested dots regenerated a traversal the one-pass
+      // strip missed. A plain ../secret.txt is stripped to a plain in-docs
+      // name and must not award this challenge.
+      if (r.data.includes(SECRET_MARKER) && file.includes('..')) {
         const flag = award(req, 'lfi', 'nested-deep');
         body += flagBox(flag) + fixPanel('lfi', 'nested-deep');
       }

@@ -1,7 +1,7 @@
 'use strict';
 // XSS via attribute breakout: input is reflected raw inside value="...".
 const express = require('express');
-const { page, esc, claimBox } = require('../../../lib/page');
+const { page, esc, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -28,6 +28,7 @@ router.get('/attr', (req, res) => {
         ${preview}
       </div>`)}
     ${claimBox({ vulnId: 'xss-attr-breakout', payload: esc(`"><script>${beacon('xss-attr-breakout')}</script>`), statusUrl: '/xss/claim-status?v=xss-attr-breakout' })}
+    ${fixCta('xss', 'xss-attr-breakout')}
     ${backLinks('xss-attr-breakout')}
   `));
 });

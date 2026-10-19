@@ -2,11 +2,10 @@
 // Process Environ Leak: the filename is appended to /proc/self/ with no
 // validation, and /proc/self/environ exposes the whole process environment.
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const { esc, page, flagBox, fixPanel } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { PROC_TELL, docsPage, showCaptured } = require('../shared');
+const { PROC_TELL, docsPage, showCaptured, readFileCapped } = require('../shared');
 
 const router = express.Router();
 
@@ -32,7 +31,9 @@ router.get('/procinfo', (req, res) => {
     ${showCaptured(req, 'proc-self')}
   `;
   try {
-    const data = fs.readFileSync(target, 'utf8');
+    const r = readFileCapped(target);
+    if (!r.ok) throw new Error(r.error);
+    const data = r.data;
     body += `<h2>/proc/self/${esc(f)}</h2><pre>${esc(data)}</pre>`;
     // Real success only: the actual process environment was read.
     if (data.includes(PROC_TELL)) {

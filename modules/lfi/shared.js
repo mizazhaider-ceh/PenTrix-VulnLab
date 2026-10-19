@@ -70,16 +70,77 @@ function docLinks(base) {
     .join(' ') + '</p>';
 }
 
-// Shared read helper: naive readFile with no validation of any kind.
+// Every file read in this module goes through a byte cap. An uncapped
+// readFileSync on /dev/zero, /dev/urandom, or any huge file grows memory
+// until the process is OOM-killed, which is a full server-kill denial of
+// service from one unauthenticated request. 256 KiB is far above anything
+// these labs legitimately read (docs, /etc/passwd, /proc files).
+const MAX_READ_BYTES = 256 * 1024;
+
+// Read at most maxBytes from target, returning { ok, data } or
+// { ok: false, error }. O_NONBLOCK keeps FIFOs from hanging the open, and
+// the cap keeps infinite devices from eating all memory.
+function readFileCapped(target, maxBytes = MAX_READ_BYTES) {
+  let fd;
+  try {
+    fd = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  try {
+    const chunks = [];
+    let total = 0;
+    const buf = Buffer.alloc(64 * 1024);
+    for (;;) {
+      let n;
+      try {
+        n = fs.readSync(fd, buf, 0, buf.length, null);
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
+      if (n === 0) break;
+      total += n;
+      if (total > maxBytes) {
+        return { ok: false, error: `refusing to read more than ${maxBytes} bytes` };
+      }
+      chunks.push(buf.subarray(0, n));
+    }
+    return { ok: true, data: Buffer.concat(chunks).toString('utf8') };
+  } finally {
+    try { fs.closeSync(fd); } catch (e) { /* already closed or never opened */ }
+  }
+}
+
+// Read at most the last maxBytes of target (for log tails), returning
+// { ok, data } or { ok: false, error }.
+function readTailCapped(target, maxBytes = MAX_READ_BYTES) {
+  let fd;
+  try {
+    const st = fs.statSync(target);
+    fd = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    const start = Math.max(0, st.size - maxBytes);
+    const len = Math.min(st.size, maxBytes);
+    const buf = Buffer.alloc(len);
+    let off = 0;
+    while (off < len) {
+      const n = fs.readSync(fd, buf, off, len - off, start + off);
+      if (n === 0) break;
+      off += n;
+    }
+    return { ok: true, data: buf.subarray(0, off).toString('utf8') };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch (e) { /* ignore */ } }
+  }
+}
+
 function readTarget(file) {
   // VULN: user-controlled path joined to docsDir and read with no checks.
   const target = path.join(docsDir, file);
-  try {
-    const data = fs.readFileSync(target, 'utf8');
-    return { ok: true, target, data };
-  } catch (e) {
-    return { ok: false, target, error: e.message };
-  }
+  const r = readFileCapped(target);
+  if (r.ok) return { ok: true, target, data: r.data };
+  return { ok: false, target, error: r.error };
 }
 
 function showCaptured(req, vulnId) {
@@ -99,5 +160,6 @@ function docsPage(crumb, bodyHtml) {
 
 module.exports = {
   docsDir, SECRET_MARKER, CONFIG_PATH, CONFIG_MARKER, LANG_DIR, LOG_PATH, LOG_MARKER, PROC_TELL,
+  MAX_READ_BYTES, readFileCapped, readTailCapped,
   rawParam, safeDecode, listDocs, docLinks, readTarget, showCaptured, docsPage,
 };

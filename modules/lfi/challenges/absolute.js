@@ -2,11 +2,10 @@
 // Absolute Path Read: absolute paths are used verbatim instead of being
 // confined to the docs folder, so no "../" traversal is needed at all.
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const { esc, page, flagBox, fixPanel } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { docsDir, docsPage, showCaptured } = require('../shared');
+const { docsDir, docsPage, showCaptured, readFileCapped } = require('../shared');
 
 const router = express.Router();
 
@@ -31,7 +30,9 @@ router.get('/abs', (req, res) => {
     ${showCaptured(req, 'absolute')}
   `;
   try {
-    const data = fs.readFileSync(target, 'utf8');
+    const r = readFileCapped(target);
+    if (!r.ok) throw new Error(r.error);
+    const data = r.data;
     body += `<h2>Contents of <code>${esc(p)}</code></h2><pre>${esc(data)}</pre>`;
     // Real success only: a real system file was read via an absolute path.
     if (path.isAbsolute(p) && data.includes('root:')) {

@@ -38,13 +38,24 @@ function runPing(host, done) {
 // Verification model: the flag is awarded only when the shell output proves a
 // second command really ran. The student's own input is scrubbed from the
 // output first, so merely echoing a marker (e.g. ?host=uid= with no injection)
-// cannot award. Markers are outputs real commands produce: id (uid=/gid=),
-// cat /etc/passwd (root:/daemon:), ls -la (total ).
-const EXEC_EVIDENCE = ['uid=', 'gid=', 'root:', 'daemon:', 'total '];
+// cannot award. Plain substring checks used to false-positive on shell error
+// text (e.g. "sh: 1: uid=: not found" contains the bare text "uid=" with zero
+// real command output), so every check below is a real-output-shaped regex:
+// structure that genuine command output has and shell error text never does.
+//   id             -> "uid=1000(user) gid=..." (digits plus the name in parens;
+//                   a failed "uid=999" attempt only yields "sh: 1: uid=999:
+//                   not found", which has no parens)
+//   cat /etc/passwd -> a full passwd line anchored at line start, e.g.
+//                   "root:x:0:0:root:/root:/bin/bash" (bare "root:" from an
+//                   echo never matches)
+//   ls -l          -> "total 1234" at line start
+const ID_EVIDENCE = /\b[ug]id=\d+\([^()\n]*\)/;
+const PASSWD_EVIDENCE = /^(?:root|daemon):[^:\r\n]*:\d+:\d+:/m;
+const EXEC_EVIDENCE = [ID_EVIDENCE, PASSWD_EVIDENCE, /^total \d+/m];
 function executedSomething(out, inputs) {
   let s = String(out || '');
   for (const i of inputs) if (i) s = s.split(i).join('');
-  return EXEC_EVIDENCE.some((m) => s.includes(m));
+  return EXEC_EVIDENCE.some((re) => re.test(s));
 }
 
 // Full page for a ping gadget challenge. opts:
@@ -72,4 +83,4 @@ function gadgetPage(opts) {
   return page(v.name, appShell(APP_NAME, body, { crumb: 'Diagnostics / ' + v.name, nav: APP_NAV }));
 }
 
-module.exports = { APP_NAME, APP_NAV, pingForm, runPing, executedSomething, gadgetPage };
+module.exports = { APP_NAME, APP_NAV, pingForm, runPing, executedSomething, gadgetPage, ID_EVIDENCE, PASSWD_EVIDENCE };

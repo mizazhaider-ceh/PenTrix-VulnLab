@@ -1,7 +1,7 @@
 'use strict';
 // API Security Flaws: intentionally vulnerable JSON API training targets.
 const express = require('express');
-const { brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/mass-assignment'),
@@ -33,6 +33,13 @@ router.get('/', (req, res) => {
       ${toolsPill(v)}
     </article>`).join('');
 
+  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
+  const fixSectionHtml = `
+    <section class="fix-mode-section">
+      <h2>Break then fix</h2>
+      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
+      ${challenges.map((c) => fixCta('api', c.vuln.id)).join('')}
+    </section>`;
   res.send(page('Acme API Docs', `
     ${brief('API Security Flaws', `
       A tiny JSON API for a fictional startup. The endpoints below are the
@@ -69,7 +76,8 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  `));
+  ${fixSectionHtml}
+`));
 });
 
 for (const c of challenges) router.use(c.router);

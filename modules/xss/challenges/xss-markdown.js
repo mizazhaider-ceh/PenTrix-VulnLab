@@ -1,7 +1,7 @@
 'use strict';
 // XSS via naive markdown links: javascript: URLs survive the renderer.
 const express = require('express');
-const { page, esc, claimBox } = require('../../../lib/page');
+const { page, esc, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -37,6 +37,7 @@ function notesPage(req, md, rendered) {
       </form>
       ${output}`)}
     ${claimBox({ vulnId: 'xss-markdown', payload: esc(`[x](javascript:${beacon('xss-markdown')})`), statusUrl: '/xss/claim-status?v=xss-markdown', beaconInfo: 'Render the note first, then click the rendered link to fire the javascript: URL.' })}
+    ${fixCta('xss', 'xss-markdown')}
     ${backLinks('xss-markdown')}
   `);
 }

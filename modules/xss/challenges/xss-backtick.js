@@ -1,7 +1,7 @@
 'use strict';
 // XSS in a template literal: input is reflected raw inside backticks, where ${...} evaluates.
 const express = require('express');
-const { page, esc, claimBox } = require('../../../lib/page');
+const { page, esc, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -28,6 +28,7 @@ router.get('/backtick', (req, res) => {
       ${script}
       </script>`)}
     ${claimBox({ vulnId: 'xss-backtick', payload: esc('${' + beacon('xss-backtick') + '}'), statusUrl: '/xss/claim-status?v=xss-backtick' })}
+    ${fixCta('xss', 'xss-backtick')}
     ${backLinks('xss-backtick')}
   `));
 });

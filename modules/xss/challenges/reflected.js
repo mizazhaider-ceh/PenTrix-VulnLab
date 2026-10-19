@@ -1,7 +1,7 @@
 'use strict';
 // Reflected XSS: the search term is echoed into the results page unencoded.
 const express = require('express');
-const { page, esc, emptyState, claimBox } = require('../../../lib/page');
+const { page, esc, emptyState, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonceTag, beacon, siteFrame, backLinks } = require('../shared');
 
 const router = express.Router();
@@ -41,6 +41,7 @@ router.get('/search', (req, res) => {
       </form>
       ${result}`)}
     ${claimBox({ vulnId: 'reflected', payload: esc(`<script>${beacon('reflected')}</script>`), statusUrl: '/xss/claim-status?v=reflected' })}
+    ${fixCta('xss', 'reflected')}
     ${backLinks('reflected')}
   `));
 });

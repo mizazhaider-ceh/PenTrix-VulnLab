@@ -2,11 +2,10 @@
 // Language Parameter Traversal: the lang parameter is concatenated into a
 // filesystem path with no validation, so it is just another filename input.
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const { esc, page, flagBox, fixPanel } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { docsDir, SECRET_MARKER, docsPage, showCaptured } = require('../shared');
+const { docsDir, SECRET_MARKER, docsPage, showCaptured, readFileCapped } = require('../shared');
 
 const router = express.Router();
 
@@ -30,7 +29,9 @@ router.get('/lang', (req, res) => {
     ${showCaptured(req, 'lang')}
   `;
   try {
-    const data = fs.readFileSync(target, 'utf8');
+    const r = readFileCapped(target);
+    if (!r.ok) throw new Error(r.error);
+    const data = r.data;
     body += `<h2>Language file <code>${esc(lang)}</code></h2><pre>${esc(data)}</pre>`;
     // Real success only: the secret was reached through the lang parameter.
     if (data.includes(SECRET_MARKER) && lang.includes('..')) {

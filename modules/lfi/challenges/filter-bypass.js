@@ -32,8 +32,11 @@ router.get('/download', (req, res) => {
     const r = readTarget(file);
     if (r.ok) {
       body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
-      // Real success only: the secret shows while the raw param carried "..".
-      if (r.data.includes(SECRET_MARKER) && raw.includes('..')) {
+      // Real success only: the secret shows while the post-filter file still
+      // carries "..", i.e. the single-pass strip was actually bypassed
+      // (....// collapses to ../). A plain ../secret.txt is stripped to a
+      // plain in-docs name and must not award this challenge.
+      if (r.data.includes(SECRET_MARKER) && file.includes('..')) {
         const flag = award(req, 'lfi', 'filter-bypass');
         body += flagBox(flag) + fixPanel('lfi', 'filter-bypass');
       }

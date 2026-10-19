@@ -3,7 +3,7 @@
 // statement. Stacked queries are blocked, but VALUES() accepts a subquery.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
-const { page, esc, brief, flagBox, fixPanel, emptyState } = require('../../../lib/page');
+const { page, esc, brief, flagBox, fixPanel, emptyState, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { adminSecret, shopShell } = require('../shared');
 
@@ -25,6 +25,7 @@ router.get('/feedback', (req, res) => {
   if (secret && rows.some((r) => r.message.includes(secret))) {
     flagHtml = flagBox(award(req, 'sqli', 'insert-inject'));
     flagHtml += fixPanel('sqli', 'insert-inject');
+    flagHtml += fixCta('sqli', 'insert-inject');
   }
   res.send(page('Feedback (INSERT Injection)', shopShell('Feedback', `
     <h1>Feedback</h1>
@@ -60,9 +61,12 @@ router.post('/feedback', (req, res) => {
   }
   const db = getDb();
   // VULN: interpolated into INSERT; VALUES() accepts a subquery as a value.
+  // prepare() is used instead of exec() so that only this one statement can
+  // run: stacked queries stay blocked (prepare throws on multi-statement
+  // input), while the intended VALUES-subquery injection keeps working.
   const sql = `INSERT INTO sqli_feedback(name, message) VALUES ('${name}', '${msg}')`;
   try {
-    db.exec(sql);
+    db.prepare(sql).run();
   } catch (e) {
     return res.status(400).send(page('Feedback', shopShell('Feedback', `
       <h1>Feedback</h1>

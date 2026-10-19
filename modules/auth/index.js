@@ -1,9 +1,9 @@
 'use strict';
 // Broken Authentication: eight intentionally exploitable login, reset and session flaws.
 const express = require('express');
-const {
+const { fixCta,
   brief, esc, difficultyPill, fixPanel, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner,
-} = require('../../lib/page');
+ } = require('../../lib/page');
 const { captured, flagFor } = require('../../lib/flags');
 const shared = require('./shared');
 
@@ -43,6 +43,13 @@ router.get('/', (req, res) => {
     `<tr><th scope="row"><a href="#${esc(v.id)}">${esc(v.name)}</a></th><td>${difficultyPill(v.difficulty)}</td><td><a href="${esc(v.link)}">${esc(v.link)}</a></td></tr>`
   ).join('');
 
+  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
+  const fixSectionHtml = `
+    <section class="fix-mode-section">
+      <h2>Break then fix</h2>
+      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
+      ${challenges.map((c) => fixCta('auth', c.vuln.id)).join('')}
+    </section>`;
   res.send(page('Broken Authentication', `
     ${brief('Broken Authentication', `
       Northwind Accounts is a small fictional product with weak sign-in, reset
@@ -64,7 +71,8 @@ router.get('/', (req, res) => {
     where you succeed.</p>
     ${cards}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/">Back to all modules</a></p>
-  `));
+  ${fixSectionHtml}
+`));
 });
 
 for (const c of challenges) router.use(c.router);
