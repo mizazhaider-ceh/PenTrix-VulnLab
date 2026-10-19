@@ -105,7 +105,7 @@ module.exports = {
     id: 'put',
     name: 'Unauthenticated HTTP PUT',
     difficulty: 'Medium',
-    hint: 'The file endpoint accepts PUT with no authentication at all. Upload a file with a raw content type (curl -H "Content-Type: text/plain" --data-binary), then fetch it back with GET to prove the write.',
+    hint: 'The file endpoint accepts PUT with no authentication at all. In Burp Repeater, send a PUT with a raw body and a Content-Type: text/plain header, then fetch it back with GET to prove the write.',
     hints: ["The server accepts unauthenticated PUT requests on its file endpoint. Can you write a file into the folder it serves back publicly?", "The server lets anyone PUT a file into its writable uploads area, and anything written there is readable again over HTTP. That turns a raw write primitive into a visible readback.", "In Burp Repeater, change the request line method to PUT, add Content-Type: text/plain, type a short body, and send it. Then GET the same file path back in your browser to confirm the write and claim the flag."],
     tools: 'BZ, C',
     how: 'In Burp Repeater, PUT a raw text body to /misconfig/files/<name> with Content-Type: text/plain, then GET the same path back to prove the write.',
