@@ -5,7 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { getDb, ensureFlags, DB_PATH } = require('./lib/db');
-const { page, esc, difficultyPill, progressBar, emptyState, payloadBlock, errorPage } = require('./lib/page');
+const { page, esc, difficultyPill, progressBar, emptyState, payloadBlock, errorPage,
+  fixEditorPage, fixResultHtml, fixBadgePill } = require('./lib/page');
 const { captured } = require('./lib/flags');
 
 const app = express();
@@ -253,7 +254,7 @@ app.get('/scoreboard', (req, res) => {
     <section class="card" aria-label="Overall progress">
       <div class="progress-meta" style="font-size:1rem">
         <div class="clay-progress" role="progressbar" aria-valuenow="${got}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Total flags captured" style="height:18px"><div class="fill" style="width:${pct}%"></div></div>
-        <span><b>${got} / ${total}</b> flags · ${pct}%</span>
+        <span><b>${got} / ${total}</b> flags · ${pct}% ${fixBadgePill(fixBadgeCountSafe(req))}</span>
       </div>
     </section>
     ${starterPanel}
@@ -306,6 +307,105 @@ app.get('/about', (req, res) => {
       </ul>
     </section>`,
     'about', { scoreChip: scoreChipHtml(req) }));
+});
+
+// ---- M11 break-then-fix mode (additive: guarded requires, no change to boot when files are absent) ----
+let fixmode = null;
+let fixbadges = null;
+try { fixmode = require('./lib/fixmode'); } catch (e) { console.warn('[warn] fix mode unavailable: lib/fixmode.js could not load'); }
+try { fixbadges = require('./lib/fixbadges'); } catch (e) { console.warn('[warn] fix badges unavailable: lib/fixbadges.js could not load'); }
+
+// Resolve a /fix URL to a registered module + challenge, or null.
+function findFixChallenge(module, vulnId) {
+  const m = registry.find((mm) => mm.id === module);
+  if (!m) return null;
+  const v = m.vulns.find((vv) => vv.id === vulnId);
+  if (!v) return null;
+  return { m, v };
+}
+
+function fixNotFound(req, res) {
+  res.status(404).send(page('Not found',
+    errorPage(404, 'No such challenge',
+      '<p>Fix mode could not find that module or challenge. Check the address bar for typos.</p>'),
+    null, { scoreChip: scoreChipHtml(req) }));
+}
+
+// How many fix badges the current user earned (safe to call on every request).
+function fixBadgeCountSafe(req) {
+  try {
+    return fixbadges && typeof fixbadges.fixBadgeCount === 'function' ? fixbadges.fixBadgeCount(req) : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function fixBlockFor(module, vulnId) {
+  try {
+    return fixmode && typeof fixmode.getFixBlock === 'function' ? fixmode.getFixBlock(module, vulnId) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ---- fix editor ----
+app.get('/fix/:module/:vuln', (req, res) => {
+  const module = String(req.params.module || '');
+  const vuln = String(req.params.vuln || '');
+  if (!findFixChallenge(module, vuln)) return fixNotFound(req, res);
+  const block = fixBlockFor(module, vuln);
+  if (block) return res.send(fixEditorPage(block));
+  res.send(page('Fix mode · coming soon',
+    `<h1>Fix mode</h1>
+    <div class="clay-card"><div class="card-top"><span class="orb" aria-hidden="true">🛠</span></div>
+      <h2>Fix mode is coming soon for this challenge</h2>
+      <p class="tagline">Break it first, then come back to fix it. The repair editor is not ready for this one yet.</p>
+      <div class="card-foot"><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/${esc(module)}">Back to the module</a></div>
+    </div>`,
+    'fix', { scoreChip: scoreChipHtml(req) }));
+});
+
+// ---- fix test ----
+app.post('/fix/:module/:vuln/test', (req, res) => {
+  const module = String(req.params.module || '');
+  const vuln = String(req.params.vuln || '');
+  if (!findFixChallenge(module, vuln)) return fixNotFound(req, res);
+  let code = '';
+  try {
+    if (req.body && typeof req.body.code === 'string') code = req.body.code;
+  } catch (e) { code = ''; }
+  let result;
+  try {
+    result = fixmode && typeof fixmode.testFix === 'function'
+      ? fixmode.testFix(module, vuln, code)
+      : { ok: false, error: 'Fix mode is not available right now. Try again later.' };
+  } catch (err) {
+    console.error('[err] fix test crashed:', err && err.message ? err.message : err);
+    result = { ok: false, error: 'The fix check hit an unexpected error. Simplify your code and try again.' };
+  }
+  if (result && result.ok && fixbadges && typeof fixbadges.awardFixBadge === 'function') {
+    try { fixbadges.awardFixBadge(req, module, vuln); }
+    catch (err) { console.error('[err] fix badge award failed:', err && err.message ? err.message : err); }
+  }
+  const block = fixBlockFor(module, vuln);
+  const title = (block && block.title) ? String(block.title) : vuln;
+  const vulnerableCode = (block && typeof block.vulnerableCode === 'string') ? block.vulnerableCode : '';
+  res.send(page('Fix result · ' + title,
+    `<div class="clay-card fix-editor">
+      <p class="eyebrow"><span class="orb" aria-hidden="true">🛠</span>Fix mode</p>
+      <h1>${esc(title)}</h1>
+      ${fixResultHtml(result)}
+      <h2>Your fix</h2>
+      <form method="post" action="/fix/${esc(module)}/${esc(vuln)}/test" id="fix-form">
+        <label class="fix-label" for="fix-code">Adjust the code below, then press "Test my fix".</label>
+        <textarea id="fix-code" name="code" class="fix-code" style="font-family:var(--font-mono)" spellcheck="false" rows="20">${esc(code)}</textarea>
+        <div class="fix-actions"><button type="submit" class="clay-btn clay-btn-primary">Test my fix</button></div>
+      </form>
+      ${vulnerableCode ? `<h2>The vulnerable code</h2>${payloadBlock('Vulnerable code (read only)', vulnerableCode)}` : ''}
+      <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/fix/${esc(module)}/${esc(vuln)}">Start over</a>
+      <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Scoreboard</a></p>
+    </div>`,
+    'fix', { scoreChip: scoreChipHtml(req) }));
 });
 
 // ---- 404 and 500, rendered inside the page template ----

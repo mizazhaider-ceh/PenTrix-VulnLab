@@ -3,7 +3,7 @@
 // catalog backed by better-sqlite3, from a plain login bypass through
 // second-order injection and filter bypasses.
 const express = require('express');
-const { brief, difficultyPill, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner } = require('../../lib/page');
+const { fixCta, brief, difficultyPill, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner  } = require('../../lib/page');
 const { captured } = require('../../lib/flags');
 
 const challenges = [
@@ -34,12 +34,24 @@ router.get('/', (req, res) => {
       ${toolsPill(v)}
     </article>`).join('\n');
 
+  // M11 break-then-fix: per-challenge fix CTAs (additive, existing content untouched).
+  const fixSectionHtml = `
+    <section class="fix-mode-section">
+      <h2>Break then fix</h2>
+      <p class="dim">You broke it. Now repair it. Fix mode hands you the vulnerable code, you write the patch, and the runner checks that the exploit is blocked while legitimate use still works.</p>
+      ${challenges.map((c) => `
+        <article class="vuln-card fix-card">
+          <h3>${esc(c.vuln.name)}</h3>
+          ${fixCta('sqli', c.vuln.id)}
+        </article>`).join('')}
+    </section>`;
   res.send(page('SQL Injection', `
     ${brief('SQL Injection', 'This module targets a product catalog backed by SQLite. Eleven challenges walk you from a trivial login bypass through second-order injection, filter bypasses, and error-based extraction. Every flag is earned by a real query injection, never by guessing.')}
     ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     ${cards}
-  `));
+  ${fixSectionHtml}
+`));
 });
 
 for (const c of challenges) router.use(c.router);

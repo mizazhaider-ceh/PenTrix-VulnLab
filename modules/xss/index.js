@@ -2,9 +2,9 @@
 // Cross-Site Scripting: nine challenges that end in a beacon to /xss/collect
 // (or, for DOM clobbering, an admin page that checks the stored markup).
 const express = require('express');
-const {
+const { fixCta,
   briefPanel, difficultyPill, errorPage, esc, fixPanel, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner,
-} = require('../../lib/page');
+ } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 const { EXFIL_PAYLOAD, xssConsumeNonce } = require('./shared');
 
@@ -60,6 +60,17 @@ router.get('/', (req, res) => {
 
   const anyCaptured = challenges.some((c) => captured(req, 'xss', c.vuln.id));
 
+  // M11 break-then-fix: per-challenge fix CTAs (additive, existing content untouched).
+  const fixSectionHtml = `
+    <section class="fix-mode-section">
+      <h2>Break then fix</h2>
+      <p class="dim">You broke it. Now repair it. Fix mode hands you the vulnerable code, you write the patch, and the runner checks that the exploit is blocked while legitimate use still works.</p>
+      ${challenges.map((c) => `
+        <article class="vuln-card fix-card">
+          <h3>${esc(c.vuln.name)}</h3>
+          ${fixCta('xss', c.vuln.id)}
+        </article>`).join('')}
+    </section>`;
   res.send(page('Cross-Site Scripting', `
     ${briefPanel('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -73,7 +84,8 @@ router.get('/', (req, res) => {
     one-time token as <code>window.__px</code>; the beacon must echo it back. The flag is
     awarded only when the beacon arrives with data and a valid token for that challenge,
     so a forged beacon with no page load earns nothing.</p>
-  `));
+  ${fixSectionHtml}
+`));
 });
 
 // Module-level routes below belong to no single challenge: the claim-status
