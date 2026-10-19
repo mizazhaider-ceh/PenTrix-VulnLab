@@ -66,6 +66,29 @@ Flags are awarded only when the exploit genuinely works:
 
 Every challenge is paired with tests proving the real path works and the fakes fail.
 
+## The three pillars
+
+![The three pillars](docs/assets/pillars.svg)
+
+Most labs stop at "find the bug". PenTrix is being built to train complete security engineers:
+
+1. **Break-then-fix.** After you capture a flag, patch the vulnerable code yourself. The lab re-runs the original exploit against your fix in an isolated sandbox. If the exploit fails and the app still works, you earn a fix badge. Offense and defense, in one place. *(In active development: framework plus full SQLi and XSS coverage first.)*
+2. **Kill-chain scenarios.** Multi-stage attacks that tell one story: recon a target, exploit it, pivot, escalate, exfiltrate. Single challenges teach techniques; scenarios teach how attackers actually think. *(In active development: Shop Takeover, API Heist, Ghost in the CMS.)*
+3. **Guided career paths.** Ordered journeys like "Zero to Web Pentester" and "API Hacker", with prerequisites, skill tracking, and a verifiable certificate when you finish. *(In active development.)*
+
+## Why PenTrix
+
+| | **PenTrix VulnLab** | Juice Shop | WebGoat | PortSwigger Academy |
+|---|---|---|---|---|
+| Challenges | 235 | 100+ | Lesson-based | Extensive |
+| Flags random per install | Yes | No | No | N/A |
+| Shortcut exploits rejected | Yes | Partial | No | Yes |
+| Break-then-fix mode | In development | No | No | No |
+| Kill-chain scenarios | In development | No | No | Partial |
+| Guided career paths | In development | No | Lessons | Yes |
+| One-command local setup | Yes | Yes | Yes | Browser only |
+| Fully open source | Yes | Yes | Yes | No |
+
 ## Architecture
 
 ![Architecture](docs/assets/architecture.svg)
@@ -123,7 +146,7 @@ This repo went through a full engineering transformation:
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims are rejected; only genuine exploits earn flags.
 - **Per-deployment random flags.** Flag values are generated at first boot into a gitignored database. GitHub reveals nothing.
 - **One file per challenge.** Each of the 235 challenges owns its file, its page, and its code. No monolithic module files.
-- **In progress:** real-website feel for every challenge page, motion polish, and a curriculum depth pass. The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
+- **In progress:** real-website feel for every challenge page, motion polish, curriculum depth pass, and the three pillars above (break-then-fix, kill-chain scenarios, career paths). The roadmap lives in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 ## Project layout
 
