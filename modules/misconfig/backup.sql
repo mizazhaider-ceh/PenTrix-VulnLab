@@ -27,4 +27,4 @@ INSERT INTO api_keys (id, owner, key_value) VALUES
   (1, 'ci-runner', 'ci_7f3a9b2d4e1c'),
   (2, 'monitoring', 'mon_2b8e5f1a9c3d');
 
--- internal note: debug token PENTRIX{misconfig_backup} -- remove before release
+-- internal note: debug token PENTRIX{DECOY_DO_NOT_USE} -- remove before release
