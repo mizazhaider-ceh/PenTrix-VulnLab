@@ -9,6 +9,8 @@
 
 PenTrix VulnLab is an intentionally vulnerable web app for learning **real-world web security**, built by **The PenTrix**. Every challenge is a small, believable website with a real bug inside: a shop, a login portal, a blog, an API. Every flag is earned by genuine multi-step exploitation. Nothing leaks from the source, so read all the code you want. The flags are not in it.
 
+🎬 **[Watch the 20-second launch video](https://mizazhaider-ceh.github.io/PenTrix-VulnLab-Website/assets/vid/brag-launch.mp4)**
+
 > ⚠️ **WARNING: This application is intentionally vulnerable.**
 > Never deploy it to a public server or expose it to the internet.
 > Run it only on your own machine or an isolated lab network.
