@@ -38,6 +38,7 @@ module.exports = {
     id: 'xss-attr-breakout',
     name: 'XSS via Attribute Breakout',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'Your input lands inside value="...". The quote is not escaped, so you can close the attribute and open a new tag.',
     hints: [
       'Your input lands inside an HTML attribute: value="...". The quote character is not escaped. What can you do with an unescaped quote?',

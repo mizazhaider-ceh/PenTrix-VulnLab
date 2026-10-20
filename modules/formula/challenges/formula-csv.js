@@ -49,12 +49,13 @@ const vuln = {
   id: 'formula-csv',
   name: 'Classic Formula Injection',
   difficulty: 'Easy',
-  hint: 'Spreadsheets execute cells starting with =. The classic payload calls cmd through the pipe syntax.',
-  hints: ["Intercept the add-contact POST in Burp Proxy. The CSV export later includes your input raw. What does a spreadsheet do when it opens a cell that starts with =?", "Send the POST to Burp Repeater so you can iterate on the payload quickly. Think about which characters at the very start of a cell make a spreadsheet treat it as a live formula instead of plain text.", "Request /formula/export.csv in Repeater after each change and watch the X-Flags response header. Quoting does not neutralize a formula cell: a classic cmd pipe cell that pipes a Windows shell command through the pipe operator still evaluates."],
+    est: '5-10 minutes',
+  hint: 'Spreadsheets execute cells starting with =. The classic attack makes a cell run an operating-system command when the file is opened.',
+  hints: ["Intercept the add-contact POST in Burp Proxy. The CSV export later includes your input raw. What does a spreadsheet do when it opens a cell that starts with =?", "Send the POST to Burp Repeater so you can iterate on the payload quickly. Think about which characters at the very start of a cell make a spreadsheet treat it as a live formula instead of plain text.", "Request /formula/export.csv in Repeater after each change and open the file. Quoting does not neutralize a formula cell: a classic command-pipe cell still evaluates, so a formula trigger at the very start of your cell is what counts."],
   tools: "BZ, B",
-  how: 'Add a contact whose name cell is a live spreadsheet formula, then request the CSV export in Repeater and read the X-Flags response header.',
+  how: 'Add a contact whose name cell is a live spreadsheet formula, then download the CSV export and check whether your cell survived the trip as a formula.',
   link: '/formula#formula-csv',
-  start: 'Open the lab in Burp with Intercept on and browse to ContactBase. Add a contact through the form, letting Proxy capture the POST /formula/add request, then send it to Repeater. Iterate on a formula payload in the name field, then GET /formula/export.csv and inspect the X-Flags response header for the flag.',
+  start: 'Open the lab in Burp with Intercept on and browse to ContactBase. Add a contact through the form, letting Proxy capture the POST /formula/add request, then send it to Repeater. Iterate on a formula payload in the name field, then GET /formula/export.csv and open the file to see what your cell became.',
 };
 
 function contactRows(req) {

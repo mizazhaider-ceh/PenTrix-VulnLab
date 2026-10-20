@@ -94,6 +94,7 @@ module.exports = {
     id: 'xss-svg-upload',
     name: 'Stored XSS via SVG Upload',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'Uploaded SVGs are served as image/svg+xml. An SVG is XML, and XML can carry a script tag that runs when the file is opened directly.',
     hints: [
       'Intercept the Upload SVG POST in Burp Proxy and send it to Repeater. The uploaded file is served back as image/svg+xml: what is an SVG file, really?',

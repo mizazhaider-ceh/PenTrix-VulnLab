@@ -27,7 +27,7 @@ function challengeForm() {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Go</button>
     </form>
-    <p class="note">Try <code>?next=//evil.com</code> and watch the
+    <p class="note">Try a <code>next</code> value that starts with slashes and watch the
     <code>Location</code> header in the Burp Repeater response.</p>`;
 }
 
@@ -69,6 +69,7 @@ const vuln = {
   id: 'redirect-double-slash',
   name: 'Protocol-Relative Redirect',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'The ?next= parameter is passed straight to the redirect with no validation. What does a URL starting with // mean to a browser?',
   hints: ["Submit the form through Burp Proxy, send the request to Repeater, and change the value of next to something unusual. What does the response Location header do with it?", "The check only sees a leading slash. In Repeater, try a value that starts with two slashes and watch the Location header in the response.", "Make the browser keep the current scheme but navigate to a host you control. The key insight: the check only sees a leading slash, while the browser resolves the whole URL, and a protocol-relative target resolves to an external host."],
   tools: 'BZ, B',

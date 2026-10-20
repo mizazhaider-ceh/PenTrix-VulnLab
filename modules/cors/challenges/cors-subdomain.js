@@ -15,7 +15,7 @@ const vuln = {
   hints: ["The check is hostname.endsWith('.trusted.pentrix.lab'). No allowlist of real subdomains sits behind it. In Repeater, add an Origin header to GET /cors/api/partner and watch the ACAO response header.", "Any subdomain of trusted.pentrix.lab passes the suffix check, including ones you control. In Repeater, swap in a subdomain label of your own choosing and resend.", "The suffix check cannot tell your invented subdomain apart from a real one, so the endpoint echoes your origin back with Access-Control-Allow-Credentials: true, and the flag box appears."],
   tools: "BZ, B",
   est: 'about 10 minutes',
-  how: 'Burp Repeater: GET /cors/api/partner with an Origin header for your own invented subdomain under trusted.pentrix.lab; the suffix check echoes it back with credentials, proving the trust boundary; or prove via /cors/prove?vuln=cors-subdomain&origin=https://evil.trusted.pentrix.lab',
+  how: 'Partner access is granted by a suffix check on the hostname. A suffix is not an allowlist: whose subdomains can you invent?',
   link: '/cors#cors-subdomain',
   start: 'Burp: send GET /cors/api/partner to Repeater, add an Origin header, and try a subdomain label of your own invention under the trusted suffix. The prove check accepts any invented label, not one specific word.',
 };

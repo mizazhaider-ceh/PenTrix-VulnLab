@@ -75,10 +75,11 @@ router.get('/double', (req, res) => {
 module.exports = {
   vuln: {
     id: 'double-encode', name: 'Encoding Bypass', difficulty: 'Medium',
-    hint: 'The filter decodes your input once and rejects it if it sees <code>..</code>. But the value is decoded a second time after the check. Encode the dots and slashes twice, so the check sees harmless text while the final decode rebuilds the traversal. The same idea works when a filter checks before decoding at all: then encoding once is enough to slip through.',
-    hints: ["The filter decodes once and checks for ... But the value is decoded again on use. Intercept a normal request in Burp Proxy and send it to Repeater so you can edit the raw page parameter.", "In Repeater, try the traversal with different levels of encoding: plain, encoded once, encoded twice. Watch which one the filter rejects and which one the page actually reads.", "Encode twice with Burp Decoder (encode once, then encode the result again), paste the result into the page parameter in Repeater, and compare the 'Blocked' response with the decoded content the page shows."],
+    hint: 'The filter decodes your input once and rejects what it then sees. The value is used later. How many times will it have been decoded by the time it is actually used?',
+    hints: ["Intercept a normal request in Burp Proxy and send it to Repeater so you can edit the raw page parameter. Compare what the filter reports with the path the page says it finally read.", "In Repeater, try the traversal with different levels of encoding: plain, encoded once, encoded twice. Watch which one the filter rejects and which one the page actually reads.", "Shape: a traversal encoded one time more than the filter decodes. Burp Decoder can encode a selection repeatedly; paste the result into the page parameter in Repeater and compare the Blocked responses with the decoded path the page shows."],
     tools: "BZ, C",
-    how: 'Slip a twice-encoded traversal past the one-decode filter on /lfi/double. The page shows the final decoded path and its contents, so Repeater reveals when the filter sees harmless text while the read rebuilds the traversal.',
+    est: 'about 10 to 20 minutes',
+    how: 'A check that runs between two decodings judges a different string than the code that finally uses the value.',
     link: '/lfi/double',
     start: 'In Burp, browse to /lfi/double, intercept the request in the Proxy, send it to Repeater, and inspect how the filter treats the page parameter.',
   },

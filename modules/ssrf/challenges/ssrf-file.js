@@ -15,10 +15,11 @@ const vuln = {
   id: 'ssrf-file',
   name: 'file:// scheme SSRF',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'Proxy the FetchKit form in Burp and watch what the fetcher accepts: it is not limited to http(s) URLs. Which scheme turns the fetcher into a local file reader?',
   hints: ["With Burp Proxy on, submit the FetchKit form and watch the fetch request. The server fetches the URL in the url parameter and shows the response body. Which URL schemes can fetch data besides http and https?", "Send the /ssrf/fetch-file request to Burp Repeater. A certain scheme makes the fetcher read the local disk with the server's privileges. Try a classic world-readable system file, like the Unix user database.", "In Repeater, aim the url parameter at the Unix user database and look for the root account entry in the response. That entry earns the flag."],
   tools: 'BZ, C',
-  how: 'In Burp Repeater, set the url parameter to file:///etc/passwd and send. The root account line in the response earns the flag.',
+  how: 'In Burp Repeater, find the scheme that turns this fetcher into a local file reader, then use it to read a classic system file. The root account line in the response earns the flag.',
   link: '/ssrf#ssrf-file',
   start: 'With Burp Proxy on, open the FetchKit form (/ssrf/fetch-file), submit a harmless URL, then send the request to Repeater and change the url parameter to a local file path.',
 };
@@ -53,7 +54,7 @@ router.get('/fetch-file', async (req, res) => {
       kicker: 'Local fetch for developers',
       crumb: 'Local fetch',
       briefHtml: 'FetchKit Dev fetches http(s) URLs and, for local development, file:// URLs too, so you can preview local documentation through the same tool.',
-      placeholder: 'file:///etc/passwd',
+      placeholder: 'http://example.com/',
     }));
   }
   try {
@@ -73,7 +74,7 @@ router.get('/fetch-file', async (req, res) => {
       html += flagBox(award(req, 'ssrf', 'ssrf-file'));
       html += fixPanel('ssrf', 'ssrf-file');
     } else {
-      html += `<p class="dim">No local file content detected yet. Try <code>file:///etc/passwd</code>.</p>`;
+      html += `<p class="dim">No local file content detected yet. Try a local file URL instead of a web URL.</p>`;
     }
     html += `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssrf">&larr; Back to the SSRF module</a></p>`;
     res.send(page(title, html));

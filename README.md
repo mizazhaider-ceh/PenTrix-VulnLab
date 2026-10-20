@@ -55,7 +55,7 @@ npm start
 
 Set `SESSION_SECRET` to a private value for any graded or shared use. Left unset, the app falls back to an insecure dev secret, which is fine for local labs only.
 
-Run the regression suite (565 tests, boots the app on a throwaway database):
+Run the regression suite (572 tests, boots the app on a throwaway database):
 
 ```bash
 npm test
@@ -222,7 +222,7 @@ Lockout is per stage, so leave and come back freely: captured stages stay captur
 - **Verification integrity.** Every fake flag award removed. Bare beacons, token replays, and visit-only claims get rejected. Only genuine exploits earn flags.
 - **Per-install random flags.** Fresh flag values at first boot, on your own machine. GitHub reveals nothing.
 - **One file per challenge.** Each of the 201 challenges owns its file, its page, and its code. No monolithic module files.
-- **565 regression tests.** The real paths and the fake ones, proven on every run.
+- **572 regression tests.** The real paths and the fake ones, proven on every run.
 - **Break-then-fix mode.** The sandboxed fix runner is in-tree (`lib/fixmode.js`): pilot blocks for sqli and xss let you repair the vulnerable code and prove the exploit dies.
 - **Kill-chain scenarios.** Three story-driven scenarios at `/scenarios`: Shop Takeover, API Heist, Ghost in the CMS. Staged unlock, one scenario flag per story.
 - **Career paths.** Three guided paths at `/paths`: Zero to Web Pentester, API Hacker, Authentication Assassin. Ordered steps, prerequisites, progress tracking, verifiable PNG certificates.

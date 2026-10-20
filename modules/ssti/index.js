@@ -39,12 +39,13 @@ router.get('/', (req, res) => {
       <p>This greeting card renders your name through a <strong>homemade template engine</strong>:
       it takes the string <code>Hello &lt;your name&gt;!</code> and evaluates anything inside
       <code>{{ }}</code> as code.</p>
-      <p><strong>Escalation path:</strong> first prove evaluation works with <code>{{7*7}}</code>
-      (you should see <strong>49</strong> in the greeting), then probe the template scope:
-      the expression runs with server-side variables in scope, so try reading candidate
-      variable names (what would a developer call a variable that holds a flag?) until one
-      renders a value. The later labs add naive filters you must bypass, and the
-      final lab turns the template engine into a real shell.</p>`)}
+      <p><strong>Escalation path:</strong> first prove evaluation works with a small
+      arithmetic expression whose result only appears if the engine really ran it, then
+      probe the template scope: the expression runs with server-side values in scope, so
+      explore what the engine can reach. Probe candidate names one at a time and use
+      empty results and errors as signals until something renders a value. The later labs
+      add naive filters you must bypass, and the final lab turns the template engine into
+      a real shell.</p>`)}
     ${trackBanner(module.exports)}
 
     <h2>Challenges</h2>
@@ -61,8 +62,8 @@ for (const c of challenges) router.use(c.router);
 module.exports = {
   id: 'ssti',
   name: 'Server-Side Template Injection',
-  tagline: 'A greeting card that eval()s your name. Prove it with {{7*7}}, then steal the flag.',
-  description: 'The /ssti/greet endpoint renders your name through a naive homemade template engine that evaluates anything inside {{ }} as server-side code. Prove expression evaluation with arithmetic, then escalate to read a secret variable from the template scope.',
+  tagline: 'A greeting card that eval()s your name. Prove the engine runs your expressions, then explore its scope.',
+  description: 'The /ssti/greet endpoint renders your name through a naive homemade template engine that evaluates anything inside {{ }} as server-side code. Prove expression evaluation, then escalate by probing what the template scope holds.',
   difficulty: 'Intermediate',
   track: 'Injection',
   prerequisites: ['sqli', 'xss'],

@@ -131,6 +131,7 @@ module.exports = {
     id: 'second-order',
     name: 'Second-Order SQL Injection',
     difficulty: 'Hard',
+    est: 'about 20 to 40 minutes',
     hint: 'Registration stores your display name safely, but the profile page interpolates that stored value into a brand-new query later. A payload that is harmless at rest becomes SQL when it is reused.',
     hints: ["Register an account through Burp's Proxy, then look at Proxy history: you will see the POST to /sqli/register followed by a GET to /sqli/profile. The injection lands in the first request and fires in the second.", "The profile page reuses your stored display name in a brand-new query. Send the register POST to Repeater and shape the display_name value so it sleeps harmlessly in storage but turns into SQL when the profile lookup reuses it.", "Register a new account with a display name that breaks out of the string literal, then request your profile: the stored value detonates in the second query and lands the lookup on the admin account."],
     tools: "BZ, B",

@@ -47,10 +47,11 @@ router.get('/lang', (req, res) => {
 module.exports = {
   vuln: {
     id: 'lang', name: 'Language Parameter Traversal', difficulty: 'Easy',
-    hint: 'The <code>lang</code> parameter picks a file from <code>docs/lang/</code> with no validation. It is just another filename: climb one level and name the secret.',
-    hints: ["The language parameter picks a file. Is it validated? Proxy the request and look at the lang parameter in Repeater.", "The lang parameter is another file path. Traversal works there too: in Repeater, climb one level out of the folder.", "The lang parameter picks a file from docs/lang/ with no validation. Climb out of that folder in Repeater and name the secret the same way you would in the main viewer."],
+    hint: 'The <code>lang</code> parameter picks a file from <code>docs/lang/</code> with no validation. A language name is just a filename the server trusts.',
+    hints: ["The language parameter picks a file. Is it validated? Proxy the request and look at the lang parameter in Repeater.", "The lang parameter is another file path. Traversal works there too: in Repeater, climb one level out of the folder.", "Shape: the same traversal thinking as the main viewer, applied to a parameter that only looks like a setting. It is a path, and paths can climb."],
     tools: "BZ, B, C",
-    how: 'Send the /lfi/lang request to Repeater and traverse out of docs/lang/ with the lang parameter until the secret shows its marker.',
+    est: 'about 5 to 10 minutes',
+    how: 'A parameter that looks like a setting (a language) is really a file path, and it is just as traversable as one.',
     link: '/lfi/lang?lang=en',
     start: 'Browse to /lfi/lang with Burp Proxy intercept on, forward the request, then send it to Repeater (Ctrl+R) and edit the lang parameter there.',
   },

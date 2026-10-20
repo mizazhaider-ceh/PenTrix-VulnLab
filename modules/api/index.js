@@ -48,7 +48,8 @@ router.get('/', (req, res) => {
       public surface; your job is to find where the API trusts the client too
       much. You are currently logged in as <b>${who}</b>.
       Flags for the JSON endpoints arrive in the response body (<code>"flag"</code>)
-      or the <code>X-Pentrix-Flag</code> response header (use <code>curl -i</code>).`)}
+      or the <code>X-Pentrix-Flag</code> response header (read the full response
+      in Burp Repeater, headers included).`)}
     ${trackBanner(module.exports)}
 
     <h2>Endpoints</h2>

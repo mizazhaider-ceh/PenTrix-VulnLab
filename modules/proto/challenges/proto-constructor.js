@@ -90,7 +90,8 @@ const vuln = {
   hint: 'Keys containing the literal string __proto__ are dropped. But the prototype chain has more than one entrance.',
   hints: ["The filter blocks __proto__. In Repeater, look for the other entrance to the prototype chain: every object reaches its constructor, and the constructor reaches its prototype.", "Intercept the merge request in Burp Proxy and send it to Repeater. In the query string, spell the path through constructor and prototype to reach the property the admin check tests. The blacklist never sees __proto__.", "In Repeater, add the constructor[prototype] segments to the query string, setting the role property the admin check reads, then open the admin check in the browser and watch the fresh object inherit it."],
   tools: 'BZ, B, C',
-  how: 'In Repeater, send a query string that reaches Object.prototype through constructor/prototype instead of the blacklisted __proto__ key, then open the admin check so the fresh object inherits role=admin.',
+  est: 'about 10 to 20 minutes',
+  how: 'A blacklist that drops only the one literal key it knows leaves the rest of the prototype chain wide open: the same shared prototype is reachable through more than one path.',
   link: '/proto#proto-constructor',
   start: 'Open the merge console in your browser with Burp Proxy on, submit a harmless query string, intercept the GET /proto/constructor request in Proxy, then push it to Repeater and experiment with the key names.',
 };
@@ -107,17 +108,17 @@ router.get('/constructor', (req, res) => {
       config. After a lesson from the earlier console, any key containing the
       literal string <code>__proto__</code> is now dropped before merging.
       Everything else is still deep-merged.</p>
-      <p>Blocked so far: <code>__proto__</code>. Allowed: everything else, including
-      <code>constructor</code> and <code>prototype</code>.</p>
+      <p>Blocked so far: <code>__proto__</code>. Allowed: every other key the merge
+      is handed, no questions asked.</p>
     `, 'Settings')}
     <div class="clay-card">
       <h3>Merge a query string</h3>
       <form onsubmit="location='/proto/constructor?'+document.getElementById('qs').value; return false;">
-        <input id="qs" class="clay-input" size="55" placeholder="constructor[prototype][role]=admin" />
+        <input id="qs" class="clay-input" size="55" placeholder="display[theme]=dark" />
         <button type="submit" class="clay-btn clay-btn-primary">Merge</button>
       </form>
       <p><b>Try it:</b>
-        <a href="/proto/constructor?constructor[prototype][role]=admin"><code>?constructor[prototype][role]=admin</code></a>
+        <a href="/proto/constructor?display[theme]=dark"><code>?display[theme]=dark</code></a>
       </p>
       <p>Keys merged this request: <code>${esc(Object.keys(data).join(', ') || '(none)')}</code></p>
     </div>

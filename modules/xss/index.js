@@ -64,7 +64,7 @@ router.get('/', (req, res) => {
     ${briefPanel('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
     ${payloadBlock('Collector URL shape', '/xss/collect?c=<stolen data>&v=<vuln id>&n=<page token>')}
-    ${payloadBlock('Canonical payload (for the reflected challenge)', EXFIL_PAYLOAD)}
+    ${payloadBlock('Canonical payload shape', 'A script element whose code fires the collector beacon described below. Each challenge page shows its own claim box with the shape that fits its context.')}
     <h2>Challenges</h2>
     ${anyCaptured ? '' : '<p class="dim">Nothing captured yet. Every challenge below links its own target page.</p>'}
     ${cards}

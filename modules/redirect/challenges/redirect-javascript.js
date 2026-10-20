@@ -27,8 +27,8 @@ function challengeForm() {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Go</button>
     </form>
-    <p class="note">Try <code>?next=javascript:alert(1)</code> and inspect the
-    <code>Location</code> header in the Burp Repeater response.</p>`;
+    <p class="note">Try a <code>next</code> value with a scheme a browser treats as
+    code rather than a page, and inspect the <code>Location</code> header in the Burp Repeater response.</p>`;
 }
 
 // GET /js -> v2 javascript: scheme redirect. This promo endpoint redirects to
@@ -70,6 +70,7 @@ const vuln = {
   id: 'redirect-javascript',
   name: 'javascript: Scheme Honored',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'The redirect puts whatever you give it into the Location header, with no scheme allowlist. Browsers treat javascript: as code, not a page.',
   hints: ["Proxy the promo form submit in Burp, send the request to Repeater, and change the value of next. What does the response Location header do with it?", "Think about schemes: Repeater lets you send any Location target back. Which scheme does a browser treat as code?", "The key insight: the server copies your input into the Location header with no scheme allowlist, so the scheme is yours to choose."],
   tools: 'BZ, B',

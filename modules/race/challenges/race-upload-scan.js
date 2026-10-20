@@ -19,7 +19,7 @@ const vuln = {
   hints: ["The upload is scanned for 2 seconds, then deleted if bad, but the file is live during the scan. Upload through the form with Burp Proxy running.", "TOCTOU: capture the upload POST in Burp Proxy, note the file URL, and send it to Burp Repeater.", "Fetch the file URL in Repeater quickly after the upload, inside the 2-second scan window, before the scanner deletes it."],
   tools: 'BZ, B',
   est: 'about 5 minutes',
-  how: 'Upload a file at /race/upload, then fetch /race/files/<name> with Burp Repeater inside the 2-second scan window, before the scanner deletes it.',
+  how: 'An uploaded file goes live the moment it arrives but is only judged seconds later, leaving a window where an unjudged file is already reachable.',
   link: '/race#race-upload-scan',
   start: 'Burp Proxy: upload a file with the form, send the file URL to Burp Repeater, and fetch it before the 2-second scan deletes it.',
 };

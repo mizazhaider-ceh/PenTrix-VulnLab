@@ -81,7 +81,7 @@ router.get('/basic', (req, res) => {
     </script>
     <p class="note">Goal: make the preview show <b>49</b>. The engine evaluates
     <code>{{ expression }}</code> as JavaScript.</p>
-    ${claimBox({ vulnId: 'basic', payload: esc('{{7*7}}'), statusUrl: '/csti/claim-status?v=basic', beaconInfo: 'This page beacons for you: when the preview output contains 49, the page fetches /csti/beacon with v=basic, d=49 and n=<the CSTI_NONCE token rendered into this page>. The token is single-use per page load, so reload for a fresh one after each attempt.' })}
+    ${claimBox({ vulnId: 'basic', payload: esc('{{ expression }}'), statusUrl: '/csti/claim-status?v=basic', beaconInfo: 'This page beacons for you: when the preview output contains 49, the page fetches /csti/beacon with v=basic, d=49 and n=<the CSTI_NONCE token rendered into this page>. The token is single-use per page load, so reload for a fresh one after each attempt.' })}
   `));
 });
 
@@ -95,10 +95,11 @@ module.exports = {
     id: 'basic',
     name: 'Basic Template Evaluation',
     difficulty: 'Easy',
+    est: '5-10 minutes',
     hint: 'The preview renders {{ expression }} as live JavaScript. What expression evaluates to 49?',
     hints: ["Open the lab page in Burp's embedded browser and find the greeting form. The preview evaluates {{ }} client-side as live JavaScript, so save an arithmetic expression that produces a distinctive number.", "The page source carries a page-bound token (CSTI_NONCE). Repeater can replay the beacon, but only with a fresh token from a real page load.", "When the preview renders 49, the page fires its beacon for you with that token. Watch the beacon request in Proxy and see the flag come back."],
     tools: "BZ, B",
-    how: 'Save a greeting containing {{7*7}} in Burp\'s embedded browser, then load the page. The preview renders 49 and the page fires its beacon with the page-bound token to claim the flag.',
+    how: 'Save a greeting whose template expression evaluates to a distinctive number in Burp\'s embedded browser, then load the page and watch the preview.',
     link: '/csti#basic',
     start: 'In Burp, proxy your browser (or use the embedded browser) and open /csti/basic. Find the greeting form and the CSTI_NONCE token in the page source.',
   },

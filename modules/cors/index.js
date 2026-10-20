@@ -95,7 +95,7 @@ const PROVE = {
   },
   'cors-null': {
     path: '/cors/api/settings',
-    need: 'Send Origin: null. The endpoint must answer with Access-Control-Allow-Origin: null and Access-Control-Allow-Credentials: true.',
+    need: 'The endpoint must trust one particular non-URL origin value, answering with that same value in Access-Control-Allow-Origin plus Access-Control-Allow-Credentials: true.',
     why: 'Trusting the null origin hands the data to sandboxed iframes, file:// pages, and redirect chains.',
     check: (h, origin) =>
       origin === 'null' &&
@@ -105,7 +105,7 @@ const PROVE = {
   'cors-regex': {
     path: '/cors/api/data',
     need: 'Beat the regex ^https://.*pentrix\\.lab (no subdomain boundary, no end anchor) with an origin that passes it but is NOT really under pentrix.lab.',
-    why: 'The regex matches any https:// string merely containing pentrix.lab, so https://pentrix.lab.evil.com is treated as trusted.',
+    why: 'The regex matches any https:// string merely containing pentrix.lab, so an origin on a completely different registrable domain is treated as trusted.',
     check: (h, origin) => {
       const host = parsedHost(origin);
       const actuallyOurs = host === 'pentrix.lab' || host.endsWith('.pentrix.lab');
@@ -145,12 +145,12 @@ const PROVE = {
 };
 
 const SUGGESTED_ORIGIN = {
-  'cors-reflect': 'https://evil.com',
-  'cors-null': 'null',
-  'cors-regex': 'https://pentrix.lab.evil.com',
-  'cors-wildcard-data': 'https://evil.com',
-  'cors-subdomain': 'https://evil.trusted.pentrix.lab',
-  'cors-expose-headers': 'https://evil.com',
+  'cors-reflect': 'https://example.com',
+  'cors-null': '',
+  'cors-regex': 'https://example.com',
+  'cors-wildcard-data': 'https://example.com',
+  'cors-subdomain': 'https://example.com',
+  'cors-expose-headers': 'https://example.com',
 };
 
 router.get('/prove', async (req, res) => {
@@ -228,7 +228,7 @@ module.exports = {
   id: 'cors',
   name: 'CORS Misconfiguration',
   tagline: 'Broken cross-origin policies that hand your data to evil.com.',
-  description: 'Six CORS misconfiguration labs: a reflected Origin with credentials, a trusted null origin, a regex allowlist beaten by pentrix.lab.evil.com, a wildcard origin on sensitive user data, a subdomain suffix check with no allowlist, and a sensitive header leaked through Access-Control-Expose-Headers. Each lab is proven through a shared /cors/prove endpoint that inspects the real response headers for your Origin.',
+  description: 'Six CORS misconfiguration labs: a reflected Origin with credentials, a trusted null origin, a regex allowlist that matches strings instead of domain boundaries, a wildcard origin on sensitive user data, a subdomain suffix check with no allowlist, and a sensitive header leaked through Access-Control-Expose-Headers. Each lab is proven through a shared /cors/prove endpoint that inspects the real response headers for your Origin.',
   difficulty: 'Intermediate',
   track: 'Auth and Sessions',
   prerequisites: ['xss'],

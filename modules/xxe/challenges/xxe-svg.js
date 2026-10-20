@@ -24,7 +24,7 @@ router.get('/svg', (req, res) => {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Extract text</button>
     </form>
-    ${hintBox('Give the SVG a DOCTYPE that declares <code>&lt;!ENTITY xxe SYSTEM "file://' + esc(SECRET_ABS) + '"&gt;</code> and put <code>&amp;xxe;</code> inside a <code>&lt;text&gt;</code> element.')}
+    ${hintBox('Give the SVG a DOCTYPE that declares an external entity aimed at the module secret file (the file-read challenge shows how paths work here), and reference the entity inside a <code>&lt;text&gt;</code> element.')}
   `));
 });
 

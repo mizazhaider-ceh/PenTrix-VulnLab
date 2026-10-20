@@ -18,10 +18,11 @@ const vuln = {
   id: 'ssrf-userinfo',
   name: 'Userinfo bypass',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'The allowlist looks for the trusted string anywhere in the URL. What comes before @ is userinfo, not the host.',
   hints: ["In Burp Proxy, browse the userinfo page and submit any partner URL; send the intercepted request to Repeater so you can edit the url parameter freely.", "In Repeater, try a URL with no trusted string and read the 403. Then try one where the trusted string sits anywhere in the URL: it passes.", "In Repeater, remember what @ means in a URL: everything before it is userinfo, so the parser connects to the host after it. Put the trusted name before @ and the loopback target after it."],
   tools: "BZ, C",
-  how: 'In Burp Repeater, GET /ssrf/userinfo with the url parameter set to a URL whose userinfo carries the trusted domain while the real host is the loopback internal secret path.',
+  how: 'The allowlist searches the raw URL string for a trusted name, but a URL can contain that name somewhere other than the host. In Burp Repeater, find where to place it so the check passes and the request still goes to loopback.',
   link: '/ssrf#ssrf-userinfo',
   start: 'Browse to /ssrf/userinfo through Burp Proxy, submit any partner URL in the form, and send the intercepted request to Repeater. Watch the 403 for URLs without the trusted string, then experiment with the url parameter in Repeater; the flag appears on the page when the check is bypassed.',
 };

@@ -157,6 +157,7 @@ module.exports = {
     id: 'xss-dom-clobber',
     name: 'DOM Clobbering to Admin',
     difficulty: 'Hard',
+    est: 'about 25 to 45 minutes',
     hint: 'Scripts are stripped, but form and input tags survive. The page script trusts window.settings.isAdmin. Named elements in the DOM become window properties.',
     hints: [
       'Behind Burp Proxy, save a harmless snippet in the profile form and watch the response: the filter strips scripts, but which tags survive? The page script trusts window.settings.isAdmin, and named elements (id= or name=) become properties of window. What could your markup become?',

@@ -18,9 +18,10 @@ const vuln = {
   name: 'Client Secret in Public JavaScript',
   difficulty: 'Easy',
   hint: 'The "confidential" client ships its secret inside /oauth/client/app.js, which anyone can download.',
-  hints: ["In Burp's browser, log in as bob and authorize pentrix-client normally. Then send a GET for /oauth/client/app.js to Repeater and read the response body: the so-called confidential client ships its secret to everyone.", "Copy the CLIENT_SECRET value out of the Repeater response and think about what the token endpoint cannot distinguish: a direct call with the right secret looks exactly like the real client.", "Exchange your own code with a direct POST to the token endpoint from Repeater, presenting the stolen secret. The flag is awarded for the direct exchange, not the callback one."],
+  hints: ["In Burp's browser, log in as bob and authorize pentrix-client normally. Then send a GET for the client's public JavaScript bundle to Repeater and read it the way any visitor could.", "What you find in the bundle is the whole credential the token endpoint asks this client for. Think about what the endpoint cannot distinguish: a direct call with the right secret looks exactly like the real client.", "Shape: a code of your own, exchanged with a direct POST to the token endpoint from Repeater, presenting what the bundle gave away. Compare that exchange with the normal callback one."],
   tools: 'BZ, B, DT, C',
-  how: 'In Burp, read CLIENT_SECRET from the public app.js in Repeater, then exchange your own code with a direct POST to the token endpoint presenting the stolen secret.',
+  est: 'about 5 to 10 minutes',
+  how: 'A confidential client shipped its secret inside code every visitor downloads, so anyone can impersonate the client.',
   link: '/oauth#secret-in-js',
   start: 'With Burp Proxy on, log in to the IdP as bob in the browser, authorize pentrix-client once, and fetch /oauth/client/app.js through Repeater.',
 };
@@ -43,14 +44,15 @@ router.get('/secret-in-js', (req, res) => {
       <ol>
         <li>Log in to the IdP as
           <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/bob">bob</a>.</li>
-        <li><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(href)}">Authorize pentrix-client</a>
-          with <code>response_type=code</code> and approve; copy the code.</li>
+        <li>Approve <code>pentrix-client</code> with <code>response_type=code</code>; copy the code.</li>
         <li>Open
           <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/client/app.js">app.js</a>
           and copy <code>CLIENT_SECRET</code>.</li>
         <li><code>POST /oauth/idp/token</code> with <code>client_id=pentrix-client</code>,
           the stolen secret, and your code, directly (not through the client callback).</li>
       </ol>
+      <p><a class="clay-btn clay-btn-primary" href="${esc(href)}">Authorize pentrix-client</a></p>
+      <p class="dim">Approve and copy the code with the button above, then exchange it directly with the stolen secret.</p>
       <p>Open the bundle URL in your proxied browser (or Repeater) and read it:</p>
       ${payloadBlock('Burp Repeater (read the public bundle)', `GET /oauth/client/app.js HTTP/1.1
 Host: <your-lab-address>

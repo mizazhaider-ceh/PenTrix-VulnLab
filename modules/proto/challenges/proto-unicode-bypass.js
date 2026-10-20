@@ -20,7 +20,8 @@ const vuln = {
   hint: 'The blacklist scans the raw JSON text for __proto__. JSON string escapes are decoded after that scan.',
   hints: ["Proxy the importer in Burp and note the Content-Type the server needs: it only trusts the raw bytes when they arrive as text/plain. The blacklist scans that raw text for the forbidden literal.", "In Repeater, build the JSON document so the forbidden key never appears in the raw bytes: JSON string escapes are decoded by JSON.parse after the scan. A 200 reply means the merge ran.", "Open the admin check in the browser: a fresh {} now reads the polluted role."],
   tools: "BZ, B",
-  how: 'Replay the merge in Repeater with the key hidden behind JSON string escapes, then verify it with the admin check.',
+  est: 'about 20 to 35 minutes',
+  how: 'A blacklist that scans the raw request text only ever sees the bytes on the wire, while the parser that runs after it sees the decoded document, and the two do not have to agree.',
   link: '/proto#proto-unicode-bypass',
   start: 'Set Burp as your browser proxy and open /proto/unicode in the browser. Study the sample JSON document in the importer box, then copy it into Repeater as a POST to /proto/unicode/merge with Content-Type: text/plain, send it, and open /proto/unicode/admin in the browser.',
 };
@@ -35,13 +36,13 @@ router.get('/unicode', (req, res) => {
       rejects it with 400 if it contains the literal string
       <code>__proto__</code> anywhere. Only then does it
       <code>JSON.parse</code> the body and merge it.</p>
-      <p>The catch: JSON string escapes like <code>\\u005f</code> are decoded by
-      <code>JSON.parse</code> <i>after</i> the blacklist scan. The raw text never
-      contains <code>__proto__</code>, but the parsed object does.</p>
+      <p>The catch: a filter can only judge the document it is shown. Think about
+      when each layer of this endpoint looks at your input, and whether every
+      layer is looking at the same thing.</p>
       <p>Send the body as <code>text/plain</code> so the server sees your exact bytes.</p>
       <div class="clay-field">
         <label for="jb">JSON document (sent as text/plain)</label>
-        <textarea class="clay-input" id="jb" rows="6" cols="70">{"\\u005f\\u005fproto\\u005f\\u005f": {"role": "admin"}}</textarea>
+        <textarea class="clay-input" id="jb" rows="6" cols="70">{"<forbidden-key-written-as-escapes>": {"<property>": "<value>"}}</textarea>
       </div>
       <p><button class="clay-btn clay-btn-primary" type="button" onclick="fetch('/proto/unicode/merge', {method:'POST', headers:{'Content-Type':'text/plain'}, body: document.getElementById('jb').value}).then(r => r.text()).then(t => document.getElementById('out').innerHTML = t);">Import config</button></p>
       <div id="out"></div>
@@ -51,7 +52,7 @@ router.get('/unicode', (req, res) => {
 Host: <your-lab-address>
 Content-Type: text/plain
 
-{"\\u005f\\u005fproto\\u005f\\u005f": {"role": "admin"}}</code></pre>
+{"<forbidden-key-written-as-escapes>": {"<property-the-admin-check-reads>": "<expected-value>"}}</code></pre>
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto/unicode/admin">Open admin check</a></p>
     `, { crumb: 'JSON config importer', nav: ['Home', 'Configs', 'Admin'] })}
   `));

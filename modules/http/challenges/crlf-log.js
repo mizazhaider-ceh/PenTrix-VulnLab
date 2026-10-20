@@ -23,12 +23,13 @@ const vuln = {
   id: 'crlf-log',
   name: 'CRLF Log Injection',
   difficulty: 'Medium',
-  hint: 'The ?ref= value is written raw into the access log. What do %0d and %0a become after URL decoding?',
-  hints: ["The ?ref= parameter is logged raw. In Burp Repeater, request /http/track with a ref value, then open the log viewer and see exactly what lands there.", "What do %0d and %0a become after the server URL-decodes them? In Repeater, add those encoded bytes inside the ref value in the request line.", "CR/LF bytes split the log line, so text after them renders on forged lines. Encode them in the ref, send via Repeater, then open the log viewer and confirm your forged entry actually renders there."],
+  hint: 'The ?ref= value is written raw into the access log. What happens to stored text that manages to contain line breaks?',
+  hints: ["The ?ref= parameter is logged raw. In Burp Repeater, request /http/track with a plain ref value, then open the log viewer and see exactly what lands there.", "A log entry ends where a line break begins. URL encoding can carry characters that never appear literally in an address bar: think about which encoded bytes become a carriage return and a line feed once the server decodes them.", "Shape: a ref value, then encoded CR and LF bytes (%0d%0a), then the text of the line you want to forge. Send it in Repeater, then confirm in the log viewer that one stored entry renders as more lines than were written."],
   tools: 'BZ, B, C',
-  how: 'Send CR/LF bytes inside the ref value (Burp Repeater request line) so a forged line renders in the admin log viewer.',
+  est: 'about 10 to 20 minutes',
+  how: 'A user-controlled value is written into a log without sanitizing line breaks, so a single entry can pretend to be several.',
   link: '/http#crlf-log',
-  start: 'Send your browser through Burp Proxy. 1) Visit /http/track?ref=homepage and send the request to Repeater. 2) In Repeater, edit the ref value so it carries encoded carriage-return and line-feed bytes (%0d %0a) followed by your forged log text, then send it. 3) Request /http/admin/log in the same session and confirm your forged line renders in the log viewer.',
+  start: 'Send your browser through Burp Proxy. 1) Visit /http/track?ref=homepage and send the request to Repeater. 2) In Repeater, experiment with what the ref value can carry beyond plain text. 3) Request /http/admin/log in the same session and compare what the viewer renders with what you actually sent.',
 };
 
 // GET /http/track -> records this visit in the access log.
@@ -56,7 +57,7 @@ router.get('/track', (req, res) => {
         ? '<p class="clay-well">CR/LF bytes were written straight into the access log. <a href="/http/admin/log"><b>Open the log viewer</b></a> and confirm your forged line appears there.</p>'
         : ''}
     </div>
-    ${payloadBlock('Try this payload', '/http/track?ref=homepage%0d%0a2026-10-02 FAKE admin login from 10.9.9.9')}
+    ${payloadBlock('Request shape', '/http/track?ref=<label><encoded line break><text for the forged line>')}
     ${hintLadder(vuln)}
     ${toolsPill(vuln)}
     <p class="next-steps">

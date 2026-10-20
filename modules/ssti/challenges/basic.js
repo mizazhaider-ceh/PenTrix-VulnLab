@@ -3,10 +3,11 @@
 // naive homemade template engine that eval()s anything inside {{ }} with the
 // handler's closure scope (name, secretFlag) visible. Prove evaluation with
 // name={{7*7}} and look for 49 in the greeting.
-// NOTE: challenges 'basic' and 'rce' share the /ssti/greet route in
-// modules/ssti/router.js. This file therefore keeps the complete route
-// behavior, including both award points, identical to router.js. Mounting
-// either this router or the 'rce' router serves a fully working /ssti/greet.
+// NOTE: challenges 'basic' and 'rce' share the /ssti/greet route. This
+// file therefore keeps the complete route behavior, including both award
+// points, identical to the sibling 'rce' challenge file. Mounting either
+// this router or the 'rce' router serves a fully working /ssti/greet.
+// The module itself is assembled in modules/ssti/index.js.
 const express = require('express');
 const { brief, esc, fixPanel, flagBox, hintBox, page, payloadBlock } = require('../../../lib/page');
 const { award, flagFor } = require('../../../lib/flags');
@@ -23,13 +24,13 @@ const vuln = {
   hint: 'The greeting is built with a naive template engine: anything you put inside {{ }} gets evaluated. Start by proving it with simple arithmetic, like a multiplication the page could only echo back if it really ran your expression.',
   hints: ["The greeting echoes your name back. Capture the form request in Burp Proxy and send it to Repeater, then try typing your name as a template expression instead.", "In Repeater, anything between {{ }} in the name value is evaluated server side. Tweak the expression and watch the rendered greeting change in the response.", "Prove the engine evaluates templates: in Repeater, place a small arithmetic expression between {{ }} in the name parameter. If the page echoes the computed answer instead of your literal text, you have SSTI and the flag is yours."],
   tools: 'BZ, B',
-  how: 'In Repeater, set name={{7*7}}; the evaluated expression (49) appears in the greeting.',
+  how: 'In Repeater, prove the greeting engine evaluates expressions instead of echoing them literally, with a small arithmetic test whose result only appears if the engine really ran it.',
   link: '/ssti#basic',
-  start: 'With Burp Proxy on, open /ssti/greet in the browser, submit a name, and send the request to Repeater. Set the name parameter to {{7*7}} and read the rendered greeting in the response.',
+  start: 'With Burp Proxy on, open /ssti/greet in the browser, submit a name, and send the request to Repeater. Experiment with the name parameter as a template expression and read the rendered greeting in the response.',
 };
 
 // GET /ssti/greet -> greeting card rendered by the naive template engine.
-// Behavior identical to router.js: anything inside {{ }} is eval()d with the
+// Behavior identical to the sibling 'rce' challenge file: anything inside {{ }} is eval()d with the
 // function's scope visible, the raw result is injected into the page, and the
 // flags are awarded at the same points (basic on 49, rce on the leaked flag).
 router.get('/greet', (req, res) => {
@@ -60,7 +61,7 @@ router.get('/greet', (req, res) => {
   res.send(page('SSTI Greeting', `
     ${brief('Greeting card',
       `<p>Enter your name and the server greets you. The greeting is rendered by a naive template engine ` +
-      `that evaluates <code>{{ expressions }}</code>. Try <code>{{7*7}}</code> first, then hunt for what is in scope.</p>`)}
+      `that evaluates <code>{{ expressions }}</code>. Start with a small arithmetic expression to prove evaluation, then hunt for what is in scope.</p>`)}
     <div class="card">
       <div class="card-top"><b>Get greeted</b></div>
       <form method="get" action="/ssti/greet">
@@ -73,7 +74,7 @@ router.get('/greet', (req, res) => {
     ${awardHtml}
     ${payloadBlock('Starting point', vuln.start)}
     ${hintBox(esc(vuln.hint))}
-    <p>Quick links: <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti/greet?name={{7*7}}">test {{7*7}}</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti">Back to SSTI module</a></p>
+    <p>Quick links: <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti/greet">Open the greeting card</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti">Back to SSTI module</a></p>
   `));
 });
 

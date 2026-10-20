@@ -15,6 +15,7 @@ const vuln = {
   id: 'logout',
   name: 'Logout Does Not Destroy the Session',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'Logging out should kill the server-side session. Here it only shows you a goodbye page. Replay the old cookie in Repeater.',
   hints: [
     'With Burp Proxy running, log in as admin and log out in your browser. Which Cookie header did the browser send?',

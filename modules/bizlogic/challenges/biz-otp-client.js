@@ -21,10 +21,11 @@ const vuln = {
   id: 'biz-otp-client',
   name: 'OTP Verified by JavaScript',
   difficulty: 'Medium',
+  est: '10-15 minutes',
   hint: 'The page JavaScript checks the OTP and sets a hidden otp_ok flag. The server trusts that flag. What if you set it yourself?',
   hints: ["The OTP check happens client-side. Check the Proxy history in Burp: which field does the server actually trust?", "The server trusts the client-side 'otp_ok' field. Send the POST to Repeater and tamper with that one field.", "In Repeater, flip the flag field your browser sends to its verified value, then send the request. The OTP value itself can stay wrong."],
   tools: 'BZ, B, DT',
-  how: 'In Burp Repeater, take the intercepted POST to /bizlogic/otp/verify and forge the client-side otp_ok claim so the server accepts it, using a wrong OTP. The JavaScript check never runs on the server side.',
+  how: 'The one-time code is checked somewhere before the purchase completes. Work out where that check runs, and whether the server ever sees it happen.',
   link: '/bizlogic#biz-otp-client',
   start: 'Open /bizlogic/otp in the browser with Burp Proxy on and submit any wrong OTP. Find the POST to /bizlogic/otp/verify in Proxy > HTTP history, send it to Repeater, and experiment with the hidden field the JavaScript normally sets.',
 };

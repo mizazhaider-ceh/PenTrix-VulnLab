@@ -19,11 +19,12 @@ const vuln = {
   name: 'JSONP Data Theft',
   difficulty: 'Medium',
   hint: 'Classic script tags ignore the Same-Origin Policy. Open the attacker page and watch it steal the feed.',
-  hints: ["Proxy your browser through Burp and open /jsonp/attacker. In Proxy history you will see a script tag pull the victim feed cross-origin.", "Open the /jsonp/data response in Proxy: the callback argument carries the user's data, including the per-session secret split into two share fields (sA and sK) that only executing code can combine.", "Find the POST to /jsonp/beacon in Proxy history, send it to Repeater, and replay it: the response carries the flag."],
+  hints: ["Proxy your browser through Burp and open /jsonp/attacker. In Proxy history you will see a script tag pull the victim feed cross-origin.", "Open the /jsonp/data response in Proxy: the callback wraps a user's data, and the sensitive value inside it is split into pieces that only code executing the feed can reassemble.", "Shape: a page on one origin loading the feed with a script tag, reading the wrapped data as it executes, and reporting what it found to a collector of its own. The demo attacker page follows exactly that shape; trace its requests in Proxy history from first load to final report."],
   tools: "BZ, B",
-  how: 'Load /jsonp/attacker in a browser proxied through Burp: the page pulls /jsonp/data with a script tag and beacons the stolen secret to /jsonp/beacon. The beacon response awards the flag, and replaying it in Repeater works too.',
+  est: 'about 10 to 20 minutes',
+  how: 'A JSONP feed wraps sensitive data in a caller-chosen callback, and any website can load it with a script tag: the Same-Origin Policy never gets a say.',
   link: '/jsonp#csrf-data',
-  start: 'Browse to /jsonp/attacker through Burp Proxy and watch Proxy history: the page pulls /jsonp/data with a script tag and beacons the stolen secret to /jsonp/beacon. Send that beacon request to Repeater and replay it to see the flag in the response.',
+  start: 'Browse to /jsonp/attacker through Burp Proxy and watch Proxy history: a script tag pulls the feed cross-origin and the page reports what it read. Follow that request chain from the first load to the final report.',
 };
 
 // JSONP feed carrying the victim's data, including the per-session secret.

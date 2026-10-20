@@ -7,6 +7,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createSessionState } = require('../../lib/session-state');
 
 // Binary body parsing for every upload POST (raw request bytes, 2 MB cap).
 const rawUpload = express.raw({ type: '*/*', limit: '2mb' });
@@ -24,36 +25,104 @@ function cleanFilename(name) {
   return base;
 }
 
-// Upload quota (P5-3): uploads accumulate forever otherwise, and a lab or a
-// test suite can fill the disk with probe files. The sweep keeps only the
-// MAX_KEPT newest files in the uploads root; older files are deleted. It is
-// best-effort (any filesystem error is ignored) and throttled to at most one
-// run per minute, triggered from the module's request middleware. The
-// avatars/ subdirectory is not quota-managed (its filenames are the
-// challenges' own state), and neither are escaped files written outside the
-// uploads root by the traversal challenges.
-const MAX_KEPT_UPLOADS = 200;
-const SWEEP_INTERVAL_MS = 60 * 1000;
-let lastSweepAt = 0;
-function enforceUploadQuota() {
-  const now = Date.now();
-  if (now - lastSweepAt < SWEEP_INTERVAL_MS) return;
-  lastSweepAt = now;
-  let entries;
-  try {
-    entries = fs.readdirSync(UPLOADS_DIR, { withFileTypes: true })
-      .filter((d) => d.isFile())
-      .map((d) => {
-        const p = path.join(UPLOADS_DIR, d.name);
-        let mtime = 0;
-        try { mtime = fs.statSync(p).mtimeMs; } catch { /* vanished */ }
-        return { p, mtime };
-      })
-      .sort((a, b) => b.mtime - a.mtime);
-  } catch { return; }
-  for (const e of entries.slice(MAX_KEPT_UPLOADS)) {
-    try { fs.unlinkSync(e.p); } catch { /* already gone */ }
+// Upload quota (P5-3, reworked for per-session accounting): uploads
+// accumulate forever otherwise, and a lab or a test suite can fill the disk
+// with probe files. The original sweep kept only the newest 200 files in
+// the uploads root as one global pool, so a single flooding session could
+// evict every other student's stored files and silently break their
+// beacon proofs and traversal read-backs. Quota is now strict per-session
+// accounting (D19: per-session state by default):
+//
+//   - Every challenge handler that stores a file directly in the uploads
+//     root calls trackStoredUpload(req, name) right after the write. The
+//     call records the name, oldest first, in the owning session's bucket
+//     (lib/session-state, keyed by session id, in process memory).
+//   - The cap stays at the same order of magnitude as the old global cap:
+//     200 files per session. A real student needs a handful of live files
+//     at once (one payload per challenge, plus retries), so 200 is
+//     generous headroom, not a limit anyone honest should feel, while
+//     still bounding what one session can hold on disk.
+//   - Enforcement runs synchronously inside trackStoredUpload, against
+//     the owning session's list only. Eviction removes that session's
+//     oldest names and unlinks a file only when no session claims it any
+//     more: if two sessions stored the same filename (the flat uploads
+//     namespace is shared by design), the surviving session's claim keeps
+//     the file on disk. No code path here ever unlinks a file because a
+//     different session uploaded something.
+//   - The module middleware in index.js also calls
+//     enforceUploadQuota(req) per request; it only ever sees the
+//     requesting session's own bucket, so it can only trim that session.
+//
+// Scope, unchanged from the old sweep: only files stored directly in the
+// uploads root are quota-managed. The avatars/ subdirectory is not (its
+// filenames are the challenges' own state), and neither are escaped files
+// written outside the uploads root by the traversal challenges.
+//
+// Files whose session is gone: a session bucket that stays idle past the
+// session TTL (lib/session-state sweeps hourly; the TTL matches the
+// session store) is evicted, and the eviction hook below releases that
+// session's claims, deleting files no other session claims. That is an
+// age-based sweep of expired sessions only; it never runs per-request
+// against other active sessions. Buckets lost to a process restart cannot
+// be reconstructed, so their files are deliberately left in place at
+// boot: guessing ownership from file age could delete a returning
+// student's file or a shipped example file, and orphaned files left by a
+// restart stay bounded by the per-session cap their owners were under.
+const MAX_KEPT_UPLOADS_PER_SESSION = 200;
+// Legacy export name, kept for any existing importer: it now means the
+// per-session cap above, not a global pool size.
+const MAX_KEPT_UPLOADS = MAX_KEPT_UPLOADS_PER_SESSION;
+
+// How many distinct sessions currently claim each stored name. A name is
+// only unlinked when its last claim is released.
+const uploadClaimCounts = new Map();
+
+function releaseUploadClaim(name) {
+  const left = (uploadClaimCounts.get(name) || 0) - 1;
+  if (left > 0) { uploadClaimCounts.set(name, left); return; }
+  uploadClaimCounts.delete(name);
+  try { fs.unlinkSync(path.join(UPLOADS_DIR, name)); } catch { /* already gone */ }
+}
+
+// Per-session ownership buckets: session id -> { files: [names, oldest
+// first] }. The eviction hook fires when a session bucket expires, which
+// is the "session is gone" cleanup described above.
+const uploadOwnership = createSessionState(() => ({ files: [] }), {
+  onEvict: (state) => {
+    for (const name of (state && state.files) || []) releaseUploadClaim(name);
+  },
+});
+
+// Trim ONLY the requesting session's stored files back to its cap,
+// oldest first. A request with no session bucket (nothing tracked yet)
+// is a no-op, and no other session's bucket is ever read here.
+function enforceUploadQuota(req) {
+  if (!req) return;
+  let state;
+  try { state = uploadOwnership.peek(req); } catch { return; }
+  if (!state) return;
+  while (state.files.length > MAX_KEPT_UPLOADS_PER_SESSION) {
+    releaseUploadClaim(state.files.shift());
   }
+}
+
+// Record that THIS session just stored `file` (a plain basename, directly
+// in the uploads root) and immediately enforce this session's own quota.
+// Re-storing a name the session already claims only refreshes its recency;
+// it does not add a second claim. Returns false when the name is not a
+// flat uploads-root name or the request has no session to account against,
+// in which case nothing is recorded and nothing is deleted.
+function trackStoredUpload(req, file) {
+  const name = String(file || '');
+  if (!name || path.basename(name) !== name) return false;
+  let state;
+  try { state = uploadOwnership.get(req); } catch { return false; }
+  const at = state.files.indexOf(name);
+  if (at >= 0) state.files.splice(at, 1);
+  else uploadClaimCounts.set(name, (uploadClaimCounts.get(name) || 0) + 1);
+  state.files.push(name);
+  enforceUploadQuota(req);
+  return true;
 }
 
 // v8: predictable avatar filenames under uploads/avatars/. Bob already has
@@ -193,7 +262,7 @@ function verifyBeacon(req, vulnId, token, file) {
   delete req.session.uploadPending[vulnId];
   return { ok: true };
 }
-module.exports = { rawUpload, cleanFilename, UPLOADS_DIR, avatarPath, AVATAR_ORIGINAL, AVATAR_VICTIM, enforceUploadQuota, MAX_KEPT_UPLOADS ,
+module.exports = { rawUpload, cleanFilename, UPLOADS_DIR, avatarPath, AVATAR_ORIGINAL, AVATAR_VICTIM, enforceUploadQuota, trackStoredUpload, MAX_KEPT_UPLOADS, MAX_KEPT_UPLOADS_PER_SESSION ,
   hasExecutableContent, viewServedType, staticServedType, servedTypeFor, bypassShapeFor,
   issueBeaconToken, recordPendingUpload, beaconSnippet, verifyBeacon,
 };

@@ -52,12 +52,13 @@ router.get('/log-demo', (req, res) => {
 module.exports = {
   vuln: {
     id: 'log-poison', name: 'Log Poisoning Chain', difficulty: 'Hard',
-    hint: 'Two steps: first, plant a recognizable marker string in the access log by visiting <code>/lfi/log-demo</code> with a custom User-Agent. Then read that log back through the document viewer using traversal, so the poisoned entry is included.',
-    hints: ["You need to read a file you can write to. What files does the app write that you influence? The /lfi/log-demo page names it.", "The access log records your User-Agent. In Repeater, re-send the log-demo request with a recognizable marker string in the User-Agent header, then include the log via traversal.", "You control your User-Agent, and the access log is just a file you can include. Poison it in Repeater with a recognizable marker, then pull the log back through the viewer with traversal so the poisoned entry gets read."],
+    hint: 'Two capabilities, one chain: somewhere the app records something you control, and somewhere else it reads files back. Which file could you both write to and get to read?',
+    hints: ["You need to read a file you can write to. What files does the app write that you influence? The /lfi/log-demo page names it.", "The access log records your User-Agent. In Repeater, re-send the log-demo request with a recognizable marker string in the User-Agent header, then include the log via traversal.", "Shape: first a request whose headers plant a recognizable marker in a file the app keeps, then a second request that includes that same file through the viewer. When your own marker renders back at you, the chain is closed."],
     tools: "BZ, C",
-    how: 'In Repeater, poison the access log by editing the User-Agent header on /lfi/log-demo, then read the log back through /lfi/view with a traversal payload.',
+    est: 'about 20 to 35 minutes',
+    how: 'Log poisoning chains two small flaws: user input is written into a log, and a file viewer can be pointed at that log.',
     link: '/lfi/log-demo',
-    start: 'Visit /lfi/log-demo through Burp Proxy, send the request to Repeater (Ctrl+R), then edit the User-Agent header there to plant your marker and send it.',
+    start: 'Visit /lfi/log-demo through Burp Proxy and send the request to Repeater (Ctrl+R). Study what the demo page says gets recorded, and where it ends up.',
   },
   router,
 };

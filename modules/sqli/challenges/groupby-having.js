@@ -66,6 +66,7 @@ module.exports = {
     id: 'groupby-having',
     name: 'GROUP BY Injection',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The stats page groups sales by an expression you control and prints the grouping key back. GROUP BY accepts any expression, including a subquery. Aim one at sqli_target(), this challenge\'s own secret.',
     hints: ["Load /sqli/stats through Burp Proxy, submit the form, and send the request to Repeater. The page groups sales and prints the grouping key. You control the GROUP BY expression. What can an expression be?", "In Repeater, change by to an expression the query was never meant to group by. GROUP BY accepts full SQL expressions, including a subquery. This challenge's secret is exposed to your SQL as sqli_target(): an expression that returns it leaks it through the echo.", "Aim the GROUP BY expression at sqli_target() so this challenge's secret itself becomes the group label, then read it straight from the stats output. One request is enough, no guessing loop needed. A quoted literal of a secret found elsewhere will not match."],
     tools: "BZ, B, C",

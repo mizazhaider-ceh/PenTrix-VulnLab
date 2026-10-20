@@ -30,10 +30,11 @@ router.use(rawUpload);
 
 // Module-level dependency for the stored-xss and upload-double-ext
 // challenge files, which read { dir, clean } from req.uploadShared.
-// Also triggers the upload quota sweep (throttled inside shared.js).
+// Also enforces the per-session upload quota for the requesting session
+// only (see shared.js; handlers record ownership at store time there).
 router.use((req, res, next) => {
   req.uploadShared = { dir: UPLOADS_DIR, clean: cleanFilename };
-  enforceUploadQuota();
+  enforceUploadQuota(req);
   next();
 });
 
@@ -51,13 +52,13 @@ const uploadScript = `
 async function sendFile(inputId, target, outId) {
   const file = document.getElementById(inputId).files[0];
   const out = document.getElementById(outId);
-  if (!file) { out.innerHTML = '<p class="warn">Pick a file first.</p>'; return; }
+  if (!file) { out.innerHTML = '<p class="warn">Pick a file first: use the file picker above, then press the upload button again.</p>'; return; }
   const url = target + '?filename=' + encodeURIComponent(file.name);
   try {
     const r = await fetch(url, { method: 'POST', body: file });
     out.innerHTML = await r.text();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  } catch (e) { out.innerHTML = '<p class="warn">Upload failed: ' + e.message + '</p>'; }
+  } catch (e) { out.innerHTML = '<p class="warn">Upload failed: ' + e.message + '. Check that the lab is still running, then try again.</p>'; }
 }
 </script>`;
 
@@ -135,7 +136,7 @@ router.get('/', (req, res) => {
     <div class="card" id="endpoint-${i}">
       <h3>${esc(e.title)} <span class="pill">${esc(e.pill)}</span></h3>
       <p class="dim">${e.desc}</p>
-      ${e.widget ? `<p><input class="clay-input" type="file" id="file${i}"> <button class="clay-btn clay-btn-primary clay-btn-sm" onclick="sendFile('file${i}','/upload','out${i}')">Upload to v1</button></p><div id="out${i}"></div>` : ''}
+      ${e.widget ? `<p><label for="file${i}">Choose a file for ${esc(e.title)}</label><br><input class="clay-input" type="file" id="file${i}" aria-describedby="out${i}"> <button class="clay-btn clay-btn-primary clay-btn-sm" onclick="sendFile('file${i}','/upload','out${i}')">Upload to v1</button></p><div id="out${i}" role="status" aria-live="polite"></div>` : ''}
       <p class="dim">curl version:</p>
       <pre>${esc(e.curl)}</pre>
     </div>`).join('');
@@ -230,7 +231,7 @@ router.post('/beacon', (req, res) => {
 router.use(challenges[0].router);
 router.use((err, req, res, next) => {
   if (err && err.type === 'entity.too.large') {
-    return res.status(413).send(page('Too large', `<h2>File too large</h2><p class="dim">Uploads are capped at 2 MB.</p><p><a class="btn" href="/upload">Back</a></p>`));
+    return res.status(413).send(page('Too large', `<h2>File too large</h2><p class="dim">Uploads are capped at 2 MB. Pick a smaller file and try again.</p><p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/upload">Back to the module</a></p>`));
   }
   next(err);
 });

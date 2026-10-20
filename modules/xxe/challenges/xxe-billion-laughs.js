@@ -77,6 +77,7 @@ module.exports = {
     id: 'xxe-billion-laughs',
     name: 'Billion Laughs (Entity-Expansion DoS)',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The billion endpoint expands internal entities recursively with no depth limit. Define entities that reference each other and watch the parse time.',
     hints: ["Start in Burp Proxy: capture a normal POST /xxe/billion request from the form so you have a baseline you can replay before changing anything.", "Send that request to Repeater. Entities can reference other entities; in Repeater, build a small cascade where each level repeats the previous one many times, then reference the top level once in your document body.", "Send the request and read the response: the result page reports how long the parser was busy and how large the expansion got. Tune the payload until the parse crosses the time or size threshold and the flag box appears."],
     tools: "BZ",

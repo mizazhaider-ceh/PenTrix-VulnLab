@@ -49,10 +49,11 @@ router.get('/procinfo', (req, res) => {
 module.exports = {
   vuln: {
     id: 'proc-self', name: 'Process Environ Leak', difficulty: 'Medium',
-    hint: 'The process-info page appends your filename to <code>/proc/self/</code> with no checks. Most files there are boring, but one of them holds the whole environment, secrets included. Its entries are NUL-separated.',
-    hints: ["Linux exposes process info via /proc. What does /proc/self/environ contain?", "The environ file has the process environment, including secrets. Read it via the filename parameter.", "The filename is appended straight onto /proc/self/. Send the request to Burp Repeater, ask for the file that holds the entire process environment (NUL-separated), and search the output for the marker."],
+    hint: 'The process-info page appends your filename to <code>/proc/self/</code> with no checks. Most files there are boring. What does the process itself know that you would like to read?',
+    hints: ["Linux exposes process info via /proc. What does /proc/self/environ contain?", "One file under /proc/self holds the process environment, in NUL-separated entries. Environments are where services keep the values they were started with. Read it via the filename parameter.", "Shape: the filename is appended straight onto /proc/self/. Send the request to Burp Repeater, name the environment file, and search the output for entries only the real process could have provided."],
     tools: "BZ, B",
-    how: 'Read /proc/self/environ through /lfi/procinfo with Burp Repeater.',
+    est: 'about 10 to 20 minutes',
+    how: 'A filename parameter rooted at /proc/self turns a status page into a window on the process itself, environment included.',
     link: '/lfi/procinfo',
     start: 'Point your browser through Burp Proxy at your lab address, open /lfi/procinfo, and send the request to Repeater so you can tamper with the f parameter.',
   },

@@ -24,10 +24,11 @@ const vuln = {
   id: 'biz-email-noreauth',
   name: 'Email Change Without Re-Authentication',
   difficulty: 'Medium',
+  est: '15-25 minutes',
   hint: 'You can change the account email with no password confirmation. Then "forgot password" sends the reset to the new address: yours.',
   hints: ["Proxy /bizlogic/account and send the email-change POST to Repeater. Try changing the email without touching the password field.", "The reset link follows the account email, not your session. Run forgot-password in Repeater against the address you just set.", "Copy the demo token from the response page, then POST it to /bizlogic/account/reset with a new password. Check which address the reset link went to."],
   tools: 'BZ, B',
-  how: 'In Burp: Proxy /bizlogic/account, send the email-change POST to Repeater and point the account at an address you control, then run forgot-password for that address and replay the reset-token POST with your own password. The reset link follows the email, not the password.',
+  how: 'The account email can be changed without proving you own the account. Then consider where a password reset for that account would be delivered.',
   link: '/bizlogic#biz-email-noreauth',
   start: 'Open Burp with your browser proxied and visit the shop account page. Watch the Proxy history while you use the "Change email" form, then send that request to Repeater and try a new email address you control. Next, send the "Forgot password" form to Repeater for that same address and read the reset token off the demo page.',
 };

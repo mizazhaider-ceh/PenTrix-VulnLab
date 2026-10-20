@@ -18,6 +18,7 @@ const vuln = {
   id: 'constructor',
   name: 'Constructor Breakout to Code Execution',
   difficulty: 'Medium',
+  est: '15-25 minutes',
   hint: 'Expressions can see constructor (which is Object), and Object.constructor is Function. Compile a string that beacons the flag.',
   hints: [
     "You need code execution. Find the page-bound token first: it is rendered into the lab page, and Burp Proxy history shows it on the intercepted GET.",
@@ -25,7 +26,7 @@ const vuln = {
     "Load the preview page in the browser so the engine actually executes the compiled string: it must fetch the beacon endpoint and echo the page-bound token. The code inside the compiled string is the one part you must write yourself.",
   ],
   tools: 'BZ, B, DT',
-  how: 'Craft a template expression that reaches the Function constructor through the exposed constructor reference and compiles a string whose code beacons /csti/beacon?v=constructor with the page token. Submit it through Burp Repeater, then let the browser render the preview so the engine executes it.',
+  how: 'Expressions in this engine can see more than data: an object reference that leads to a code compiler. Reach it, and make the compiled code prove itself to the beacon.',
   link: '/csti#constructor',
   start: 'Route your browser through Burp Proxy and open the Constructor breakout lab. Read the page-bound token from the intercepted GET response, save your template via Repeater, then reload the preview in the browser so the engine runs your expression and beacons.',
 };
@@ -100,11 +101,10 @@ router.get('/constructor', (req, res) => {
       <p class="note">Goal: execute JavaScript through the template. The engine exposes
       <code>constructor</code> (which is <code>Object</code>) to every expression, and
       <code>Object.constructor</code> is <code>Function</code>. From there you can compile
-      and run any string as code, then beacon the flag yourself - your beacon must echo the
-      page-bound token, e.g.
-      <code>{{constructor.constructor("fetch('/csti/beacon?v=constructor&amp;d=ctor:'+cstiDjb2(CSTI_NONCE)+'&amp;n='+CSTI_NONCE)")()}}</code>.
-        The <code>d</code> value is a proof of execution: it must be <code>ctor:</code> followed by this page's
-        <code>cstiDjb2()</code> hash of the token, so an arbitrary non-empty value earns nothing.</p>
+      and run any string as code, then beacon the flag yourself: the beacon must echo the
+      page-bound token, and its <code>d</code> value is a proof of execution, <code>ctor:</code>
+      followed by this page's <code>cstiDjb2()</code> hash of the token, so an arbitrary
+      non-empty value earns nothing. The payload that assembles all of that is yours to write.</p>
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/csti">Back to the CSTI module</a></p>
     `, { crumb: 'Dashboard · Math cards', mark: '&#8721;' })}
   `));

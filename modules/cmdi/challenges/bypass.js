@@ -12,6 +12,7 @@ const vuln = {
   id: 'bypass',
   name: 'Ping Gadget v2 (weak blacklist)',
   difficulty: 'Medium',
+  est: '10-20 minutes',
   hint: 'Only the ";" character is removed, and only once. Probe the host parameter in Repeater: shells give you several other ways to chain commands.',
   hints: [
     "In Repeater, watch what the filter removes from your host parameter: it strips the first semicolon only. The shell offers several other command separators that this filter never touches. Which ones?",

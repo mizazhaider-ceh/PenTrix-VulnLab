@@ -48,10 +48,11 @@ router.get('/abs', (req, res) => {
 module.exports = {
   vuln: {
     id: 'absolute', name: 'Absolute Path Read', difficulty: 'Easy',
-    hint: 'The page reader uses absolute paths verbatim instead of confining reads to the docs folder. Capture a read in Burp Proxy, send it to Repeater, and request the system user list by its full absolute path (no ../ needed).',
-    hints: ["Send a normal page read through Burp Proxy to Repeater, then ask: does the page parameter have to be relative?", "In Repeater the path is used verbatim, so ../ games are unnecessary. Name one standard Linux file that lists user accounts, then ask for it by its full system path.", "Forget ../. In Repeater, request a complete absolute system path for the user account file, then look for the root entry in the rendered contents."],
+    hint: 'The page reader confines nothing at all. Does the page parameter have to be a relative path inside the docs folder?',
+    hints: ["Send a normal page read through Burp Proxy to Repeater, then ask: does the page parameter have to be relative?", "In Repeater the path is used verbatim, so ../ games are unnecessary. Name one standard Linux file that lists user accounts, then ask for it by its full system path.", "Shape: forget ../ entirely. In Repeater, name a file by its complete absolute path, exactly the way the system itself names it, and read what comes back."],
     tools: "BZ, B, C",
-    how: 'Swap the page parameter for an absolute system path in Burp Repeater and read the user account file; the flag awards when the root entry renders.',
+    est: 'about 5 to 10 minutes',
+    how: 'A reader that uses paths verbatim will open absolute paths anywhere on the system, not just inside its own folder.',
     link: '/lfi/abs',
     start: 'Open the Page Reader at /lfi/abs in a Burp-proxied browser, send a read request to Repeater, then start tweaking the page parameter.',
   },

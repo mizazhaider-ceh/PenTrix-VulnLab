@@ -68,14 +68,15 @@ module.exports = {
     id: 'mass-assignment',
     name: 'Mass Assignment',
     difficulty: 'Medium',
+    est: '10-20 minutes',
     hint: 'PATCH /api/me builds its SQL SET clause from Object.keys(req.body). Nothing stops you from adding fields the form never showed you; think about which column in the users table decides what you are allowed to do.',
     hints: [
       "Log in as alice with Burp's Proxy on, then browse to /api/me and send that request to Repeater (Ctrl+R) to read your profile columns.",
       "PATCH /me builds its SQL SET clause from Object.keys(req.body). There is no allowlist, so every key in the JSON body becomes a column in the UPDATE, even fields the form never showed you.",
-      "In Repeater, add one extra key to the PATCH body that raises your privilege level, then send it. GET /me shows you which column decides your role."
+      "In Repeater, replay the PATCH with one extra key alongside a normal field, then re-read GET /api/me and compare what changed. Aim at the column that decides what an account is allowed to do."
     ],
     tools: 'BZ, C',
-    how: 'Log in as alice, send a GET /api/me to Repeater to read your columns, then replay the PATCH /api/me in Repeater with one extra JSON key that raises your privilege and collect the flag.',
+    how: 'Your profile update accepts more than the form ever showed you. What could you ask it to change about your own account?',
     link: '/api#mass-assignment',
     start: 'Route your browser through Burp Proxy, visit /api/login/alice to log in, then browse to /api/me and send that request to Repeater (Ctrl+R) to see your profile columns.',
   },

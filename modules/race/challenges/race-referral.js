@@ -19,7 +19,7 @@ const vuln = {
   hints: ["Claim REF2026 once in the browser with Burp Proxy on, then send that claim POST to Repeater.", "In Repeater, duplicate the claim tab 10 times, select all the tabs, and choose Send group in parallel so the claims land together. Community Intruder is throttled and would spread the claims out past the check gap.", "Every request must land inside the check gap, so each one still sees 'not claimed' when it arrives."],
   tools: 'BZ, C, P',
   est: 'about 10 minutes',
-  how: 'Claim the referral code with parallel POSTs at /race/referral (Repeater: duplicate the tab, then Send group in parallel) so the bonus lands twice.',
+  how: 'A one-time referral bonus records the claim after paying it out, so parallel claims can each still look like the first.',
   link: '/race#race-referral',
   start: 'Browse to /race/referral with Burp Proxy on and claim REF2026 once, then send that POST to Repeater, duplicate the tab 10 times, and Send group in parallel so the claims all land before the first claim is recorded.',
 };

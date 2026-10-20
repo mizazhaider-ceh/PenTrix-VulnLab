@@ -39,6 +39,7 @@ module.exports = {
     id: 'xss-js-context',
     name: 'XSS in a JavaScript String',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: "Your input lands inside a single-quoted JS string: var q = '...'. Break out of the string, run your code, and comment out the tail.",
     hints: [
       "Open the page behind Burp Proxy, submit a test name, and find where it lands in the response: inside a single-quoted JS string (var q = '...'). The quote character is not escaped. What can you do with an unescaped quote?",
@@ -46,7 +47,7 @@ module.exports = {
       'Craft the final request in Burp Repeater, then load that URL in the browser: your injected statement must call the /xss/collect endpoint with the page token (window.__px), because the server only awards the flag when it sees a beacon carrying a fresh token.',
     ],
     tools: 'BZ, B',
-    how: 'Break out of the single-quoted JS string with a quote and a semicolon, run a fetch() beacon to /xss/collect for v=xss-js-context with the page token, and end with // to comment out the tail. Craft the request in Burp Repeater, then load the final URL in the browser so the injected statement runs and fires the beacon.',
+    how: 'Your input sits inside a quoted JavaScript string. In Burp Repeater, find the characters that end the string early and let your own statement run in its place, then load the final URL in the browser so it fires the beacon.',
     link: '/xss/jsctx',
     start: 'Proxy the page through Burp and submit a name normally, then send the request to Repeater. Watch how q reflects inside var q = \'...\' in the response. Tweak q in Repeater until the reflection shows your breakout, then paste the Repeater URL into the browser to fire the beacon.',
   },

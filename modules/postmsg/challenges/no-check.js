@@ -25,6 +25,7 @@ function claimCard(vulnId, steps) {
 router.get('/no-check', (req, res) => {
   res.send(page('Chat widget (no origin check)', `
     <h2>Chat widget</h2>
+    <p class="dim">Typical time: 10-25 min</p>
     <p>Messages posted to this page appear below.</p>
     <div class="card">
       <div class="card-top"><b>Inbox</b></div>
@@ -76,10 +77,10 @@ module.exports = {
     id: 'no-check',
     name: 'No Origin Check on Message Handler',
     difficulty: 'Medium',
-    hint: 'The widget renders every message it receives as HTML and never looks at event.origin. Any page can talk to it.',
+    hint: 'Read the widget message listener closely: what does it check before it acts on a message, and what does it do with the message content?',
     hints: [
       'Route your browser through Burp Proxy and open the attacker page. In Proxy HTTP history, find the victim iframe request and read its inline message listener.',
-      'The victim renders every message as HTML and never checks event.origin. So any page, including this attacker page, can drive it.',
+      'The listener acts on messages from any page and treats the message content as markup, not plain text. So any page, including this attacker page, can drive it.',
       'Click Fire payload on the attacker page, then look in Burp Proxy history for the /postmsg/beacon request the victim handler fires. That beacon carries the page token and claims your flag.',
     ],
     tools: 'BZ, B, DT',

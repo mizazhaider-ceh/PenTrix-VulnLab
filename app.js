@@ -149,14 +149,31 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const NAV_SECTIONS = ['scoreboard', 'scenarios', 'paths', 'about'];
 app.use((req, res, next) => {
   const origSend = res.send;
+  // Capture the full path now, at app level: by the time a module router
+  // calls res.send, Express has stripped the mount prefix from req.url,
+  // so req.path inside the send wrapper would only be the remainder
+  // ("/login", not "/sqli/login") and could never resolve a module.
+  const fullPath = String(req.path || '');
   res.send = function (body) {
-    if (typeof body === 'string' && body.includes('<!--px-chrome-->')) {
-      body = body.split('<!--px-chrome-->').join(scoreChipHtml(req));
-      if (!body.includes('aria-current="page"')) {
-        const seg = String(req.path || '').split('/').filter(Boolean)[0] || '';
-        const href = seg === '' ? '/' : (NAV_SECTIONS.includes(seg) ? '/' + seg : '');
-        if (href) {
-          body = body.replace(`<a href="${href}">`, `<a href="${href}" aria-current="page">`);
+    if (typeof body === 'string') {
+      // P4-2: lab breadcrumb. Replaced independently of the score chip:
+      // pages that pass a chip explicitly (scenarios, paths, shell routes)
+      // carry no <!--px-chrome--> placeholder but still carry this one.
+      // The nav-highlight check below must look at the body as the caller
+      // rendered it, before the breadcrumb adds its own aria-current, so
+      // capture that first.
+      const hadCurrent = body.includes('aria-current="page"');
+      if (body.includes('<!--px-breadcrumb-->')) {
+        body = body.split('<!--px-breadcrumb-->').join(breadcrumbHtml(req, body, fullPath));
+      }
+      if (body.includes('<!--px-chrome-->')) {
+        body = body.split('<!--px-chrome-->').join(scoreChipHtml(req));
+        if (!hadCurrent) {
+          const seg = fullPath.split('/').filter(Boolean)[0] || '';
+          const href = seg === '' ? '/' : (NAV_SECTIONS.includes(seg) ? '/' + seg : '');
+          if (href) {
+            body = body.replace(`<a href="${href}">`, `<a href="${href}" aria-current="page">`);
+          }
         }
       }
     }
@@ -260,6 +277,122 @@ function scoreChipHtml(req) {
   try {
     const { got, total } = totals(req);
     return `<span class="score-chip" title="Flags captured"><span aria-hidden="true">🚩</span> ${got}/${total}</span>`;
+  } catch (e) {
+    return '';
+  }
+}
+
+// ---- lab breadcrumb (P4-2) ----
+// Central replacement for the <!--px-breadcrumb--> placeholder page()
+// emits. Hand-written back links were the old pattern and only about a
+// third of challenge pages had one, each with different wording; this
+// gives every page under a module, a scenario, or a career path the same
+// chrome with no per-module edits, including future challenges, because
+// it resolves purely from the request path, the module registry, and
+// (as a fallback for sub-pages no catalog entry names) the page title
+// the caller already rendered into <title>. The established Back to
+// pattern is kept alongside it: challenge pages also get a visible
+// "Back to <Module>" link under the breadcrumb. Returns '' on pages
+// that are not inside a module, scenario, or path (home, scoreboard,
+// about, fix mode, errors), so their chrome is unchanged. Never throws:
+// an error page must never break while rendering.
+function pageTitleFromHtml(html) {
+  const m = String(html || '').match(/<title>([^<]*) · PenTrix VulnLab<\/title>/);
+  return m ? m[1].trim() : '';
+}
+function prettifySegment(seg) {
+  return String(seg || '').replace(/[-_]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+function breadcrumbNav(items) {
+  // items: [{ href, label }] for links, last item { label, current: true }.
+  // Labels arrive already escaped (registry names go through esc(), the
+  // page title was escaped by page() when it built <title>). Inline links
+  // joined by aria-hidden separators (not a list), so the breadcrumb
+  // reads as one line even before the .breadcrumb styles land.
+  const parts = items.map((it) => it.current
+    ? `<span aria-current="page">${it.label}</span>`
+    : `<a href="${it.href}">${it.label}</a>`).join(' <span class="breadcrumb-sep" aria-hidden="true">/</span> ');
+  return `<nav class="breadcrumb" aria-label="Breadcrumb">${parts}</nav>`;
+}
+function breadcrumbHtml(req, html, fullPath) {
+  try {
+    const rawPath = String(fullPath || (req && req.path) || '');
+    const segments = rawPath.split('/').filter(Boolean);
+    if (!segments.length) return '';
+    const title = pageTitleFromHtml(html);
+    if (segments[0] === 'scenarios') {
+      if (segments.length === 1) return '';
+      const items = [
+        { href: '/', label: 'Modules' },
+        { href: '/scenarios', label: 'Scenarios' },
+      ];
+      if (segments.length > 2) {
+        items.push({ href: esc('/scenarios/' + segments[1]), label: esc(prettifySegment(segments[1])) });
+        items.push({ label: title || esc(prettifySegment(segments[segments.length - 1])), current: true });
+      } else {
+        items.push({ label: title || esc(prettifySegment(segments[1])), current: true });
+      }
+      return breadcrumbNav(items)
+        + `<p class="back-link"><a href="/scenarios">Back to Scenarios</a></p>`;
+    }
+    if (segments[0] === 'paths') {
+      if (segments.length === 1) return '';
+      const items = [
+        { href: '/', label: 'Modules' },
+        { href: '/paths', label: 'Paths' },
+      ];
+      if (segments.length > 2) {
+        items.push({ href: esc('/paths/' + segments[1]), label: esc(prettifySegment(segments[1])) });
+        items.push({ label: title || esc(prettifySegment(segments[segments.length - 1])), current: true });
+      } else {
+        items.push({ label: title || esc(prettifySegment(segments[1])), current: true });
+      }
+      return breadcrumbNav(items)
+        + `<p class="back-link"><a href="/paths">Back to Paths</a></p>`;
+    }
+    const mod = registry.find((m) => m.id === segments[0]);
+    if (!mod) return '';
+    if (segments.length === 1) {
+      // Module index: the module itself is the current page.
+      return breadcrumbNav([
+        { href: '/', label: 'Modules' },
+        { label: esc(mod.name), current: true },
+      ]);
+    }
+    // Challenge page: match the catalog link exactly, else take the
+    // longest catalog link this path sits under (challenge sub-pages
+    // such as an admin or attacker view of the same challenge), else
+    // fall back to a vuln whose id is the last path segment (anchor
+    // linked challenges whose real page lives at /<module>/<id>, such
+    // as /misconfig/debug, carry a generic page title like "Debug
+    // page"; the catalog name is the challenge name).
+    let matched = null;
+    let matchedPath = '';
+    let matchedIsCurrent = false;
+    for (const v of mod.vulns || []) {
+      const linkPath = String(v.link || '').split('#')[0].split('?')[0];
+      if (!linkPath || linkPath === '/' + mod.id) continue;
+      if (linkPath === rawPath) { matched = v; matchedPath = linkPath; matchedIsCurrent = true; break; }
+      if (rawPath.startsWith(linkPath + '/') && linkPath.length > matchedPath.length) {
+        matched = v; matchedPath = linkPath; matchedIsCurrent = false;
+      }
+    }
+    if (!matched) {
+      const byId = (mod.vulns || []).find((v) => v.id === segments[segments.length - 1]);
+      if (byId) { matched = byId; matchedIsCurrent = true; }
+    }
+    const items = [
+      { href: '/', label: 'Modules' },
+      { href: '/' + mod.id, label: esc(mod.name) },
+    ];
+    if (matched && !matchedIsCurrent) {
+      items.push({ href: matchedPath, label: esc(matched.name) });
+      items.push({ label: title || esc(prettifySegment(segments[segments.length - 1])), current: true });
+    } else {
+      items.push({ label: matched ? esc(matched.name) : (title || esc(prettifySegment(segments[segments.length - 1]))), current: true });
+    }
+    return breadcrumbNav(items)
+      + `<p class="back-link"><a href="/${mod.id}">Back to ${esc(mod.name)}</a></p>`;
   } catch (e) {
     return '';
   }
@@ -398,6 +531,7 @@ app.get('/', (req, res) => {
         <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/">Reset</a>
       </div>
     </form>
+    <p class="sr-only" role="status" aria-live="polite" data-filter-live></p>
     <p class="dim" data-home-empty hidden>No modules match your filter. Try clearing the search.</p>
     <section class="grid" aria-label="Modules">${cards || emptyState('No modules found', '<p>Something went wrong with the build: no modules loaded.</p>', '')}</section>`,
     'home', { scoreChip: scoreChipHtml(req) }));
@@ -487,6 +621,7 @@ app.get('/scoreboard', (req, res) => {
         <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Reset</a>
       </div>
     </form>
+    <p class="sr-only" role="status" aria-live="polite" data-filter-live></p>
     <p class="dim" data-sb-empty hidden>No challenges match your filter. Try clearing the search.</p>
     ${anyRows ? sections : emptyState('Nothing matches', '<p>No challenges match the current filter.</p>', '<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Clear filter</a></p>')}
     ${scenarioHtml}
@@ -561,7 +696,10 @@ function renderGuideMarkdown(md) {
     out.push('<div class="tbl-scroll"><table class="tbl">\n<thead><tr>' + head + '</tr></thead>\n<tbody>\n' + body + '\n</tbody></table></div>');
     table = null;
   }
-  const openUl = (items) => ({ kind: 'ul', open: '<ul>', items });
+  // N4: the "Table of contents" list is the page TOC; flag the next list
+  // so it renders as <ul class="toc"> for 44px touch rows in CSS.
+  let tocNext = false;
+  const openUl = (items) => ({ kind: 'ul', open: tocNext ? '<ul class="toc">' : '<ul>', items });
   for (const raw of lines) {
     const line = raw;
     if (line.trim().startsWith('```')) {
@@ -580,6 +718,8 @@ function renderGuideMarkdown(md) {
       flushPara(); flushList(); flushTable();
       const lvl = Math.min(hm[1].length + 1, 4);
       const text = hm[2].replace(/\s*#+$/, '').trim();
+      // N4: the list after this heading is the page TOC.
+      tocNext = (mdSlug(text) === 'table-of-contents');
       out.push(`<h${lvl} id="${mdSlug(text)}">${mdInline(text)}</h${lvl}>`);
       continue;
     }
@@ -598,7 +738,7 @@ function renderGuideMarkdown(md) {
     if (table && trimmed !== '') { flushTable(); }
     if (/^\s*[-*]\s+/.test(line)) {
       flushPara(); flushTable();
-      if (!list || list.kind !== 'ul') { flushList(); list = openUl([]); }
+      if (!list || list.kind !== 'ul') { flushList(); list = openUl([]); tocNext = false; }
       list.items.push('<li>' + mdInline(trimmed.replace(/^\s*[-*]\s+/, '')) + '</li>');
       continue;
     }
@@ -631,7 +771,14 @@ app.get('/setup-guide', (req, res) => {
       '<h1>Tool Setup Guide</h1><p>The setup guide file could not be read. It lives at <code>docs/TOOL_SETUP_GUIDE.md</code> in the lab source.</p>',
       null, { scoreChip: scoreChipHtml(req) }));
   }
-  res.send(page('Tool Setup Guide', renderGuideMarkdown(md),
+  let guideHtml = renderGuideMarkdown(md);
+  // N4: the guide's own first heading repeats the page H1. Keep the page
+  // H1 and retitle the guide heading so only one title renders.
+  guideHtml = guideHtml.replace(
+    /^<h2 id="tool-setup-guide-burp-suite-and-the-web-hacking-toolkit">[^<]*<\/h2>/,
+    '<h2 id="tool-setup-guide-burp-suite-and-the-web-hacking-toolkit">Burp Suite and the Web Hacking Toolkit</h2>'
+  );
+  res.send(page('Tool Setup Guide', guideHtml,
     'setup-guide', { scoreChip: scoreChipHtml(req) }));
 });
 

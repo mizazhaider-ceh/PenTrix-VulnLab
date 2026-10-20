@@ -14,10 +14,11 @@ const vuln = {
   id: 'reset-predictable',
   name: 'SHA-256 Predictable Reset Token',
   difficulty: 'Medium',
-  hint: 'The page shows the exact recipe: sha256(username + "reset-salt"). Compute it for "admin" with node or python and confirm the forged token without ever requesting an admin reset.',
+  est: '10-20 minutes',
+  hint: 'The page prints the exact recipe the reset token is built from. Read it closely: is anything in that recipe random, or secret, or tied to a real reset request?',
   hints: ["The reset token is a SHA-256 hash. Intercept the alice reset in Burp Proxy and read the recipe the page prints. Hash of what? What inputs are predictable?", "Nothing in the recipe is random or secret: a username plus a fixed string. Burp Decoder can hash text for you: select it, send it to Decoder, and use the Hash option.", "Compute the same hash for the admin account, then build the confirm request in Burp Repeater: submit the forged admin token with a new password, without ever requesting a real admin reset link."],
   tools: 'BZ, B, P',
-  how: 'Forge the admin reset token with SHA-256, then replay it in Burp Repeater against the confirm endpoint to change admin\'s password.',
+  how: 'This reset token is built only from things anyone can know. If that holds for alice, it holds for every account on the system.',
   link: '/auth/sha-reset',
   start: 'In Burp Proxy, visit /auth/sha-reset?user=alice and request a reset. Study the token recipe the page prints for you.',
 };

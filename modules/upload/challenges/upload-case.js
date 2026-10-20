@@ -8,7 +8,7 @@ const path = require('path');
 const { esc, page, payloadBlock } = require('../../../lib/page');
 // Module-level upload plumbing (provided by modules/upload/shared.js):
 // rawUpload (express.raw), cleanFilename, UPLOADS_DIR.
-const { rawUpload, cleanFilename, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
+const { rawUpload, cleanFilename, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet, trackStoredUpload } = require('../shared');
 
 const router = express.Router();
 
@@ -32,6 +32,7 @@ router.post('/ext-blacklist', rawUpload, (req, res) => {
     return res.status(400).send(page('Upload failed', `<h2>Empty file</h2><p class="dim">No request body received. Upload the file bytes as the raw request body.</p><p><a class="btn" href="/upload">Back</a></p>`));
   }
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
+  trackStoredUpload(req, clean);
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   // Storing proves nothing on its own: each bypass only arms its own
   // challenge's beacon. The matching flag fires later, when the stored file
@@ -68,6 +69,7 @@ module.exports = {
     id: 'upload-case',
     name: 'Case-sensitive blacklist bypass',
     difficulty: 'Easy',
+    est: 'about 5 to 10 minutes',
     hint: 'The v3 blacklist compares the extension exactly as written. Filesystems and browsers do not care about case. Storing is not enough: the flag fires only when the stored file is served as active content and its script phones home through the beacon snippet.',
     hints: [
       "Intercept the upload request in Burp Proxy and forward it to Repeater. Then try changing only the case of the filename extension.",
@@ -75,7 +77,7 @@ module.exports = {
       "KEY INSIGHT: a case-sensitive check can be beaten by changing the case of the blocked extension, since the viewer still recognises it as SVG. Upload a file whose extension is a case-variant of the blacklisted one, with the file carrying the beacon snippet for this challenge, to the ext-blacklist endpoint, then open its /upload/view/ link in your proxied browser.",
     ],
     tools: "BZ",
-    how: 'In Burp Proxy, intercept the upload POST to /upload/ext-blacklist?filename=..., then send it to Repeater and change the filename case to a blocked-extension variant like evil.SVG, with the file carrying this challenge\'s beacon snippet. The ".svg" entry misses it and the file is served as active content; the flag fires when the served script phones home.',
+    how: 'In Burp Repeater, try a case variant of a blocked extension on the ext-blacklist upload, with the file carrying this challenge\'s beacon snippet. The case-sensitive entry misses it and the file is served as active content; the flag fires when the served script phones home.',
     link: '/upload#upload-case',
     start: 'Proxy the site in Burp, open the upload form, intercept the upload request in the Proxy, then right-click and send it to Repeater. Bake the case-bypass beacon snippet into the file, then open the /upload/view/ link in your browser.',
   },

@@ -76,6 +76,32 @@ const { award, flagFor, captured } = require('../../lib/flags');
    Medium = needs real technique. Hard = needs chaining or creative bypass.
 10. **No emojis in code comments.** UI emojis are fine.
 
+## Module-level endpoint files
+
+A module MAY keep endpoint files at module level (alongside `index.js` and
+`shared.js`) when one endpoint serves multiple challenges or when a route
+placed in a challenge file would be duplicated and shadowed by Express.
+The existing examples (`modules/oauth/idp.js`, `modules/oauth/client.js`, and
+`modules/xxe/importer.js`) are the reference pattern.
+
+Rules for such files:
+
+a. **Award conditions stay identical.** Award conditions inside an endpoint
+   file must be identical to the award conditions the served challenges
+   specify, never weakened, and evidence checks (D19) apply in full.
+b. **Challenge files stay the source of vuln metadata.** The `{ vuln, router }`
+   exports and `// VULN:` markers stay in the challenge files. An intentionally
+   empty router export must carry a comment pointing at the endpoint file.
+c. **Load through the aggregator only.** Endpoint files are loaded only
+   through the module's `index.js` aggregator, never mounted by `app.js`
+   directly.
+d. **Header names the served challenges.** Each endpoint file carries a
+   one-line header comment naming the challenges it serves.
+e. **New endpoint files need the same justification.** A new endpoint file
+   beyond the three reference examples needs the same justification
+   (multi-challenge endpoint or shadowed-route defect), recorded in the
+   file header.
+
 ## Seeded data you can use
 
 - `users`: admin/admin123 (role admin, secret = random `PENTRIX{...}` per

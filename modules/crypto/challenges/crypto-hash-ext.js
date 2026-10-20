@@ -40,7 +40,7 @@ router.get('/mac', (req, res) => {
     <form method="POST" action="/crypto/mac/verify">
       <div class="clay-field">
         <label for="msghex">Extended message (hex)</label>
-        <input class="clay-input" id="msghex" name="msghex" size="70" placeholder="hex of role=user || padding || ;admin=1" />
+        <input class="clay-input" id="msghex" name="msghex" size="70" placeholder="hex of your extended message" />
       </div>
       <div class="clay-field">
         <label for="mac">Forged MAC</label>
@@ -95,10 +95,11 @@ module.exports = {
     id: 'crypto-hash-ext',
     name: 'Hash Length Extension',
     difficulty: 'Hard',
+    est: '25-45 minutes',
     hint: 'SHA-256(secret || message) leaks its internal state in the digest. The secret is 16 bytes: rebuild the glue padding and continue the hash with ";admin=1".',
     hints: ["The MAC is SHA-256(secret || message). In Burp, proxy the sign request for role=user: the returned digest IS the leaked Merkle-Damgard internal state.", "Nudge: rebuild the glue padding yourself for 16 + len(message) bytes (0x80, zero bytes, then the total bit length as 64-bit big-endian). Burp Decoder will not do this step for you.", "Send the extended request in Repeater: restore the digest as your compression state, continue the hash with ;admin=1 in a tiny script, then submit the full message as hex plus the forged MAC to POST /crypto/mac/verify."],
     tools: 'BZ, P',
-    how: 'In Burp, capture the MAC for "role=user" from the sign endpoint. Rebuild the glue padding for the 16-byte secret, restore the digest as your SHA-256 compression state, continue the hash with ";admin=1" in a small script, and submit the full message as hex plus the forged MAC in Repeater to claim the flag.',
+    how: 'The MAC is a plain hash of secret-then-message. A Merkle-Damgard hash can be continued from its own output, if you can rebuild what sits in the middle.',
     link: '/crypto#crypto-hash-ext',
     start: 'In Burp Proxy, browse to /crypto/mac and submit the signing form with msg=role=user. Capture the response in Repeater, then build the forged request to POST /crypto/mac/verify there.',
   },

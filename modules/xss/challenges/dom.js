@@ -32,6 +32,7 @@ module.exports = {
     id: 'dom',
     name: 'DOM-based XSS',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The server never sees the fragment. JavaScript on the page copies location.hash into innerHTML. Craft the URL.',
     hints: [
       'The server never sees the URL fragment (everything after #). So where does the vulnerability live? Read the inline script in the page source of your proxied browser.',

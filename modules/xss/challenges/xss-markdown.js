@@ -57,6 +57,7 @@ module.exports = {
     id: 'xss-markdown',
     name: 'XSS via Naive Markdown Links',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The renderer turns [text](url) into a link but never checks the URL scheme. Links are not limited to http(s).',
     hints: [
       'Intercept the Render POST in Burp Proxy and send it to Repeater. The renderer turns [text](url) into a link: what URL schemes can a link carry?',

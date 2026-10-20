@@ -11,9 +11,10 @@ const vuln = {
   name: 'Vim Swap File Leak',
   difficulty: 'Easy',
   hint: 'Editors leave backup artifacts next to the files they edit. The running app is app.js; what would its swap file be called?',
-  hints: ["Vim swap files end in .swp. Proxy a request to the web root: the running app is app.js, so build the swap filename Vim would create for it.", "Send your filename guess through Burp Repeater. The .swp file has the recovered source with secrets: it's a backup the editor left behind.", "Vim builds the swap name by wrapping the edited filename: a leading dot, then the filename, then .swp. The app entry file here is app.js. Build that name, request it from the web root in Repeater, and read the recovered source for the embedded secret."],
+  hints: ["Vim swap files end in .swp. Proxy a request to the web root: the running app is app.js, so build the swap filename Vim would create for it.", "Send your filename guess through Burp Repeater. The .swp file has the recovered source with secrets: it's a backup the editor left behind.", "Shape: Vim builds the swap name by wrapping the edited filename: a leading dot, then the filename, then .swp. Build that name for the app entry file, request it from the web root in Repeater, and read the recovered source."],
   tools: 'BZ, C',
-  how: 'Fetch /misconfig/app.js.swp via Burp Repeater and read the recovered source for secrets.',
+  est: 'about 5 to 10 minutes',
+  how: 'An editor swap file left in the web root serves the recovered source of the file it was editing, secrets included.',
   link: '/misconfig/app.js.swp',
   start: 'In Burp: browse to /misconfig with Proxy on, then build the Vim swap filename for app.js in Repeater and read the recovered source.',
 };

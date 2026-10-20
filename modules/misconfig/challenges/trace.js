@@ -14,9 +14,10 @@ const vuln = {
   hint: 'TRACE echoes the request back to the sender. Browsers cannot send it, but Burp Repeater can: change the method verb to TRACE.',
   hints: ["The TRACE method echoes your request. Why is that dangerous?", "TRACE reflects headers, enabling XST (cross-site tracing) to steal HttpOnly cookies via XSS.", "From Burp Repeater, send a request using the TRACE method to the challenge's own endpoint (/misconfig/trace) and inspect the response: the server reflects your request back, which is exactly the primitive an attacker abuses to read HttpOnly cookies through XSS."],
   tools: 'BZ, C',
-  how: 'Send a TRACE request to /misconfig/trace from Burp Repeater and read the reflected request.',
+  est: 'about 5 to 10 minutes',
+  how: 'TRACE echoes the request back to the sender, headers and all, which breaks the assumption that some headers are unreadable.',
   link: '/misconfig/trace',
-  start: 'In Burp: send a request to /misconfig/trace in Repeater, change the method verb to TRACE, add a Cookie header, and read the reflection.',
+  start: 'In Burp: send a request to /misconfig/trace in Repeater and experiment with the method verb. Browsers refuse some verbs; Repeater does not.',
 };
 
 // GET /trace -> explainer page: browsers cannot send TRACE, but Burp Repeater

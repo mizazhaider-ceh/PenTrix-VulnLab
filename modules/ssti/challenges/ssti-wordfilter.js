@@ -2,7 +2,7 @@
 // template engine as /ssti/greet, but first deletes the words flag, secret and
 // config from the input. The flag lives in the in-scope variable vaultSecret.
 // (No 'use strict' here: the vulnerable renderer relies on `with`, which strict
-// mode forbids. This keeps behavior identical to modules/ssti/router.js.)
+// mode forbids. The module is assembled in modules/ssti/index.js.)
 const express = require('express');
 const { brief, esc, flagBox, fixPanel, hintBox, page } = require('../../../lib/page');
 const { award, flagFor } = require('../../../lib/flags');
@@ -65,12 +65,13 @@ module.exports = {
     id: 'ssti-wordfilter',
     name: 'Word Blacklist Bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The words flag, secret and config are deleted from your input. Build the blocked word at run time instead of typing it.',
     hints: ["Capture the form request in Burp Proxy and send it to Repeater. First prove the engine still evaluates templates: put a small arithmetic expression between {{ }} in the input parameter.", "The brief says the flag variable's name contains a blocked word. In Repeater, type the full variable name and watch the filter delete it in the response, then think about how to assemble that name at run time instead of typing it.", "Send the request to Intruder and fuzz ways to build the blocked word without typing it whole: split it into innocent fragments inside an evaluated string and join them at runtime, then try case tricks and encoding variants until the rendered note shows the flag."],
     tools: 'BZ, B',
     how: 'In Burp Repeater, wrap an expression in {{ }} that builds the filtered variable name at run time (concatenate harmless string fragments and evaluate the result), so the filter never sees the whole blocked word in the raw input.',
     link: '/ssti#ssti-wordfilter',
-    start: 'With Burp Proxy on, open /ssti/wordfilter in the browser, submit a note, and send the request to Repeater. Set the input parameter to {{7*7}} to prove the engine evaluates templates, then type the flag variable name and watch the filter strip it before it reaches the engine.',
+    start: 'With Burp Proxy on, open /ssti/wordfilter in the browser, submit a note, and send the request to Repeater. Prove the engine evaluates templates with a small arithmetic expression, then probe how the filter treats the words it blocks.',
   },
   router,
 };

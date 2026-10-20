@@ -51,7 +51,8 @@ router.get('/none', (req, res) => {
     It supports <code>alg=none</code> for "internal" unsigned tokens.</p>
     ${tokenForm('/jwt/none', `
       <p class="note">An unsigned token looks like this (header, payload, empty
-      signature): <code>${esc(sample)}</code>. Try changing the role.</p>`)}
+      signature): <code>${esc(sample)}</code>. Notice what it claims, and ask
+      yourself what, if anything, proves those claims.</p>`)}
     ${trackBanner({ id: 'jwt' })}
     <p><a href="/jwt">Back to the JWT module</a></p>
   `));
@@ -80,9 +81,10 @@ module.exports = {
     hint: 'The verifier trusts tokens with "alg": "none" and never checks a signature. What stops you from writing your own claims?',
     hints: ["The verifier trusts alg:none. Intercept the token submit in Burp Proxy and send the POST to Repeater so you can replay it fast.", "Use Burp Decoder (Smart decode) on the sample token to see the header and payload shape.", "Hand-craft an unsigned token: a base64 header claiming alg none, a base64 payload carrying admin claims, and an empty signature segment. Replay it from Repeater. The verifier never checks signatures, so your self-written claims are trusted."],
     tools: "BZ, N",
-    how: 'Craft an unsigned token (header, payload, empty signature) with role "admin" and replay the submit from Burp Repeater.',
+    est: 'about 5 to 10 minutes',
+    how: 'The verifier accepts the none algorithm, so a token can claim anything without a signature proving anything.',
     link: '/jwt#none-admin',
-    start: 'Browse to /jwt/none with Burp running. Intercept the token submit, send it to Repeater, and hand-craft the unsigned token by hand. Replay the POST from Repeater until the page welcomes you as admin.',
+    start: 'Browse to /jwt/none with Burp running. Intercept the token submit and send it to Repeater so you can replay and edit freely. Decode the sample token in Burp Decoder first to learn its shape.',
   },
   router,
 };

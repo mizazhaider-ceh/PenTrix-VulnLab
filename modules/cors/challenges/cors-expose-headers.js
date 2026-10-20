@@ -16,10 +16,11 @@ const vuln = {
   id: 'cors-expose-headers',
   name: 'Exposed Admin Token Header',
   difficulty: 'Easy',
-  hint: 'The response carries X-Admin-Token and the endpoint lists it in Access-Control-Expose-Headers.',
+  est: '5-10 minutes',
+  hint: 'The response carries a sensitive token header. Whether a script on another origin may read it depends on a second response header: find both in Repeater.',
   hints: ["Replay /cors/api/token in Burp Repeater and read the response headers. Can a script on another origin read those headers?", "Only if a header is named in Access-Control-Expose-Headers. Check whether the response names one.", "The browser trusts that whitelist, so a page on an attacker origin can read the whitelisted header with fetch. Run the proof through /cors/prove and take the flag."],
   tools: "BZ, B",
-  how: 'Confirm /cors/api/token answers any Origin with Access-Control-Allow-Origin: * and lists X-Admin-Token in Access-Control-Expose-Headers, then prove it in the browser at /cors/prove?vuln=cors-expose-headers&origin=https://evil.com.',
+  how: 'A sensitive response header rides on this endpoint. The real question is whether cross-origin scripts are allowed to read it.',
   link: '/cors#cors-expose-headers',
   start: 'Open /cors/expose through the Burp proxy browser, click "Check session status" to capture the session API request, then send it to Repeater and replay it with an attacker Origin to read the response headers.',
 };

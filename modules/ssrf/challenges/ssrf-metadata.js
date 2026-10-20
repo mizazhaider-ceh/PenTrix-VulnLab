@@ -12,6 +12,7 @@ const vuln = {
   id: 'ssrf-metadata',
   name: 'Cloud metadata SSRF',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'Cloud VMs expose instance credentials at a link-local address the fetcher does not block.',
   hints: ["Open the FetchKit page in your browser through Burp Proxy, submit one fetch, then send that request to Repeater. Cloud VMs expose a metadata service at a special link-local IP.", "In Repeater, try the link-local metadata address as the url value. The metadata service serves IAM credentials to the instance.", "First fetch the credentials listing path on the metadata service in Repeater, then fetch the credential name it lists to read the secret material."],
   tools: 'BZ, C',
@@ -50,7 +51,7 @@ router.get('/fetch-meta', async (req, res) => {
       kicker: 'URL fetch debugger',
       crumb: 'URL debugger',
       briefHtml: 'FetchKit Debug fetches any URL server side and shows the raw response body, so you can inspect what an endpoint returns before calling it from your own code.',
-      placeholder: 'http://169.254.169.254/latest/meta-data/',
+      placeholder: 'http://example.com/',
     }));
   }
   try {

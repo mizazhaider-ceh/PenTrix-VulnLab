@@ -39,7 +39,8 @@ value the client fully controls. Behind proxies, the equivalent headers are
 <p><b>The labs below:</b> poison a password-reset email so the victim's token
 goes to your collector, poison a path-keyed cache, drive a server-side fetch at
 a loopback-only internal agent, and bend an absolute login URL to your domain.</p>
-<p><b>How to attack:</b> <code>curl -H "Host: evil.com" ...</code> The in-lab
+<p><b>How to attack:</b> work in Burp Repeater, where the <code>Host</code>
+header and its proxy variants are yours to rewrite before sending. The in-lab
 attacker collector is <code>/hostheader/evil-collect?token=...</code>. A flag is
 awarded only when the poisoned value genuinely flows through the vulnerable
 code path.</p>`;

@@ -85,6 +85,7 @@ module.exports = {
     id: 'order-by',
     name: 'ORDER BY Injection',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The sort parameter goes straight into ORDER BY. ORDER BY accepts full expressions, including CASE WHEN with a subquery. This challenge\'s secret is exposed to your SQL as sqli_target(): watch the row order flip as your condition changes, extract the secret, then submit it.',
     hints: ["Open /sqli/sort through Burp Proxy, submit the form, and send the request to Repeater. The sort parameter changes the product order. ORDER BY does not just take column names. What else can go there?", "In Repeater, try a sort expression whose result depends on a true or false condition. ORDER BY accepts full expressions, including CASE WHEN with a subquery: pick one column when the condition is true, another when false. The row order becomes your oracle, and sqli_target() is the value to interrogate.", "Use Repeater to test one guess, then hand the guesses to Burp Intruder and watch the row order flip as you sweep candidates. Each flip answers yes or no, so the table reads this challenge's secret out one position at a time. Submit the full secret in the form below the table."],
     tools: "BZ, B, C",

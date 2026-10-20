@@ -15,9 +15,9 @@ const vuln = {
   hints: ["The allowlist is the regex ^https://.*pentrix\\.lab. In Burp Repeater, request /cors/api/data with an Origin header and watch which origins come back echoed.", "No subdomain boundary and no end anchor: the check matches strings, not domain boundaries. Stay in Repeater and edit the Origin header by hand for each candidate; a handful of edits beats setting up Intruder Sniper for this one.", "An origin that merely contains the expected string instead of sitting under it passes. The endpoint echoes whatever you send, and the reflected winner earns the flag."],
   tools: "BZ, B",
   est: 'about 10 minutes',
-  how: 'Burp Repeater: GET /cors/api/data and fuzz the Origin header (Intruder Sniper with a list of origins). Origin https://pentrix.lab.evil.com passes the regex and is reflected with credentials; or prove via /cors/prove?vuln=cors-regex&origin=https://pentrix.lab.evil.com',
+  how: 'The allowlist is a pattern, not a boundary. Find an origin that satisfies the pattern while actually belonging to someone else.',
   link: '/cors#cors-regex',
-  start: 'Burp: send GET /cors/api/data to Repeater, mark the Origin header value in Intruder (Sniper), and fuzz it with origins like https://evil.com, https://pentrix.lab, and https://pentrix.lab.evil.com.',
+  start: 'Burp: send GET /cors/api/data to Repeater and edit the Origin header by hand for each candidate. Some origins should fail the pattern; one should pass it for the wrong reason.',
 };
 
 // GET /cors/api/data -> weekly security metrics. The CORS check is a naive

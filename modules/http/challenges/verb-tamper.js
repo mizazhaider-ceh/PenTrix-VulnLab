@@ -23,12 +23,13 @@ const vuln = {
   id: 'verb-tamper',
   name: 'Verb Tampering',
   difficulty: 'Easy',
-  hint: 'The docs say POST-only. Try the exact same request as a GET.',
-  hints: ["The docs say POST-only. Intercept a feedback submission in Burp Proxy and look at the request.", "In Burp Repeater, take the intercepted request, change the method to GET, and move the msg parameter into the URL query string.", "The GET route is wired to the same submit handler as POST. Replay the submission over GET, moving the form's parameter into the URL query, and the feedback is recorded without any POST at all."],
+  hint: 'The docs say POST-only. Is the verb actually enforced, or only documented?',
+  hints: ["The docs say POST-only. Intercept a feedback submission in Burp Proxy and study the request: what makes it a submission?", "In Burp Repeater, replay the same submission with a different HTTP method. Whatever the form sent in the body has to travel the way the new method carries parameters.", "Shape: the same submission, replayed with a method the docs forbid, parameters carried in the URL instead of the body. If the feedback is still recorded, the verb was documented, never enforced."],
   tools: 'BZ, B, C',
-  how: 'Replay the feedback submission over GET (move msg into the URL query) instead of POST.',
+  est: 'about 5 to 10 minutes',
+  how: 'A state-changing endpoint documents one HTTP method but quietly accepts another, so the action can also fire from a plain link.',
   link: '/http#verb-tamper',
-  start: 'Send your browser through Burp Proxy. 1) Open /http/feedback and submit the form, intercepting the POST. 2) Send the intercepted request to Repeater, change the method to GET, and move the msg parameter into the URL query string. 3) Send it and read the response.',
+  start: 'Send your browser through Burp Proxy. 1) Open /http/feedback and submit the form, intercepting the request. 2) Send the intercepted request to Repeater and experiment with replaying the submission in a different way than the form did. 3) Send it and check whether the state change happened anyway.',
 };
 
 function feedbackSubmit(req, res) {

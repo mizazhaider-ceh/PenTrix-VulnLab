@@ -12,6 +12,7 @@ const vuln = {
   id: 'cmdi-backtick',
   name: 'Ping Gadget v6 ($() blocked)',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'The filter removes $(, killing the modern command-substitution syntax. The shell has an older syntax that does the same job. Probe the host parameter in Repeater to see which forms survive the filter.',
   hints: [
     "In Repeater, send a request carrying a $( substitution attempt and read the page to see what the filter removed. Then ask: which older substitution syntax does this filter never mention?",

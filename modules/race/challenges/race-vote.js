@@ -19,7 +19,7 @@ const vuln = {
   hints: ["Votes check for duplicate names, but the check and the insert are not atomic. Capture the vote POST in Burp Proxy and send it to Repeater.", "Repeater can fire a whole group at once: duplicate the vote tab, select both tabs, and choose Send group in parallel so both votes for the same name land at the same instant. Community Intruder is throttled and would serialize the votes, so it cannot win this race.", "Watch the results table: more than one vote for one name proves the duplicate check lost the race."],
   tools: 'BZ, C',
   est: 'about 10 minutes',
-  how: 'Send two votes for the same name at the same instant through Repeater (duplicate the tab, then Send group in parallel) so both pass the duplicate check.',
+  how: 'One vote per name is enforced by a lookup before the insert, so two votes arriving together can both find nothing recorded yet.',
   link: '/race#race-vote',
   start: 'Burp Proxy: capture a vote POST for name=voter1, send it to Repeater (Ctrl+R), duplicate the tab, then Send group in parallel.',
 };

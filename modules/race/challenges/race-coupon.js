@@ -17,7 +17,7 @@ const vuln = {
   hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. The race tool in Burp Repeater is Send group in parallel: duplicate the request tab and fire the whole group at once. Community Intruder is throttled and cannot reliably land the burst inside the gap, so do not reach for it here.", "Send the redeem request to Repeater (Ctrl+R), duplicate the tab 20 times, select all the tabs and choose Send group in parallel. Count how many responses say redeemed: more than one success means the coupon was double-spent."],
   tools: 'BZ, P, C',
   est: 'about 10 minutes',
-  how: 'Send POST /race/coupon/redeem to Repeater, duplicate the tab, and fire the group in parallel (Send group in parallel) so the one-use coupon is redeemed more than once.',
+  how: 'A single-use coupon is only marked used after a redeem completes, so the "unused" answer the check relies on can be true for many requests at once.',
   link: '/race#race-coupon',
   start: 'Redeem the coupon once in the browser with Burp proxying, send POST /race/coupon/redeem to Repeater (Ctrl+R), duplicate the tab 20 times, then Send group in parallel.',
 };

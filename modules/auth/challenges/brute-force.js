@@ -12,14 +12,15 @@ const vuln = {
   id: 'brute-force',
   name: 'No Rate Limiting (Brute-Force Login)',
   difficulty: 'Medium',
-  hint: 'There is no rate limiting, no lockout, and no CAPTCHA. Alice\'s password is very weak. Intercept the login POST in Burp Proxy and run an Intruder sniper attack over a small password wordlist; the flag lands when you finally log in as alice after 5+ failed attempts in the same session.',
+  est: '10-20 minutes',
+  hint: 'There is no rate limiting, no lockout, and no CAPTCHA. Alice\'s password is very weak. Intercept the login POST in Burp Proxy and run an Intruder sniper attack over a small password wordlist, keeping one session cookie across the whole run.',
   hints: [
     "The login has no rate limit, no lockout, and no CAPTCHA. Which Burp tool was built exactly for this job?",
     "Send the login POST to Intruder and put a sniper payload marker on the password field, then load a small weak-password wordlist.",
-    "Keep one session cookie across every attempt (the failed sign-in counter is per browser session). Make sure at least 5 attempts fail before the right password hits.",
+    "Keep one session cookie across every attempt (the failed sign-in counter is per browser session), and let a run of attempts fail in that same session before the right password hits.",
   ],
   tools: 'BZ, B',
-  how: 'Brute-force alice\'s weak password, for example with an Intruder sniper attack on the password field over a password wordlist; the flag is awarded once you log in as alice after 5+ failed attempts in the same session.',
+  how: 'An unprotected login plus a weak password: guess at machine speed with Burp Intruder until alice\'s account lets you in.',
   link: '/auth/login',
   start: 'Browse to /auth/login with Burp Proxy intercepting, submit the form once, then send the login POST to Intruder and set up a sniper attack on the password field.',
 };

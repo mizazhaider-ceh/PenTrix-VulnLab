@@ -220,3 +220,141 @@ docs/audit/SUPERVISION_REPORT.md). Standing rules adopted from that wave:
    Community can actually do (D17); brute-force spaces must be walkable in
    minutes with Community Intruder, and claimed timings must be measured,
    not asserted.
+
+
+## D20. Page-token beacons: the accepted bar, and what counts as execution proof (2026-10-20)
+
+Decision (2026-10-20): the XOR-share page token in lib/jstoken.js is
+accepted at the bar stated in its header, no higher. The bar is: the raw
+token never appears in served HTML or feed bodies; a verbatim scraped
+share, a guessed token, and a bare beacon with no page or feed load are
+rejected; tokens stay per-session, per-vuln and single-use, as enforced by
+the modules' nonce stores. Accepted residual, verified live on
+2026-10-20 against xss reflected, csti basic and jsonp callback-xss: a
+client that fetches the page or feed with a valid session and recomputes
+the token from the two served shares outside any JavaScript execution (the
+supervision reviewer's Python recombine, reproduced by stream P1D before
+and after this decision) produces a beacon the server accepts. That is
+not a defect against the stated bar and must not be described, in code
+comments, docs, hints or solutions, as proof that JavaScript executed in
+a page. Standing rules:
+
+1. Any deterministic computation the browser performs from served material
+   can be emulated off-browser, in any language, by anyone who can fetch
+   that material. Obfuscating, re-encoding, encrypting with a served key,
+   splitting into more shares, or moving part of the same computation
+   behind another served endpoint raises the reimplementation effort only
+   and is theatre if presented as an execution bar. Do not ship it as a
+   fix for this residual.
+2. Execution proof for a future challenge requires one of: (a) the
+   victim-bound model, where the award secret never leaves the server for
+   the claimant and the award flows through a server-driven victim context
+   (the stored and upload model), or (b) evidence the server can verify
+   independently of any value derivable from served material, or (c) a
+   platform attestation mechanism, adopted deliberately and documented
+   with its browser and simulator costs. All three are module or app level
+   changes; none can be delivered inside a token formatting helper.
+3. Raising a specific page-token challenge above this bar means
+   redesigning that challenge under rule 2, scoped and tested as its own
+   change, with adversarial negatives for the Python recombine attack.
+   Until such a redesign is approved, the recombine residual stays open
+   and documented here and in lib/jstoken.js.
+
+Alternatives considered:
+
+- Per-page-load rotating material (fresh shares, longer tokens, more
+  shares, alternative encodings, Shamir style splits with all shares
+  served): rejected as theatre. tokenShares already re-randomises the
+  shares on every call; the recombine attacker fetches the same fresh page
+  in the same session and applies the same inverse. Rotation of the
+  underlying nonce belongs to the modules, and would not change this
+  either: the fresh token is still fully determined by the fresh served
+  shares.
+- Split delivery, where part of the material arrives only via a separate
+  script endpoint, fetch call, or second channel: rejected, and also not
+  contained in lib/jstoken.js (it needs a new route and consumer changes).
+  The endpoint is reachable with the same freely issued session cookie, so
+  the attacker makes two requests instead of one and recomputes as before.
+  Any header or fetch-metadata check on such an endpoint is set by the
+  client and can be copied by the same client, and the check would live in
+  the endpoint, not the helper.
+- Page-context evidence on the beacon (DOM state, browser properties,
+  timing, fingerprints, interaction flags): rejected, and not contained
+  in lib/jstoken.js (beacon validation lives in the module routers, which
+  this helper never sees; the helper receives only a token string and
+  returns strings). Every such value is either served to the attacker,
+  chosen by the attacker and merely echoed, or unverifiable by the server
+  independently. It would also break legitimate contexts the lab supports:
+  payloads executing on an attacker page (JSONP), in an isolated SVG
+  document, and in the Node vm browser simulator used by the test suite.
+- Proof of work or deliberate slowdowns on recombination: rejected. It
+  taxes the honest browser and the emulator equally, proves nothing about
+  where the computation ran, and its enforcement would again live in the
+  modules, not the helper.
+- Non-extractable WebCrypto keys or browser attestation as the helper's
+  mechanism: rejected for this scope. There is no key enrollment or
+  verification endpoint for the server to trust, the mechanism is
+  unavailable in the vm simulator, the SVG document and the cross-origin
+  JSONP contexts, and adopting it is an app level platform decision, not
+  a helper change.
+- Converting the affected challenges (xss reflected, csti basic and the
+  other page-token labs, jsonp callback-xss and its siblings) to the
+  victim-bound model: not rejected on merit; it is the one direction that
+  genuinely removes the residual. It is deferred as a product decision
+  because it changes what those challenges teach and how they are solved
+  (several are deliberately same-page, self-execution labs where there is
+  no distinct victim), and it requires per-challenge redesign in the
+  module files, outside the lib/jstoken.js scope of this evaluation.
+
+Rationale: the helper's API is a pure, stateless transform: a token string
+in, share arrays and combine expressions out. It holds no server secret
+beyond the token it is asked to split (and that token is, by construction,
+fully encoded in the served shares), keeps no issuance record, registers
+no endpoint, and never sees a beacon request. Information-theoretically,
+no change inside that boundary can distinguish a token recomputed in
+Python from one recomputed by the page's own script, because the beacon
+endpoint receives the identical value either way. The honest options are
+therefore exactly two: state the bar precisely and accept the residual, or
+redesign the challenge at module level under rule 2. This decision takes
+the first option and keeps the second available per challenge. The
+verbatim-scrape cheat that motivated the shares stays dead, and
+victim-bound challenges are unaffected. Honesty about what acceptance
+means: for the sampled challenges the recombine path needed no payload
+and no in-page execution at all. The Python reproduction loaded the plain
+challenge page or feed, recomputed the token, and submitted it with the
+documented beacon parameters (for csti basic, the taught result value),
+and the award followed. So for page-token challenges the token is, in
+practice, the server-side award gate, and this decision accepts that a
+determined student who reimplements the served computation can pass that
+gate without the intended in-page step. Anything stricter requires
+rule 2.
+
+## Evidence recorded by stream P1D (2026-10-20)
+
+- Consumers pinned: lib/jstoken.js exports tokenShares, tokenScriptParts,
+  tokenShareParams, combineHexShares, COMBINE_FROM_SEARCH_JS,
+  COMBINE_HEX_JS, djb2Hex and DJB2_JS. Consumers are modules/xss/shared.js
+  and modules/xss/challenges/xss-svg-upload.js, modules/csti (basic,
+  filter-bypass, constructor, attr, stored, and index.js for djb2Hex),
+  modules/jsonp/shared.js, modules/jsonp/challenges/array-hijack.js and
+  modules/jsonp/challenges/csrf-data.js, and modules/postmsg/shared.js and
+  modules/postmsg/challenges/wildcard.js. No consumer passes a request,
+  session, or validator into the helper.
+- Existing negative tests cover only the verbatim bar: tests/xss.test.js
+  ("collector: scraped shares cannot forge a beacon token"),
+  tests/csti.test.js (basic: scraped share arrays are not usable as the
+  token) and tests/jsonp.test.js (callback-xss: scraped shares earn
+  nothing). None previously asserted anything about recombined tokens.
+- Reproduction, before the header correction: lab booted on
+  PORT=19604 with a throwaway database; a Python script using only
+  urllib (no JavaScript anywhere) fetched each page or feed, XORed the
+  two served shares in Python, and submitted the forged beacon.
+  xss reflected: HTTP 200, captured true. csti basic: HTTP 200, captured
+  true. jsonp callback-xss: HTTP 200. After the header correction (a
+  comment-only change, behaviour intentionally unchanged) the identical
+  script returned the identical results; see the stream report.
+- lib/jstoken.js header (and the djb2Hex comment) corrected in the working
+  tree to state the bar above precisely, including removing the earlier
+  wording that the value "has to be produced by executing the page's
+  script" and that the djb2 proof is one "only code executing in the page
+  can produce".

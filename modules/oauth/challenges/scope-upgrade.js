@@ -18,9 +18,10 @@ const vuln = {
   name: 'Scope Tampering',
   difficulty: 'Easy',
   hint: 'The authorize request takes a scope parameter and the IdP never checks whether your role allows it. Ask for a scope that exceeds your own privileges.',
-  hints: ["In Burp's browser, log in as bob and authorize pentrix-spa once normally. In Proxy history, look at the authorize request: the scope is whatever was asked for, and nothing about the request proves your role.", "Send the token exchange request to Repeater and read the token response: the IdP issues the token with the requested scope, no entitlement check anywhere.", "Back in the browser, edit the scope parameter of the authorize request to a privilege level you were never assigned, approve it, exchange the code in Repeater, then present the resulting token to the admin-only endpoint from Repeater."],
+  hints: ["In Burp's browser, log in as bob and authorize pentrix-spa once normally. In Proxy history, look at the authorize request: the scope is whatever was asked for, and nothing about the request proves your role.", "Send the token exchange request to Repeater and read the token response: the IdP issues the token with the requested scope, no entitlement check anywhere.", "Shape: an authorize request whose scope names a privilege you were never assigned, approved as usual and exchanged as usual, then presented where that privilege is required. At no point does anyone ask whether the scope was yours to request."],
   tools: 'BZ, B, C',
-  how: 'In Burp, authorize as bob while requesting a scope you were never granted, exchange the code in Repeater, then call the admin-only endpoint with the admin-scoped token.',
+  est: 'about 5 to 10 minutes',
+  how: 'The IdP issues whatever scope the request asks for, so the request itself is the privilege escalation.',
   link: '/oauth#scope-upgrade',
   start: 'With Burp Proxy on, log in to the IdP as bob in the browser, authorize pentrix-spa once normally, and send the authorize request from Proxy history to Repeater.',
 };
@@ -63,13 +64,14 @@ router.get('/scope-upgrade', (req, res) => {
         <li>Log in to the IdP as
           <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/bob">bob</a>
           (a plain user).</li>
-        <li><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(href)}">Authorize with scope=admin</a>
-          and approve the request, then copy the code from the redirect target.</li>
+        <li>Approve the request, then copy the code from the redirect target.</li>
         <li>Exchange the code at <code>POST /oauth/idp/token</code> with
           <code>client_id=pentrix-spa</code> (a public client, no secret needed).</li>
         <li>Call <code>GET /oauth/idp/admin-data?access_token=...</code>.</li>
       </ol>
-      ${payloadBlock('Authorize with scope=admin', 'http://<your-lab-address>' + href)}
+      <p><a class="clay-btn clay-btn-primary" href="${esc(href)}">Authorize with scope=admin</a></p>
+      <p class="dim">Approve with the button above, then copy the code from the redirect target.</p>
+      ${payloadBlock('Authorize URL shape', '/oauth/idp/authorize?client_id=pentrix-spa&redirect_uri=<registered callback>&response_type=code&scope=<the scope you ask for>')}
       ${payloadBlock('Burp Repeater (token exchange)', `POST /oauth/idp/token HTTP/1.1
 Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded

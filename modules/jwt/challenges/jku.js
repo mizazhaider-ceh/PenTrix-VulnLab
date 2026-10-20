@@ -52,10 +52,10 @@ router.get('/jku', (req, res) => {
       Set, and verifies the token with the published key. No allowlist.</p>
     </div>
     ${tokenForm('/jwt/jku', `
-      <p class="note">Run your own key server at
-      <a href="/jwt/attacker-keys">/jwt/attacker-keys</a>, register a kid and
-      secret, then point <code>jku</code> at e.g.
-      <code>${esc(jkuUrl)}</code> and sign an admin token with your secret.</p>`)}
+      <p class="note">You can run your own key server at
+      <a href="/jwt/attacker-keys">/jwt/attacker-keys</a> and register a kid and
+      secret there. Think about what a token would have to say to send this
+      verifier to your server instead of the real one.</p>`)}
     <p><a href="/jwt">Back to the JWT module</a></p>
   `));
 });
@@ -97,11 +97,12 @@ module.exports = {
     name: 'Untrusted jku Key Server',
     difficulty: 'Hard',
     hint: 'The server fetches whatever URL the jku header names and trusts the keys it finds. You run a key server in this lab.',
-    hints: ["The jku header is a URL. Who controls that URL? Think about which requests you can watch in the Proxy tab.", "In Repeater or your proxied browser, register a kid and secret at /jwt/attacker-keys, then make the server fetch the JWKS you published.", "Sign the token with the same secret you published (HS256), set jku and kid in the token header, and POST the token to /jwt/jku from Repeater."],
+    hints: ["The jku header is a URL. Who controls that URL? Think about which requests you can watch in the Proxy tab.", "This lab gives you a key server of your own at /jwt/attacker-keys. Publish a key there and think about how a token could send the verifier to fetch it.", "Shape: a key published under a kid of your choosing on a server you control, plus a token whose header names that location and that kid, signed to match what you published. The server fetches the keys itself; watch Proxy for its request."],
     tools: "BZ, N, C",
-    how: 'Register a kid and secret on the in-lab attacker key server (Proxy or Repeater), point the token\'s jku header at your published JWKS URL, and sign the token as admin. POST it to /jwt/jku in Repeater.',
+    est: 'about 20 to 35 minutes',
+    how: 'The verifier downloads its verification keys from a URL named inside the token itself, and never asks whether that URL belongs to the real issuer.',
     link: '/jwt#jku',
-    start: 'In Burp, route the lab traffic through Proxy and browse to /jwt/attacker-keys. Publish a kid and HMAC secret there, then craft a token whose header carries your jku URL and kid and whose body claims role "admin", signed with your secret. In Repeater, POST the token to /jwt/jku.',
+    start: 'In Burp, route the lab traffic through Proxy and browse to /jwt/attacker-keys to see the in-lab key server. Publish a key there, then send the token submit for /jwt/jku to Repeater and work from there.',
   },
   router,
 };

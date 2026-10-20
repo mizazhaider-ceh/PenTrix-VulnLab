@@ -16,9 +16,10 @@ const vuln = {
   name: 'Query-String Pollution',
   difficulty: 'Medium',
   hint: 'The merge endpoint folds every query parameter into the app config with no key checks. Think about which parameter name could reach the shared prototype.',
-  hints: ["Proxy /proto/query in Burp and look at the raw query string the browser sends. The merge folds every parameter into the app config. Which parameter name could climb from a normal key to the shared prototype?", "Replay the merge in Repeater with that prototype-climbing parameter name, setting the role the admin check tests. The 'Keys merged this request' line confirms the merge ran.", "Reload the admin check in the proxied browser: a fresh {} now reads the polluted role."],
+  hints: ["Proxy /proto/query in Burp and look at the raw query string the browser sends. The merge folds every parameter into the app config. Which parameter name could climb from a normal key to the shared prototype?", "Replay the merge in Repeater with that prototype-climbing parameter name, setting the role the admin check tests. The 'Keys merged this request' line confirms the merge ran.", "Shape: one bracketed parameter whose first segment is the prototype accessor, nesting the property the admin check reads, set to the value it expects. Then reload the admin check in the proxied browser and watch a fresh {} inherit it."],
   tools: "BZ, B",
-  how: 'Pollute Object.prototype.role through the query-string merge, then verify it with the admin check.',
+  est: 'about 10 to 20 minutes',
+  how: 'A config console that deep-merges bracketed query parameters trusts every key it sees, including the keys that lead out of the object and into the shared prototype behind it.',
   link: '/proto#proto-query',
   start: 'Set Burp as your browser proxy and open /proto/query in the browser. Type the query string that climbs from a normal key to the shared prototype into the merge field and click Merge, then open /proto/query/admin and reload it.',
 };
@@ -41,11 +42,11 @@ router.get('/query', (req, res) => {
       <p>This console runs your raw query string through a nested parser and
       deep-merges the result into the global config. The merge trusts every key it sees.</p>
       <p><b>Try it:</b>
-        <a href="/proto/query?__proto__[role]=admin"><code>?__proto__[role]=admin</code></a>
+        <a href="/proto/query?display[theme]=dark"><code>?display[theme]=dark</code></a>
       </p>
       <form onsubmit="location='/proto/query?'+document.getElementById('qs').value; return false;">
         <label class="clay-field" for="qs">Query string</label>
-        <input class="clay-input" id="qs" size="55" placeholder="__proto__[role]=admin" />
+        <input class="clay-input" id="qs" size="55" placeholder="display[theme]=dark" />
         <button class="clay-btn clay-btn-primary" type="submit">Merge</button>
       </form>
       <p>Keys merged this request: <code>${esc(Object.keys(data).join(', ') || '(none)')}</code></p>
@@ -54,7 +55,7 @@ router.get('/query', (req, res) => {
       <code>user.role === 'admin'</code>.</p>
       <p><a class="clay-btn clay-btn-secondary" href="/proto/query/admin">Open admin check</a></p>
     `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > Merge console' })}
-    ${payloadBlock('Burp Repeater', 'GET /proto/query?__proto__[role]=admin HTTP/1.1\nHost: <your-lab-address>\n\nGET /proto/query/admin HTTP/1.1\nHost: <your-lab-address>\n')}
+    ${payloadBlock('Request shape', 'GET /proto/query?<prototype-key>[<property-the-admin-check-reads>]=<expected-value> HTTP/1.1\nHost: <your-lab-address>\n\nGET /proto/query/admin HTTP/1.1\nHost: <your-lab-address>\n')}
     ${hintLadder(vuln)}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
   `));

@@ -171,10 +171,17 @@ test('hostheader module', async (t) => {
     const coll = await c.get('/hostheader/evil-collect?token=' + token);
     assert.ok(coll.text.includes(flagOf('host-xforwarded')), 'X-Forwarded-Host poisoning must award');
 
-    const overridePage = await c.post('/hostheader/forgot-xfwd', { email: 'bob@pentrix.lab' }, { 'x-host-override': 'evil.org' });
+    // P1A: the capture banner renders exactly once per capture per
+    // session, and client c already captured this flag via the
+    // X-Forwarded-Host collect above, so a repeat collect in c cannot
+    // prove the Override variant awards. The variant gets its own
+    // session, where its first capture must show the flag.
+    const c2 = client(srv.base);
+    const overridePage = await c2.post('/hostheader/forgot-xfwd', { email: 'bob@pentrix.lab' }, { 'x-host-override': 'evil.org' });
     const overrideToken = pullToken(overridePage.text);
-    const overrideColl = await c.get('/hostheader/evil-collect?token=' + overrideToken);
+    const overrideColl = await c2.get('/hostheader/evil-collect?token=' + overrideToken);
     assert.ok(overrideColl.text.includes(flagOf('host-xforwarded')), 'X-Host-Override poisoning must award');
+    assert.ok((await capturedSet(c2)).includes('hostheader:Forwarded-Host Header Poisoning'));
   });
 
   await t.test('host-abs-url: login under a poisoned Host earns the flag via the 302', async () => {

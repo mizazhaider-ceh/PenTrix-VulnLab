@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { appShell, esc, fixPanel, flagBox, page } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
+const { trackStoredUpload } = require('../shared');
 const crypto = require('crypto');
 
 const router = express.Router();
@@ -47,6 +48,13 @@ router.post('/traverse', (req, res) => {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, req.body);
   const outside = !target.startsWith(UPLOADS_DIR + path.sep);
+  // Per-session quota (shared.js) covers only files stored directly in
+  // the uploads root, exactly the old sweep's scope. Escaped files land
+  // outside that root and stay outside quota accounting, so a prove
+  // read-back can never be quota-evicted by anyone's uploads.
+  if (!outside && path.dirname(target) === UPLOADS_DIR) {
+    trackStoredUpload(req, path.basename(target));
+  }
   // Writing outside arms the proof only; the flag fires when the escaped
   // file is read back through GET /upload/traverse-prove, proving the write
   // really landed outside the dropbox folder.
@@ -126,6 +134,7 @@ module.exports = {
     id: 'upload-traversal',
     name: 'Path traversal on write',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'v7 joins your filename to the uploads dir with no basename or containment check. Where does "../pwn.txt" resolve?',
     hints: [
       'Proxy a plain upload in Burp. The filename is joined straight to the uploads dir: do you see any basename check?',
@@ -135,7 +144,7 @@ module.exports = {
     tools: 'BZ, C',
     how: 'In Burp Repeater, POST to /upload/traverse with a filename containing ../ segments so the file lands outside the uploads dir. Then GET /upload/traverse-prove?f= with the same name: the flag fires only when the escaped file is read back byte-identical, proving the write really escaped.',
     link: '/upload#upload-traversal',
-    start: 'In Burp Repeater, POST to /upload/traverse?filename=../pwn.txt with the file bytes as the raw body, then send a GET to /upload/traverse-prove?f=../pwn.txt and read the result.',
+    start: 'In Burp Repeater, POST to the traverse endpoint with a filename that tries to climb out of the uploads folder, then read the file back through the traverse-prove endpoint using the same name.',
   },
   router,
 };

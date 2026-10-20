@@ -9,7 +9,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { appShell, esc, page, payloadBlock } = require('../../../lib/page');
-const { issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
+const { issueBeaconToken, recordPendingUpload, beaconSnippet, trackStoredUpload } = require('../shared');
 
 const router = express.Router();
 
@@ -81,6 +81,7 @@ router.post('/ext-blacklist', (req, res) => {
       ${backBtn()}</div>`));
   }
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
+  trackStoredUpload(req, clean);
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   // Storing proves nothing on its own: each bypass only arms its own
   // challenge's beacon. The matching flag fires later, when the stored file
@@ -139,6 +140,7 @@ module.exports = {
     id: 'upload-double-ext',
     name: 'Extension blacklist bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The filter blocks .svg/.html by exact final extension only, and the viewer guesses the content type from the full filename. What does path.extname("shell.svg.jpg") return? Think about which name the blacklist check sees versus which name the viewer serves. Storing is not enough: the flag fires only when the served file\'s script phones home through the beacon snippet.',
     hints: [
       "Send the upload POST to Repeater and change only the ?filename= value. What does path.extname('shell.svg.jpg') return?",

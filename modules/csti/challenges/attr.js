@@ -17,6 +17,7 @@ const vuln = {
   id: 'attr',
   name: 'CSTI Inside an HTML Attribute',
   difficulty: 'Medium',
+    est: '10-15 minutes',
   hint: 'The server entity-encodes your text into the value attribute, but the browser decodes it with getAttribute before the engine evaluates it. Encoding does not stop client-side evaluation.',
   hints: [
     "The template sits inside an HTML attribute. Watch the badge text POST in Burp Proxy: the response shows how the server encodes the value attribute.",
@@ -24,7 +25,7 @@ const vuln = {
     "Reload the page in the browser after saving. If the badge renders the arithmetic result, check Proxy history for the beacon the page fires automatically.",
   ],
   tools: 'BZ, B, DT',
-  how: 'Save {{7*7}} as the badge text through Burp Proxy or Repeater; on page reload the browser decodes the attribute value and the client-side engine renders 49, firing the beacon with the page token.',
+  how: 'Save a template expression as the badge text through Burp Proxy or Repeater. The server encodes it into an attribute; watch what the browser does with that encoding before the engine evaluates it.',
   link: '/csti#attr',
   start: 'Start Burp Proxy with your browser pointed at /csti/attr. Intercept the Save badge text POST, experiment with the tpl value in Repeater, save it, then reload the page in the browser and watch the beacon fire in Proxy history.',
 };

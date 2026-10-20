@@ -23,13 +23,12 @@ router.get('/code-leak', (req, res) => {
       so the log is not empty. Find her code, then spend it yourself.</p>`, 'Lab 2: Code leaked in the server log')}
     <div class="clay-card">
       <h3>Steal the code</h3>
-      <ol>
-        <li><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/idp/log">Open the IdP server log</a>
-        and find the code from alice's recent login. Look for the line with
-        <code>authorize user_id=</code> and a <code>?code=</code> at the end.</li>
-        <li>Exchange it at <code>POST /oauth/idp/token</code> with
-        <code>client_id=pentrix-spa</code> (a public client, so no secret is needed).</li>
-      </ol>
+      <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/idp/log">Open the IdP server log</a>
+      and study what an authorize line records. Find one that belongs to another
+      user, then think about what the token endpoint at
+      <code>POST /oauth/idp/token</code> would need to see to hand you a token
+      for it. A public client such as <code>pentrix-spa</code> needs no secret
+      at the token endpoint.</p>
       ${payloadBlock('Burp Repeater', 'POST /oauth/idp/token HTTP/1.1\nHost: <your-lab-address>\nContent-Type: application/x-www-form-urlencoded\nCookie: <your-session-cookie>\n\nclient_id=pentrix-spa&code=<code-from-the-log>')}
     </div>
     <div class="clay-card">
@@ -50,11 +49,12 @@ module.exports = {
     name: 'Authorization Code Leaked in Server Log',
     difficulty: 'Easy',
     hint: 'Every issued code is written to /oauth/idp/log, which anyone can read. A recent login by alice is already in there.',
-    hints: ["The IdP keeps a request log that anyone can read. Open it in your proxied browser and look for the line with authorize user_id= and a ?code= at the end.", "A login by alice is already in the log. Copy her 32-character code and send it to POST /oauth/idp/token with Burp Repeater.", "Spend the stolen code while logged in as bob (or logged out entirely). Exchanging your own fresh code earns nothing on its first use; this flag only pays for a code that belongs to a different user."],
+    hints: ["The IdP keeps a request log that anyone can read. Open it in your proxied browser and look for the line with authorize user_id= and a ?code= at the end.", "A login by alice is already in the log. Copy her 32-character code and send it to POST /oauth/idp/token with Burp Repeater.", "Spend the stolen code while logged in as bob (or logged out entirely). Exchanging a code that belongs to you earns nothing here, on any use; this flag only pays for a code that belongs to a different user."],
     tools: "BZ, B",
-    how: 'Read the IdP server log, copy alice’s code, and exchange it at POST /oauth/idp/token with client_id=pentrix-spa while logged in as someone else (or logged out).',
+    est: 'about 5 to 10 minutes',
+    how: 'Authorization codes are written into a request log that anyone can read, so a code stops being a secret the moment it is issued.',
     link: '/oauth#code-leak',
-    start: 'Set Burp as your browser proxy and enable intercept. In the browser, open the IdP server log at /oauth/idp/log. Find alice’s authorize line and copy the 32-character code after ?code=. Send that request to Repeater (or open a new Repeater tab) and POST the code to /oauth/idp/token with client_id=pentrix-spa, from a session that is not alice (bob, or no IdP login at all).',
+    start: 'Set Burp as your browser proxy. In the browser, open the IdP server log at /oauth/idp/log and study what a single authorize line records. Then experiment at the token endpoint, from a session that is not the code owner, with what you find there.',
   },
   router,
 };

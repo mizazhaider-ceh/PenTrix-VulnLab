@@ -25,12 +25,13 @@ const vuln = {
   id: 'cache-deception',
   name: 'Cache Deception',
   difficulty: 'Medium',
-  hint: 'The cache key is the path only. Cache the victim\'s personalized CSS, then fetch it as someone else.',
-  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. In Burp Repeater, request the CSS twice, first signed in as alice and then after logging out, and compare the raw responses.", "Use Burp Proxy with a browser: log in as alice and open the stylesheet to prime the cache, then log out (or log in as bob) in the same browser and fetch the same path. The cache never checks that you are still alice.", "The cache key is the path alone, so the second request is served alice's personalized copy. The flag rides in the X-Flag response header, not the body, so inspect the response headers in Repeater."],
+  hint: 'The cache remembers responses by path alone, but the response depends on who asked. Who else can collect what the cache stored?',
+  hints: ["The CDN caches /http/account.css by path only, and the CSS is personalized. In Burp Repeater, request the CSS under two different identities and compare the raw responses.", "Prime, then collect: fetch the personalized resource while signed in as one user so the cache stores it, then fetch the same path as someone else (signed out, or another demo user). Notice what the cache never checks between the two visits.", "Shape: two requests for one path, the first as the victim so a personalized response is stored, the second as a stranger. Read the second response in full, headers included: a cache that keys on path alone cannot tell the two of you apart."],
   tools: 'BZ, B, C',
-  how: 'Poison the cache as alice (log in, then GET /http/account.css), then log out (or switch to bob) and fetch /http/account.css again, and read the X-Flag response header.',
+  est: 'about 10 to 20 minutes',
+  how: 'A cache that keys on the URL path alone will hand one user a personalized response that was stored for somebody else.',
   link: '/http#cache-deception',
-  start: 'Send your browser through Burp Proxy. 1) Log in as alice and visit /http/account.css to cache her personalized stylesheet. 2) In the same browser, log out so you are a guest again (or log in as bob), then request /http/account.css once more. 3) Read the X-Flag response header.',
+  start: 'Send your browser through Burp Proxy. 1) Sign in as one demo user and fetch the personalized stylesheet, so the cache stores a response. 2) Return as a different identity (signed out, or the other demo user) and request the same path again. 3) Compare the two responses in full in Repeater.',
 };
 
 // GET /cache -> the CDN demo dashboard: who you are, the two-step attack
@@ -67,14 +68,10 @@ router.get('/cache', (req, res) => {
     <p>A naive edge "CDN" caches <code>/http/account.css</code> keyed on the <b>path only</b>,
     ignoring who asked. The stylesheet is personalized and sent with
     <code>Cache-Control: public, max-age=3600</code>.</p>
-    <ol>
-      <li>As the <b>victim</b>: log in as alice, then open
-        <a href="/http/account.css" target="_blank" rel="noopener"><code>/http/account.css</code></a>.
-        The CDN caches her personalized response.</li>
-      <li>As the <b>attacker</b>: log out (you are a guest again) or log in as bob in the
-        same browser, then request the same URL. Your cache never noticed the swap.</li>
-    </ol>
-    ${payloadBlock('Attack flow (Burp)', '1. Burp Proxy: log in as alice, then visit /http/account.css to poison the cache.\n2. Log out (or switch to bob), then Repeater: GET /http/account.css.\n3. Read the X-Flag header in the Repeater response.')}
+    <p>Think in two visits: one visit stores a response, a later visit collects
+    whatever was stored. The session card above lets you switch identities;
+    Burp Proxy history shows what the cache served each identity, and the
+    cache state card below shows what is currently stored.</p>
   </div>`;
 
   const cacheCard = `<div class="card">
@@ -87,9 +84,9 @@ router.get('/cache', (req, res) => {
     ? flagBanner(flagFor('http', 'cache-deception')) + fixPanel('http', 'cache-deception')
     : `<div class="card">
         <div class="card-top"><b>Capture</b></div>
-        <p class="note">When you pull someone else's cached stylesheet, the flag is returned in the
-        <code>X-Flag</code> response header and saved to your scoreboard. (The response is CSS, not HTML,
-        so the header only shows in devtools or in the Repeater response headers.)</p>
+        <p class="note">When you pull someone else's cached stylesheet, the capture is
+        saved to your scoreboard. The response is a stylesheet, not a page, so inspect
+        the full response in Burp, headers included.</p>
       </div>`;
 
   res.send(page('CDN cache demo', appShell('SpeedEdge CDN', `

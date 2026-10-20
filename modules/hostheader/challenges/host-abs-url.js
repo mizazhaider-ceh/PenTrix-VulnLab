@@ -108,6 +108,7 @@ const vuln = {
   id: 'host-abs-url',
   name: 'Absolute Continue URL',
   difficulty: 'Easy',
+    est: '5-10 minutes',
   hint: 'The login page renders an absolute continue URL built from Host, and the post-login 302 uses it too.',
   hints: [
     "In Repeater, POST /hostheader/login and change only the Host header before sending.",
@@ -115,7 +116,7 @@ const vuln = {
     "The key insight: the app never checks your Host against any allowlist, so the 302 destination becomes whatever host you name.",
   ],
   tools: 'BZ, B',
-  how: 'In Burp Repeater, POST /hostheader/login with the Host header set to a domain you control, then read the 302 Location in the response.',
+  how: 'The login page builds its continue address from a header you control, and the post-login redirect believes it. Whose domain ends up in that address is up to you.',
   link: '/hostheader#host-abs-url',
   start: 'Open Burp, proxy the login page in your browser, send the sign-in request to Repeater, edit the Host header, and log in as alice / alice123.',
 };

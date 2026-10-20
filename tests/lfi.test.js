@@ -172,7 +172,12 @@ test('lfi module', async (t) => {
     assert.ok((await capturedSet(c)).includes('lfi:Log Poisoning Chain'));
 
     const again = await c.get('/lfi/view?file=../lfi_access.log');
-    assert.equal((again.text.match(FLAG_RE) || [])[0], flagOf('log-poison'), 'repeat yields the same flag');
+    // P1A: the capture banner renders exactly once per capture, so the
+    // repeat view re-renders no flag. The flag stays viewable on the
+    // challenge page itself (showCaptured, the flagFor display path).
+    assert.equal((again.text.match(FLAG_RE) || []).length, 0, 'repeat must not re-render the capture banner (P1A)');
+    const demo = await c.get('/lfi/log-demo', { 'user-agent': 'view-check' });
+    assert.equal((demo.text.match(FLAG_RE) || [])[0], flagOf('log-poison'), 'captured flag stays viewable on the log demo page');
     const captured = await capturedSet(c);
     assert.equal(captured.filter((s) => s === 'lfi:Log Poisoning Chain').length, 1, 'repeat must not double count');
   });

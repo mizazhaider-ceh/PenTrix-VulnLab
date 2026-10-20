@@ -12,6 +12,7 @@ const vuln = {
   id: 'cmdi-wildcard',
   name: 'Ping Gadget v7 (cat and / blocked)',
   difficulty: 'Hard',
+  est: '20-40 minutes',
   hint: 'The words "cat" and "/" are stripped as standalone tokens. The shell expands ? into any single character, including inside paths and command names.',
   hints: [
     "The filter strips the word 'cat' and a standalone '/'. In Repeater, send the baseline request first, then mutate the host parameter and read what the ping output echoes back.",
@@ -19,7 +20,7 @@ const vuln = {
     "In Repeater, rebuild the blocked command name and path with ? placeholders, one per character, and chain it after the ping with a statement separator. Look for the file's content in the response.",
   ],
   tools: 'BZ, B, C',
-  how: 'In Repeater, glob your way around both banned words, e.g. host=127.0.0.1;/???/bin/?at /???/p?sswd, and read /etc/passwd from the ping output.',
+  how: 'Both the reader command and its path are banned as literal words. The shell expands patterns into the words you meant, and it does so after the filter has already run.',
   link: '/cmdi/ping7',
   start: 'In Burp Suite, browse to the Ping Gadget v7 page through the Proxy, send the request to Repeater, and work on the host parameter there.',
 };

@@ -12,6 +12,7 @@ const vuln = {
   id: 'cmdi-tab',
   name: 'Ping Gadget v9 (spaces blocked, again)',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'Spaces are stripped from your input. A literal tab character (%09 in a URL) is also whitespace to the shell.',
   hints: [
     "Spaces are stripped. In Repeater, send a host with a space and watch the filter strip it: space is not the only whitespace the shell understands.",
@@ -19,7 +20,7 @@ const vuln = {
     "Chain a command after the ping and pick one that prints a recognizable file, so the response body confirms the second command actually ran.",
   ],
   tools: 'BZ, B, C',
-  how: 'In Burp Repeater, chain a second command after a valid host using the URL-encoded tab (%09) as the word separator (spaces are stripped, tabs are not), then read the command output in the response body.',
+  how: 'In Burp Repeater, chain a second command after a valid host using a whitespace character the filter never looks for as the word separator, then read the command output in the response body.',
   link: '/cmdi/ping9',
   start: 'Open the Ping Gadget v9 page with Burp Proxy intercepting, submit a normal host like 127.0.0.1, send the request to Repeater, and probe the host parameter there.',
 };

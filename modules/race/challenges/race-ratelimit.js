@@ -21,7 +21,7 @@ const vuln = {
   hints: ["Send one POST /race/ratelimit/hit to Burp Repeater and replay it: the counter goes up by exactly one each time.", "Now make Repeater fire many at once: duplicate the request tab 20 times, select all the tabs, and right-click to choose Send group in parallel. Community Intruder is throttled, so its spaced-out requests would just hit the limit one by one.", "A burst of 20 parallel requests all reads the counter before it increments. An accepted count above 5 proves the bypass."],
   tools: 'BZ, P, C',
   est: 'about 10 minutes',
-  how: 'Send a burst of 20 parallel POST requests to /race/ratelimit/hit inside one window, using the Repeater Send group in parallel feature. If more than 5 are accepted, the counter race is proven.',
+  how: 'A rate limiter that counts a request only after an async gap lets a whole parallel burst read the same not-yet-updated counter.',
   link: '/race#race-ratelimit',
   start: 'Proxy the Rate-limited API page in Burp, send one POST /race/ratelimit/hit to Repeater, duplicate the tab 20 times, then Send group in parallel. Watch the accepted count climb past 5.',
 };

@@ -17,6 +17,7 @@ const vuln = {
   id: 'upload-overwrite',
   name: 'Avatar overwrite',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'Avatar paths are predictable (avatar-<user>.png) and the endpoint never checks that you own the target user. Bob already has an avatar. Storing is not enough: the flag fires only when the replaced avatar is served back as HTML and its script phones home through the beacon snippet.',
   hints: [
     "Avatars are stored at a predictable path per user. Can you write to someone else's path?",

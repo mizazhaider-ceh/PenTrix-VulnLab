@@ -98,10 +98,11 @@ const vuln = {
   id: 'host-xforwarded',
   name: 'Forwarded-Host Header Poisoning',
   difficulty: 'Easy',
+    est: '5-10 minutes',
   hint: 'Behind a proxy, this reset page trusts X-Forwarded-Host (and the vendor-specific X-Host-Override) over Host. Same attack, different headers.',
   hints: ["Behind a proxy, the app trusts X-Forwarded-Host. Capture the reset POST in Burp and send it to Repeater. Can you add that header in Repeater?", "In Repeater, add a forwarded-host header (X-Forwarded-Host or X-Host-Override) naming a domain you control, then re-send. The reset link in the lab email view should now point at that domain.", "The app reads proxy headers before Host and never validates them. Forge the header in Repeater, copy the token from the poisoned reset link, and carry that token to the collector at /hostheader/evil-collect. The key insight: your forged header decides where the victim's token-bearing link points."],
   tools: 'BZ, C',
-  how: 'In Burp Repeater, POST /hostheader/forgot-xfwd with X-Forwarded-Host: evil.com (or X-Host-Override: evil.com), then request /hostheader/evil-collect carrying the token from the poisoned reset link.',
+  how: 'Behind the proxy, this reset page trusts forwarding headers over the real Host. Same poison, different letterhead: the reset link still points where the header tells it to.',
   link: '/hostheader#host-xforwarded',
   start: 'Open /hostheader/forgot-xfwd in the browser with Burp Proxy on, submit the form, send the POST to Repeater, add a forwarded-host header in Repeater and re-send. Read the token from the lab email view, then request /hostheader/evil-collect with that token.',
 };

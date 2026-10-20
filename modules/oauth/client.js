@@ -3,6 +3,8 @@
 // /client/* endpoint (home, callback, public JS bundle, implicit callback,
 // simulated browser history). It was split out of index.js, which stays a
 // thin aggregator per MODULE_CONTRACT.md; the route code below is unchanged.
+// Serves challenges: no-state, code-replay, pkce-skip, code-leak,
+// redirect-bypass, scope-upgrade, secret-in-js, implicit (shared client side).
 const express = require('express');
 const { esc, fixPanel, flagBox, page } = require('../../lib/page');
 const { award } = require('../../lib/flags');
@@ -18,8 +20,8 @@ router.get('/client/', (req, res) => {
   const me = shared.idpUser(req);
   res.send(page('Demo client', `
     <h2>PenTrix demo client</h2>
-    <p>IdP session: ${me ? `<b>${esc(me.username)}</b>` : 'not logged in'}
-    (<a href="/oauth/login/alice">alice</a> / <a href="/oauth/login/bob">bob</a> / <a href="/oauth/login/admin">admin</a>)</p>
+    <p>IdP session: ${me ? `<b>${esc(me.username)}</b>` : 'not logged in'}<br>
+    <span class="quick-login" aria-label="Quick IdP login"><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/alice">alice (victim)</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/bob">bob (attacker)</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/admin">admin</a></span></p>
     <p>Client session: ${c ? `<b>${esc(c.username)}</b> (logged in via OAuth)` : 'not logged in'}</p>
     <ul>
       <li><a href="/oauth/idp/authorize?client_id=pentrix-spa&redirect_uri=${encodeURIComponent(shared.TRUSTED_PREFIX + '/callback')}&response_type=code&scope=read">Log in with the IdP (code flow)</a></li>

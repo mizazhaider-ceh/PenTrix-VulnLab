@@ -16,6 +16,7 @@ const vuln = {
   id: 'redirect-pollution',
   name: 'Parameter Pollution Picks Last',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'When ?next= appears twice, the server silently honors the last value. The first one is just camouflage.',
   hints: [
     'Open /redirect/polluted in Burp Proxy, send the GET request to Repeater, and study the query string.',
@@ -23,7 +24,7 @@ const vuln = {
     'Watch the Location header in the Repeater response while you experiment with two copies of next. The validator checks one value and redirects on the other: the server silently honors the last one while reviewers see the first.',
   ],
   tools: 'BZ, B, C',
-  how: 'In Burp Repeater, issue GET /redirect/polluted with two next parameters: the first carrying a value that looks safe and the second pointing at an external URL. Check the Location header to see which value the server honored.',
+  how: 'When a parameter repeats, different layers can read different copies. In Burp Repeater, probe which copy this endpoint acts on, and which copy a reviewer of the link would see first.',
   link: '/redirect#redirect-pollution',
   start: 'In Burp, browse to /redirect/polluted through the proxy, send the request to Repeater, and add a second next parameter to the query string. Compare the Location header before and after.',
 };
@@ -45,8 +46,8 @@ router.get('/polluted', (req, res) => {
           </div>
           <button class="clay-btn clay-btn-primary" type="submit">Go</button>
         </form>
-        <p class="note">Try <code>?next=safe&amp;next=https://evil.com</code> and check
-        which value lands in the <code>Location</code> header.</p>
+        <p class="note">Try repeating the <code>next</code> parameter with two different
+        values and check which one lands in the <code>Location</code> header.</p>
       </div>
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/redirect">Back to the module</a></p>
       ${hintLadder(vuln)}

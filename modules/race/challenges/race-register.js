@@ -19,7 +19,7 @@ const vuln = {
   hints: ["Usernames must be unique. But the uniqueness check can be raced. Confirm in Burp Repeater that one signup with a fresh name works and shows the accounts table.", "Repeater sends one request at a time, and a race needs many at once. Duplicate the signup Repeater tab, select both tabs, and use Send group in parallel. Community Intruder is throttled and cannot reliably hit the gap, so the Repeater group is the race tool here.", "The await between the check and the insert is the window. Fire both signups in parallel with the same username, then reload the signup page and count how many times the name appears: more than once proves the check lost the race."],
   tools: 'BZ, C',
   est: 'about 10 minutes',
-  how: 'Fire a burst of parallel signups for the same username at /race/register so both pass the uniqueness check before either insert lands, leaving two accounts with one name.',
+  how: 'Username uniqueness is checked before the account is inserted, and nothing holds that answer while the insert waits its turn.',
   link: '/race#race-register',
   start: 'Capture one POST /race/register in Burp, send it to Repeater (Ctrl+R), duplicate the tab, then Send group in parallel.',
 };

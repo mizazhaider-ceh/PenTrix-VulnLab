@@ -22,6 +22,7 @@ const vuln = {
   id: 'redos-url',
   name: 'Catastrophic URL Regex',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'The path group is ([\\/\\w .-]*)*. Repeat a path segment many times, then end with a character the pattern rejects.',
   hints: [
     'The URL regex has nested quantifiers in the path group.',
@@ -29,7 +30,7 @@ const vuln = {
     'Capture the validator request in Burp Proxy and push it to Repeater. In Repeater, grow the url parameter: repeat one simple path segment many times, then end with a character the pattern cannot match, forcing the nested group to retry every split. Repeater shows the response time for each send.',
   ],
   tools: 'BZ, B, C',
-  how: 'In Burp, capture /redos/url in Proxy, push the request to Repeater, and grow the url parameter into a long run of repeated path segments ending with a character the pattern rejects (for example http://example.com/ with a/ repeated 12 times and a trailing !). The claim fires when the response takes over 1000 ms.',
+  how: 'In Burp Repeater, grow the url parameter into the near-miss shape this nested path pattern backtracks on, and watch the response time climb past 1000 ms.',
   link: '/redos#redos-url',
   start: 'Proxy on, open /redos/url in the Burp browser and submit the validator once with a harmless URL (for example http://example.com/). In Proxy history, send the request to Repeater. Start growing the url parameter and watch the response time.',
 };

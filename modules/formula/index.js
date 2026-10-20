@@ -106,7 +106,7 @@ module.exports = {
   id: 'formula',
   name: 'CSV Formula Injection',
   tagline: 'Poison the export: turn spreadsheet cells into live formulas.',
-  description: 'A contact manager exports user-controlled fields to CSV without neutralizing spreadsheet formula triggers. Smuggle =cmd, DDE, HYPERLINK, and pipe-prefixed payloads through the export and let the server verify they landed.',
+  description: 'A contact manager exports user-controlled fields to CSV without neutralizing spreadsheet formula triggers. Smuggle command, DDE, HYPERLINK, and pipe-prefixed formulas through the export and let the server verify they landed.',
   difficulty: 'Beginner',
   track: 'Foundations',
   prerequisites: ['xss'],

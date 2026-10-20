@@ -8,7 +8,7 @@ const path = require('path');
 const { esc, page, payloadBlock } = require('../../../lib/page');
 // Module-level upload plumbing (provided by modules/upload/shared.js):
 // rawUpload (express.raw), cleanFilename, UPLOADS_DIR.
-const { rawUpload, cleanFilename, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
+const { rawUpload, cleanFilename, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet, trackStoredUpload } = require('../shared');
 
 const router = express.Router();
 
@@ -28,6 +28,7 @@ router.post('/mime-check', rawUpload, (req, res) => {
     return res.status(400).send(page('Upload failed', `<h2>Empty file</h2><p class="dim">No request body received.</p><p><a class="btn" href="/upload">Back</a></p>`));
   }
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
+  trackStoredUpload(req, clean);
   const ext = path.extname(clean).toLowerCase();
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   let flagHtml = '';
@@ -52,6 +53,7 @@ module.exports = {
     id: 'upload-ctype',
     name: 'Content-Type header spoofing',
     difficulty: 'Easy',
+    est: 'about 5 to 10 minutes',
     hint: 'v4 decides "is this an image" from the Content-Type request header alone. Headers are attacker-controlled. Storing is not enough: the flag fires only when the stored file is served as active content and its script phones home through the beacon snippet.',
     hints: [
       "The uploader decides \"is this an image\" from the Content-Type header. Who sets that header? Capture the upload with Burp Proxy and read the request headers.",
@@ -59,9 +61,9 @@ module.exports = {
       "KEY INSIGHT: the Content-Type header is attacker-controlled, so the real file type is never inspected. Upload an HTML file (carrying this challenge's beacon snippet) to the mime-check endpoint while setting the header to the image value the checker expects, then open its /upload/view/ link in your browser.",
     ],
     tools: "BZ, C",
-    how: 'Upload an .html file carrying the beacon snippet to POST /upload/mime-check?filename=... with the Content-Type header set to image/png (in Burp Repeater, edit the header before sending), then open its /upload/view/ link in your proxied browser so the script phones home.',
+    how: 'Upload an active-content file carrying the beacon snippet to the mime-check endpoint while claiming, in a request header you control, that it is an image (edit the header in Burp Repeater before sending). Then open its /upload/view/ link in your proxied browser so the script phones home.',
     link: '/upload#upload-ctype',
-    start: 'Proxy the upload form at /upload with Burp, intercept the request to POST /upload/mime-check?filename=evil.html, send it to Repeater, change the Content-Type header to image/png, and send.',
+    start: 'Proxy the upload form at /upload with Burp, intercept the mime-check upload request, send it to Repeater, and experiment with the request headers before sending.',
   },
   router,
 };

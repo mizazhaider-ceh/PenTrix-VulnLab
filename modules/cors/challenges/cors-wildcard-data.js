@@ -12,10 +12,11 @@ const vuln = {
   id: 'cors-wildcard-data',
   name: 'Wildcard on Sensitive Data',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'Access-Control-Allow-Origin: * on an endpoint that returns every user\'s email address.',
   hints: ["The API sends ACAO: * with user emails. What does * mean? Open GET /cors/api/users in Repeater and read the raw response headers.", "Any website can read it. No credentials needed, just fetch. Replay the request in Repeater: the wildcard rides on every response.", "The data endpoint answers any origin, so your page only needs to ask for it and read the response body. No special setup is needed on the attacker's side."],
   tools: "BZ, B",
-  how: 'Burp Repeater: GET /cors/api/users and read the Access-Control-Allow-Origin: * header riding on a response that returns every user\'s email address; any origin can read it cross-origin, no credentials needed; or prove via /cors/prove?vuln=cors-wildcard-data&origin=https://evil.com',
+  how: 'This data endpoint answers to the whole web. Check what its cross-origin policy says about who may read a response full of user data.',
   link: '/cors#cors-wildcard-data',
   start: 'Burp: browse the team directory page, find GET /cors/api/users in Proxy history, send it to Repeater, and inspect the CORS response headers.',
 };

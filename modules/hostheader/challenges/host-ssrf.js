@@ -120,10 +120,11 @@ const vuln = {
   id: 'host-ssrf',
   name: 'SSRF via Host Header',
   difficulty: 'Medium',
+    est: '10-20 minutes',
   hint: 'The health check fetches http://<Host>/hostheader/internal/metrics server-side. A loopback-only agent holds secrets, and the status page shows its loopback address.',
   hints: ["The health check builds a URL from the Host header. Send the request to Repeater in Burp and check which URL the page says the server will fetch.", "The fetch target is http://<Host>/hostheader/internal/metrics, and the page names the loopback-only agent's address. In Repeater, edit the Host header so the server's fetch reaches that agent instead of the public site.", "Think about whose network the fetch runs from: the server's. Set the Host header in Repeater so the server-side fetch targets the internal agent. The key insight: an address your browser could never reach becomes reachable when the server fetches it."],
   tools: 'BZ, C',
-  how: 'In Burp Repeater, send GET /hostheader/status with the Host header set to the loopback-only internal agent address shown on the status page, so the server fetches the internal agent for you.',
+  how: 'The status page makes the server fetch a URL built from a header you control. Your browser cannot reach the internal agent; the server fetches from inside its own network.',
   link: '/hostheader#host-ssrf',
   start: 'Open /hostheader/status in the browser with Burp Proxy on, send the request to Repeater, then edit the Host header in Repeater and re-send until the upstream response shows the internal agent secrets.',
 };

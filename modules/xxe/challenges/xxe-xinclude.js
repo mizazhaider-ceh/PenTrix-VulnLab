@@ -54,6 +54,7 @@ module.exports = {
     id: 'xxe-xinclude',
     name: 'XInclude File Inclusion',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The xinclude endpoint honors xi:include tags. The href is resolved server-side with the same file:// and http:// support as entities.',
     hints: ["Start in Burp Proxy: capture a normal POST /xxe/xinclude request from the form so you have a baseline you can replay before changing anything.", "Send that request to Repeater. Besides entities, XML has another inclusion mechanism that pulls external resources into the document; the importer form honors it for both file:// and http:// hrefs.", "Declare the proper namespace for that inclusion element on your root, point its href at the secret file with parse set to text, and send. Read the expanded document output for the spliced content."],
     tools: "BZ, B",

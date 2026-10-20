@@ -20,7 +20,8 @@ const vuln = {
   hint: 'All the merging happens in your browser, not on the server. Open the demo link and watch the theme box change color.',
   hints: ["In Burp, open the target in the built-in browser with Proxy on. The merge happens in the page\u2019s JavaScript, not on the server, so Proxy history only shows you the requests around it.", "Send the /proto/client request to Repeater. Craft a nested query parameter whose path reaches the shared prototype\u2019s theme key, with any value other than the default, and load the resulting URL in Burp\u2019s browser.", "Watch the theme box: the page renders the value it reads from a fresh {}, then reports that value to the claim endpoint itself. The flag arrives in the claim response in Proxy history."],
   tools: "BZ, B, DT",
-  how: 'Send a request to /proto/client carrying a nested query parameter that lands the theme key on the browser\u2019s shared prototype, then load the crafted URL in a real browser (Burp\u2019s built-in browser works) so the page\u2019s script merges the parameter, renders the polluted value from a fresh {}, and the page reports it to the claim endpoint for the flag.',
+  est: 'about 5 to 10 minutes',
+  how: 'The same naive merge runs inside the visitor\u2019s browser here: a themed link can rewrite what every fresh object in the page inherits, including the theme the page renders.',
   link: '/proto#proto-client',
   start: 'Start Burp and open its built-in browser (Proxy tab, Open browser).\nNavigate to /proto/client and confirm the theme picker loads; check Proxy HTTP history for the request.\nSend the request to Repeater and add a nested query parameter that sets the theme key on the shared prototype to a non-default value.\nLoad the crafted URL in Burp\u2019s browser, watch the theme box render the polluted value, and find the flag in the claim response in Proxy history.',
 };
@@ -52,12 +53,12 @@ router.get('/client', (req, res) => {
       <form onsubmit="location='/proto/client?'+document.getElementById('qs').value; return false;">
         <div class="clay-field">
           <label for="qs">Query string to merge</label>
-          <input class="clay-input" id="qs" type="text" size="55" placeholder="__proto__[theme]=dark" autocomplete="off">
+          <input class="clay-input" id="qs" type="text" size="55" placeholder="display[theme]=dark" autocomplete="off">
         </div>
         <button class="clay-btn clay-btn-primary" type="submit">Apply</button>
       </form>
       <p><b>Try it:</b>
-        <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto/client?__proto__[theme]=dark"><code>?__proto__[theme]=dark</code></a>
+        <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto/client?display[theme]=dark"><code>?display[theme]=dark</code></a>
         (any CSS color works, e.g. <code>tomato</code>, <code>#00ffcc</code>)
       </p>
       <div class="card" id="themeBox" style="border:2px solid #888; padding:1.5em; margin:1em 0;">
@@ -147,9 +148,9 @@ router.get('/client/claim', (req, res) => {
     ${appShell('Palette', `
       <h2>No flag</h2>
       <p>This endpoint only awards a flag when the client page reports a genuinely
-      polluted theme value. Load <code>/proto/client?__proto__[theme]=dark</code>
-      in a browser so the page can demonstrate the pollution, then let the page
-      report back with the render token it was issued.</p>
+      polluted theme value. Load <code>/proto/client</code> with a crafted nested
+      query string in a browser so the page can demonstrate the pollution, then
+      let the page report back with the render token it was issued.</p>
     `, { crumb: 'No pollution', nav: ['Home', 'Themes', 'Share'] })}
   `));
   if (idx === -1) return noAward();

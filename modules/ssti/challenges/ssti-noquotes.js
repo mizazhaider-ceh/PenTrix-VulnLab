@@ -56,6 +56,7 @@ module.exports = {
     id: 'ssti-noquotes',
     name: 'Quote Blacklist Bypass',
     difficulty: 'Hard',
+    est: 'about 20 to 45 minutes',
     hint: 'Quotes are deleted and the variable name is blocked as a word. Spell the name with character codes and evaluate the result.',
     hints: ["Capture the render request in Burp Proxy and send it to Repeater: quotes are deleted from your input. How do you spell a string when you have no string literals?", "Repeater makes this a fast trial-and-error loop. Strings can be built from character codes: String.fromCharCode(65,68,77,73,78) builds a word with no quotes. Now you only need to evaluate the result.", "There is a built-in that runs a string as code. Build the blocked variable name from char codes, feed the result to that built-in inside your {{ }} expression, and replay in Repeater until the flag prints."],
     tools: 'BZ, B',

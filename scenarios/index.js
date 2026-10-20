@@ -142,7 +142,7 @@ router.get('/:id', (req, res) => {
     ${briefPanel('The story', sc.story || '', 'Kill chain')}
     <h2>Stages</h2>
     <div class="progress-meta" style="margin-bottom:1rem">${progressBar(done, total, sc.name + ' progress')}</div>
-    <section class="grid" aria-label="Stages">${stagesHtml}</section>`,
+    <section class="grid stages" aria-label="Stages">${stagesHtml}</section>`,
     'scenarios', { scoreChip: scoreChipHtml(req) }));
 });
 

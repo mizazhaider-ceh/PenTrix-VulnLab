@@ -42,8 +42,8 @@ router.get('/', (req, res) => {
       and the server trusts it as proof of who you are.</p>
       <p><b>The goal in this module:</b> break that trust. Each challenge gives you a
       login and a flawed session mechanism; your job is to end up holding a session
-      the server believes belongs to <b>admin</b>. Use a cookie jar
-      (<code>curl -c jar -b jar</code>) so your session ids persist between requests.</p>
+      the server believes belongs to <b>admin</b>. Work in Burp Repeater, where you
+      can set the <code>lab_sid</code> cookie on each request by hand.</p>
       <p>All labs use the cookie name <code>lab_sid</code>, but each lab keeps its
       own session store.</p>`)}
     ${trackBanner(module.exports)}

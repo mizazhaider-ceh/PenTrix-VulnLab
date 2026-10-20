@@ -42,8 +42,8 @@ router.get('/', (req, res) => {
       <p><b>How this lab works:</b> each endpoint runs your input against a
       vulnerable regex and reports the milliseconds it took. Push the check past
       <b>${THRESHOLD_MS} ms</b> and the flag is awarded. Inputs are length-capped
-      so the worst case is seconds, not minutes. Time your requests with
-      <code>time curl ...</code> or watch the reported time on the page.</p>`)}
+      so the worst case is seconds, not minutes. Watch the reported time on the
+      page, or the response timer in Burp Repeater.</p>`)}
     ${trackBanner(module.exports)}
 
     <h2>Endpoints</h2>

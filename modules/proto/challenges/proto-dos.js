@@ -84,7 +84,8 @@ const vuln = {
   hint: 'Send the widget page request to Burp Repeater. The widget is stringified from an object whose prototype you control. What if toString stopped being a function?',
   hints: ["Open the widget page with Burp Proxy running, then send the request to Repeater. The widget's prototype scope is yours to control.", "In Repeater, replay the request with a polluted query string that gives the scope's toString a non-function value. The render crashes, which is a DoS via prototype pollution.", "When Repeater shows the crash page with the flag box, you are done. Reload the widget in the browser if you want a fresh one."],
   tools: 'BZ, B',
-  how: 'Via Burp Repeater, pollute the widget scope toString with a non-function value so the render crashes; the crash page awards the flag.',
+  est: 'about 5 to 10 minutes',
+  how: 'A widget rendered by string coercion trusts a method it inherits from its prototype, and a merge that lets you rewrite inherited properties can take that method away.',
   link: '/proto#proto-dos',
   start: 'In Burp, open the widget page (/proto/dos) in the browser so the request lands in the proxy history, then send it to Repeater and replay it with a polluted query string until the widget crashes.',
 };
@@ -125,11 +126,11 @@ router.get('/dos', (req, res) => {
     <div class="clay-card">
       <h3>Merge a query string</h3>
       <form onsubmit="location='/proto/dos?'+document.getElementById('qs').value; return false;">
-        <input id="qs" class="clay-input" size="55" placeholder="__proto__[toString]=boom" />
+        <input id="qs" class="clay-input" size="55" placeholder="display[theme]=dark" />
         <button type="submit" class="clay-btn clay-btn-primary">Merge</button>
       </form>
       <p><b>Try it:</b>
-        <a href="/proto/dos?__proto__[toString]=boom"><code>?__proto__[toString]=boom</code></a>
+        <a href="/proto/dos?display[theme]=dark"><code>?display[theme]=dark</code></a>
       </p>
       <p>Widget renders as: <code>${esc(shown)}</code></p>
       <p class="note">What happens if <code>toString</code> stops being a function?</p>

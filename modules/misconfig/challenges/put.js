@@ -44,7 +44,7 @@ function renderListing(res) {
       `<div class="card"><h2>Index of /misconfig/files/</h2>
       <p class="dim">Everything in this folder is served as-is. Probably fine, right?</p>
       <table class="tbl"><tr><th>Name</th><th>Size</th></tr>${rows}</table>
-      ${hintBox(esc('The file endpoint accepts PUT with no authentication at all. In Burp Repeater, send a PUT request with a raw text body and a Content-Type: text/plain header, then GET the file back to prove the write.'))}</div>`
+      ${hintBox(esc('The file endpoint accepts PUT with no authentication at all. Think about what a successful write would look like, and how you would prove it afterwards.'))}</div>`
     )
   );
 }
@@ -111,12 +111,13 @@ module.exports = {
     id: 'put',
     name: 'Unauthenticated HTTP PUT',
     difficulty: 'Medium',
-    hint: 'The file endpoint accepts PUT with no authentication at all. In Burp Repeater, send a PUT with a raw body and a Content-Type: text/plain header, then fetch it back with GET to prove the write.',
-    hints: ["The server accepts unauthenticated PUT requests on its file endpoint. Can you write a file into the folder it serves back publicly?", "The server lets anyone PUT a file into its writable uploads area, and anything written there is readable again over HTTP. That turns a raw write primitive into a visible readback.", "In Burp Repeater, change the request line method to PUT, add Content-Type: text/plain, type a short body, and send it. Then GET the same file path back in your browser to confirm the write and claim the flag."],
+    hint: 'The file endpoint accepts PUT with no authentication at all. A write primitive is only half the story: how would you prove the write really landed?',
+    hints: ["The server accepts unauthenticated PUT requests on its file endpoint. Can you write a file into the folder it serves back publicly?", "The server lets anyone PUT a file into its writable uploads area, and anything written there is readable again over HTTP. That turns a raw write primitive into a visible readback.", "Shape: in Repeater, change the request line method to PUT, give the body a plain-text content type, type a short body, and send it. Then request the same file path back to confirm the write landed where the server serves files from."],
     tools: 'BZ, C',
-    how: 'In Burp Repeater, PUT a raw text body to /misconfig/files/<name> with Content-Type: text/plain, then GET the same path back to prove the write.',
+    est: 'about 10 to 20 minutes',
+    how: 'An unauthenticated PUT on a served folder lets anyone publish files on the site, no account required.',
     link: '/misconfig#put',
-    start: 'In Burp Proxy, send any request to /misconfig/files/ to Repeater. Change the method line to PUT, set the path to /misconfig/files/<yourname>.txt, add Content-Type: text/plain, and put a short text body in the message body. Send it, then GET the same path back in your browser.',
+    start: 'In Burp Proxy, send any request to /misconfig/files/ to Repeater. From there, experiment with what that endpoint accepts besides reads, and think about how you would prove a write.',
   },
   router,
 };

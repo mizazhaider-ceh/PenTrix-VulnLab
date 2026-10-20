@@ -73,6 +73,7 @@
     if (!form) return;
     var items = Array.prototype.slice.call(document.querySelectorAll(opts.items));
     var empty = document.querySelector(opts.empty);
+    var live = document.querySelector('[data-filter-live]');
     var apply = function () {
       var q = (form.querySelector('[name=q]') || {}).value || '';
       q = q.toLowerCase().trim();
@@ -106,6 +107,15 @@
         }
       });
       if (empty) empty.hidden = shown !== 0;
+      /* Announce the new result count (and the empty state, in the empty
+         element's own words) in the page's polite live region, so screen
+         reader users hear what sighted users see when results vanish or
+         come back. Only a changed text is announced by the browser. */
+      if (live) {
+        live.textContent = shown === 0
+          ? (empty ? empty.textContent.trim() : 'No results match your filter.')
+          : shown + ' ' + (shown === 1 ? (opts.one || 'result') : (opts.unit || 'results')) + ' shown.';
+      }
       if (opts.after) opts.after(shown);
     };
     form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
@@ -115,12 +125,14 @@
   }
 
   /* Home: filter module cards. */
-  wireFilter('home-filter', { items: '.grid .clay-card', empty: '[data-home-empty]' });
+  wireFilter('home-filter', { items: '.grid .clay-card', empty: '[data-home-empty]', unit: 'modules', one: 'module' });
 
   /* Scoreboard: filter challenge rows, hide modules with no visible rows. */
   wireFilter('sb-filter', {
     items: '.sb-module tbody tr',
     empty: '[data-sb-empty]',
+    unit: 'challenges',
+    one: 'challenge',
     after: function () {
       Array.prototype.forEach.call(document.querySelectorAll('.sb-module'), function (sec) {
         var visible = Array.prototype.filter.call(sec.querySelectorAll('tbody tr'), function (tr) {

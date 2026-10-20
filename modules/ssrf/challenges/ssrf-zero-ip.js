@@ -13,10 +13,11 @@ const vuln = {
   id: 'ssrf-zero-ip',
   name: '0.0.0.0 bypass',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'The blocklist never mentions 0.0.0.0, and this fetcher treats it as "this host".',
   hints: ["With Burp Proxy on, submit the FetchKit form once with a harmless URL, then send the request to Repeater. Read the blocklist logic: which hosts does it check, and which does it never mention?", "In Repeater, tweak the url parameter's host. Many HTTP stacks treat 0.0.0.0 as 'this host', and the blocklist never lists it.", "In Repeater, point the url parameter at the internal secret endpoint with the all-zeros address as the host, then send it and read the response."],
   tools: 'BZ, C',
-  how: 'In Repeater, fetch http://0.0.0.0:PORT/ssrf/internal/secret via /ssrf/zero-ip.',
+  how: 'In Repeater, fetch the internal secret through /ssrf/zero-ip using the all-zeros address the blocklist never mentions.',
   link: '/ssrf#ssrf-zero-ip',
   start: 'With Burp Proxy on, open FetchKit (/ssrf/zero-ip), submit a harmless URL in the form, then send the fetch request to Repeater and experiment with the url parameter.',
 };
@@ -52,7 +53,7 @@ router.get('/zero-ip', (req, res) => {
       kicker: 'Link preview service',
       crumb: 'Link preview',
       briefHtml: 'FetchKit builds link previews for chat apps: paste a URL and our server fetches it for you. Hosts on the internal blocklist are refused by policy.',
-      placeholder: 'http://0.0.0.0:PORT/ssrf/internal/secret',
+      placeholder: 'http://example.com/',
     }));
   }
   guardedFetch(req, res, {

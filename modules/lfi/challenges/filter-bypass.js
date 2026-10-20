@@ -50,10 +50,11 @@ router.get('/download', (req, res) => {
 module.exports = {
   vuln: {
     id: 'filter-bypass', name: 'Naive Filter Bypass', difficulty: 'Medium',
-    hint: 'The download endpoint strips <code>../</code> only once. Craft an input where removing the inner <code>../</code> leaves a fresh traversal sequence behind, and check what the string becomes after a single strip.',
-    hints: ["The filter strips ../ once. What happens to ....// after one removal? Send a normal download request to Burp Repeater first so you can iterate quickly.", "In Repeater, try a plain traversal and confirm it gets stripped. Then try the same traversal nested inside itself, and read the 'Contents of' line to see what the filter left behind.", "Work out on paper what remains after one removal of the inner pattern, then put that string in the file parameter in Repeater and aim it at the docs folder."],
+    hint: 'The download endpoint strips <code>../</code> only once. A filter that edits your input hands you a puzzle: what input survives its own edit as a working traversal?',
+    hints: ["The filter strips ../ once. Send a normal download request to Burp Repeater first so you can iterate quickly, then watch exactly what a plain traversal becomes after the filter touches it.", "In Repeater, try a plain traversal and confirm it gets stripped. Then think recursively: the filter removes a pattern, so what happens when the pattern appears inside itself? Read the 'Contents of' line to see what the filter left behind.", "Shape: work out on paper what a single removal does to a pattern nested inside itself, then put the surviving string in the file parameter in Repeater and aim it at the docs folder."],
     tools: "BZ, B, C",
-    how: 'Bypass the single-pass filter with a nested traversal so the stripped result still carries .. and reads the secret via /lfi/download.',
+    est: 'about 10 to 20 minutes',
+    how: 'A filter that deletes a pattern once can be beaten by input whose deleted form is the pattern itself.',
     link: '/lfi/download?file=about.txt',
     start: 'In Burp, open /lfi/download?file=about.txt, intercept the request in the Proxy, send it to Repeater, and watch how the file parameter changes after the filter.',
   },

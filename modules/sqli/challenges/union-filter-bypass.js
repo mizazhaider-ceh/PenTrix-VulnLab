@@ -63,6 +63,7 @@ module.exports = {
     id: 'union-filter-bypass',
     name: 'UNION Filter Bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'This shop strips the lowercase word "union" from your search. The filter is case-sensitive and knows nothing about SQL comments or mixed case.',
     hints: ["The shop strips the word 'union' from your search. But filters are code, and code has assumptions. Send the request to Repeater and ask: what assumptions is this one making?", "The filter is case-sensitive and only strips the exact lowercase word. In Repeater, try reshaping the keyword: uppercase, mixed case, or SQL comments, and watch how the response changes.", "This is perfect Intruder fodder: mark the search term as a payload position and fuzz different shapes of the keyword. Once one shape survives, use it to UNION a SELECT against the users table and pull the admin secret."],
     tools: "BZ, B",

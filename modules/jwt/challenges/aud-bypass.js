@@ -47,12 +47,13 @@ const vuln = {
   id: 'aud-bypass',
   name: 'Audience Not Validated',
   difficulty: 'Medium',
-  hint: 'A token minted for billing-service is still a validly signed token. This service never checks who the token was minted for.',
-  hints: ["The partner token's payload carries an aud claim for 'billing-service'. Does this app ever compare aud?", "Decode the token in Burp's Decoder (JWT tab): the aud says 'billing-service', yet the signature verifies under this app's key.", "Copy the partner token out of the page, then forward this app's own login form to Repeater and submit that token there."],
+  hint: 'A token minted for billing-service is still a validly signed token. Which claim names the intended recipient, and does this service ever read it?',
+  hints: ["The partner token's payload carries an aud claim for 'billing-service'. Does this app ever compare aud?", "Decode the token in Burp's Decoder (JWT tab): the aud names a different service, yet the signature verifies under a key this app trusts. A signature proves who minted a token, not who it was minted for.", "Shape: a token minted for a different audience, presented at this service unchanged. If it is accepted, the audience claim was decoration."],
   tools: "BZ, N",
-  how: 'Submit the partner token (aud "billing-service", admin role) at this service\'s own login form, where the aud claim is never validated.',
+  est: 'about 10 to 20 minutes',
+  how: 'A valid signature is treated as enough: the service never checks that the token was actually minted for it.',
   link: '/jwt#aud-bypass',
-  start: 'In Burp Proxy, browse to /jwt/aud and copy the partner admin token from the page. Submit the login form once, send the POST to Repeater (Ctrl+R), then replace the token field with the partner token and send. (Node is handy if you want to forge your own tokens with jsonwebtoken instead of copying the page\'s.)',
+  start: 'In Burp Proxy, browse to /jwt/aud and study the tokens the page shows you, including one minted for a partner service. Submit the login form once and send the POST to Repeater (Ctrl+R) to experiment from there.',
 };
 
 // --------------------------------------------------------------- challenge

@@ -15,10 +15,11 @@ const vuln = {
   id: 'biz-price-tamper',
   name: 'Client-Side Price Tampering',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'View the page source: the price travels to the server in a hidden form field. The server never re-checks it against the catalog.',
   hints: ["The price is a hidden form field. Open the page in DevTools and see which value the browser actually submits.", "You control hidden fields. In Burp Repeater, change the price parameter to something below the catalog price.", "Lower the submitted price in Repeater and send the request. The server charges whatever number arrives, so watch the receipt line 'You paid'."],
   tools: "BZ, B, DT",
-  how: 'Buy the $50 hoodie for less: tamper with the price parameter on the way to /bizlogic/price-tamper/buy in Burp Repeater. The server honors the submitted price without re-checking the catalog.',
+  how: 'The price of the hoodie travels with the purchase request. Who decided that number: the catalog, or your browser?',
   link: '/bizlogic#biz-price-tamper',
   start: 'In the browser, click "Buy now for $50" with Burp Proxy intercepting the POST to /bizlogic/price-tamper/buy. Send the intercepted request to Repeater and experiment with the price parameter.',
 };

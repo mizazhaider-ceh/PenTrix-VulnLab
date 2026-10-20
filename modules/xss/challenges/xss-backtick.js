@@ -38,6 +38,7 @@ module.exports = {
     id: 'xss-backtick',
     name: 'XSS in a Template Literal',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'Your input lands inside backticks: var msg = `...`. Template literals evaluate ${...} expressions inline.',
     hints: [
       'Your input lands inside a JavaScript template literal: var msg = `...`. Template literals do something special with ${}.',
@@ -45,7 +46,7 @@ module.exports = {
       'In Burp Repeater, build the request with your ${...} expression in the m parameter and check the reflected script in the response. Then load the final request URL in the browser and watch for the /xss/collect hit.',
     ],
     tools: 'BZ, B',
-    how: 'Inject a ${...} expression that calls /xss/collect for v=xss-backtick; it executes inside the template literal. Craft the request in Burp Repeater, then load the final URL in the browser so the expression evaluates and fires the beacon.',
+    how: 'Your input sits inside a template literal, which evaluates embedded expressions on its own. In Burp Repeater, work out how to get an expression evaluated in place, then load the final URL in the browser so it fires the beacon.',
     link: '/xss/backtick',
     start: 'Proxy the page through Burp, then send the request to Repeater. Watch how m lands inside var msg = `...` in the response. Test ${...} expressions in Repeater, then paste the Repeater URL into the browser to fire the beacon.',
   },

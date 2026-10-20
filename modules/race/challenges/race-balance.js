@@ -15,12 +15,12 @@ const vuln = {
   name: 'Double-Spend the Balance',
   difficulty: 'Medium',
   hint: 'The balance check and the debit are two separate steps with a gap between them. Two transfers of the full balance, at the same time...',
-  hints: ["The balance check and the debit happen in two separate steps. Confirm in Burp Repeater that one transfer of $100 works and shows the new balance.", "A race needs many requests at the same instant, and Repeater has exactly the tool: duplicate the Repeater tab 20 times (right-click the tab, Duplicate tab), select all 20 tabs, then right-click and choose Send group in parallel. Honest note: Community Intruder is throttled and cannot reliably land 20 requests inside a short window, so use the Repeater group, not Intruder, for races in this module.", "The await between the check and the debit is the window, roughly 150 to 250 ms. Send group in parallel fires every tab near-simultaneously (the single-packet attack), so all 20 transfers of $100 pass the check against the same balance before any debit lands."],
+  hints: ["The balance check and the debit happen in two separate steps. Confirm in Burp Repeater that one transfer of $100 works and shows the new balance, then press Reset lab state to refund the wallet to $100 before any burst: that test transfer spends the whole balance, and a burst against $0.00 proves nothing.", "A race needs many requests at the same instant, and Repeater has exactly the tool: duplicate the Repeater tab 20 times (right-click the tab, Duplicate tab), select all 20 tabs, then right-click and choose Send group in parallel. Honest note: Community Intruder is throttled and cannot reliably land 20 requests inside a short window, so use the Repeater group, not Intruder, for races in this module.", "The await between the check and the debit is the window, roughly 150 to 250 ms. Send group in parallel fires every tab near-simultaneously (the single-packet attack), so all 20 transfers of $100 pass the check against the same balance before any debit lands."],
   tools: 'BZ, C',
   est: 'about 10 minutes',
-  how: 'Fire a burst of parallel transfers that together exceed the $100 balance so every one passes the check before any debit lands, driving the balance negative.',
+  how: 'A wallet transfer checks the balance and applies the debit as two separate steps, so the balance the check approved may no longer be the balance the debit meets.',
   link: '/race#race-balance',
-  start: 'Capture one POST /race/transfer in Burp, send it to Repeater (Ctrl+R), duplicate the tab 20 times, select the group, then right-click and choose Send group in parallel.',
+  start: 'Do one test transfer in Burp to capture POST /race/transfer, then press Reset lab state to refund the wallet to $100, since the test transfer spends it all. Send the captured request to Repeater (Ctrl+R), duplicate the tab 20 times, select the group, then right-click and choose Send group in parallel.',
 };
 
 // Challenge-local presentation: a clay card hero for this wallet screen.
@@ -59,8 +59,8 @@ router.get('/transfer', (req, res) => {
     </section>
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
-    <p>The balance is $100. Send 20 parallel transfers of $100 and watch the balance go negative:</p>
-    ${payloadBlock('Burp Repeater: Send group in parallel', '1. Do one transfer in the browser with Burp proxying.\n2. In Proxy history, send the POST /race/transfer request to Repeater (Ctrl+R).\n3. Right-click the Repeater tab, choose Duplicate tab, and repeat until you have 20 tabs of the same request.\n4. Select all 20 tabs, right-click, and choose Send group in parallel.\n5. Watch the responses: every transfer passes the check against the same $100 balance before any debit lands.')}
+    <p>Once the wallet is funded at $100 again, send 20 parallel transfers of $100 and watch the balance go negative:</p>
+    ${payloadBlock('Burp Repeater: Send group in parallel', '1. Do one test transfer in the browser with Burp proxying.\n2. Press Reset lab state to refund the wallet to $100.00: the test transfer spent it all, and a burst against $0.00 proves nothing.\n3. In Proxy history, send the POST /race/transfer request to Repeater (Ctrl+R).\n4. Right-click the Repeater tab, choose Duplicate tab, and repeat until you have 20 tabs of the same request.\n5. Select all 20 tabs, right-click, and choose Send group in parallel.\n6. Watch the responses: every transfer passes the check against the same $100 balance before any debit lands.')}
     ${backLinks()}
   `)));
 });

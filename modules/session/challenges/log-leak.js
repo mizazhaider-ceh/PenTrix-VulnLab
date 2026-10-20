@@ -12,6 +12,7 @@ const vuln = {
   id: 'log-leak',
   name: 'Session ID in Debug Log',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'Verbose debug logs print session ids. Browse the log viewer through Burp Proxy: the admin sid is in there.',
   hints: ["The debug log writes session ids. Read it through Burp Proxy and find the admin session line.", "Spot the admin sid in the log viewer, then send the admin panel request to Repeater.", "In Repeater, replay the admin panel request with the admin sid set as your lab_sid cookie."],
   tools: 'BZ, B',

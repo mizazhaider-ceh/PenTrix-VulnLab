@@ -9,7 +9,7 @@ const { sstiRender } = require('../shared');
 
 const router = express.Router();
 
-// GET /ssti/nobrackets -> config preview. Same behavior as router.js: the bracket
+// GET /ssti/nobrackets -> config preview. The bracket
 // filter runs on the raw input, the naive engine evaluates {{ }} via sstiRender,
 // and the flag is awarded when the rendered output contains the flag value.
 router.get('/nobrackets', (req, res) => {
@@ -51,6 +51,7 @@ module.exports = {
     id: 'ssti-nobrackets',
     name: 'Bracket Blacklist Bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'Brackets are deleted and the object key has a dash, so neither indexing nor dot access works directly. Dump the whole object instead.',
     hints: [
       'Capture the render request in Burp Proxy and send it to Repeater. Brackets [] are deleted from your input: what can you do to an object that needs no indexing at all?',

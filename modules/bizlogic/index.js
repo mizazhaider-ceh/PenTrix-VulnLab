@@ -37,11 +37,10 @@ const CHALLENGE_PATH = {
 
 const BRIEF_HTML = `
 <p><b>What is a business logic flaw?</b> Nothing is "injected" and nothing
-crashes. The application simply trusts the client, skips a step, or gets its own
-rules wrong: a negative quantity, a price taken from a hidden form field,
-coupons that stack past 100%, an OTP checked by JavaScript, a checkout step you
-can skip, a confused currency, an email change with no password check, a refund
-amount you choose yourself.</p>
+crashes. The application simply trusts the client, skips a check, or gets its
+own rules wrong, and each lab below is one of those assumptions made visible.
+The values in the forms, the order of the steps, and the numbers on the receipt
+are all part of the attack surface.</p>
 <p><b>How to attack these labs:</b> read each page like an accountant, not a
 hacker. Ask "what does the server assume, and can I make that assumption false?"
 View the page source: hidden fields are part of the attack surface. Every lab
@@ -97,7 +96,7 @@ module.exports = {
   id: 'bizlogic',
   name: 'Business Logic Flaws',
   tagline: 'No injection needed: break the shop by breaking its own rules.',
-  description: 'An in-module shop whose application logic is wrong on purpose: negative quantities that credit your balance, prices taken from hidden form fields, coupons stacking past 100%, an OTP "verified" by JavaScript, a checkout step you can skip, confused currencies, email changes with no re-authentication, and refund amounts you choose yourself.',
+  description: 'An in-module shop whose application logic is wrong on purpose: the server trusts client-supplied values, skips checks it should make, and never re-derives the numbers that matter. Eight labs in one small shop.',
   difficulty: 'Intermediate',
   track: 'Advanced',
   prerequisites: ['Foundations track'],

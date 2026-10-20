@@ -12,6 +12,7 @@ const vuln = {
   id: 'never-expires',
   name: 'Sessions Never Expire',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'Sessions live for 10 years here. The archive keeps a decade-old admin session, and it still works in Repeater.',
   hints: [
     "Open the session archive in your proxied browser. What does it hand you for a decade-old admin session?",

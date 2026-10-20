@@ -20,6 +20,7 @@ const vuln = {
   id: 'url',
   name: 'Session ID in the URL',
   difficulty: 'Easy',
+  est: 'about 5 to 10 minutes',
   hint: 'Session ids in URLs get logged, bookmarked, and shared. The corporate proxy log records every URL, including the admin\'s.',
   hints: [
     'The sid is in the URL. Where do URLs end up? Open the proxy log page through Burp.',

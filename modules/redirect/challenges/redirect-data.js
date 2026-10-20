@@ -13,10 +13,11 @@ const vuln = {
   id: 'redirect-data',
   name: 'data: Scheme Honored',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'Same sink, different scheme: data: URLs let you smuggle a whole HTML document through the redirect.',
   hints: ["Proxy the /redirect/data request and send it to Repeater: the endpoint reflects your next value straight into the Location header with no scheme check.", "In Repeater, change the scheme of the next value. Which schemes does the server refuse, and which does it honor?", "URL-encode a data:text/html document as next and send it. Read the Location header and the response body: the server honored your scheme, and the flag lands with the 302."],
   tools: "BZ, B",
-  how: 'In Burp Repeater, request /redirect/data?next= with a URL-encoded data:text/html document as the value. The 302 keeps the data: URL in the Location header and the response body carries the flag.',
+  how: 'Not every URL scheme points at a page. In Burp Repeater, probe which schemes this share endpoint will honor in its Location header, including one that can carry a whole document with it.',
   link: '/redirect#redirect-data',
   start: 'Open /redirect/data in your browser with Burp Proxy on, send the GET request to Repeater, then set the next parameter to a URL-encoded data:text/html document and inspect the Location header in the response.',
 };
@@ -37,8 +38,8 @@ function entryPage() {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Go</button>
     </form>
-    <p class="note">Try <code>?next=data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;</code>
-    (URL-encoded) and inspect the <code>Location</code> header.</p>
+    <p class="note">Try a <code>next</code> value whose scheme is not http or https,
+    and inspect the <code>Location</code> header in the response.</p>
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/redirect">Back to the module</a></p>
   </section>
   ${hintLadder(vuln)}`);

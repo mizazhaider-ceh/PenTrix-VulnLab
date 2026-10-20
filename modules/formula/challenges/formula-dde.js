@@ -49,12 +49,13 @@ const vuln = {
   id: 'formula-dde',
   name: 'DDE Command Execution',
   difficulty: 'Easy',
+    est: '5-10 minutes',
   hint: 'DDE lets a formula ask another application to run a command. The DDE() function form works too.',
-  hints: ["DDE is an old spreadsheet feature where one application asks another to run a command. Open /formula in Burp's browser with Proxy running and add one normal contact first, so you have a working POST /formula/add to experiment with.", "The DDE() spreadsheet function takes a target application, a topic, and a command to run. Send the captured POST to Repeater and change the name parameter into a formula cell that calls DDE(): the exporter only quotes your cell, it never neutralizes it, so a formula trigger at the start survives the download.", "Send the request from Repeater, then request /formula/export.csv and check the X-Flags header in the response. The trick is packaging the DDE() call so the exported cell still opens as a live formula."],
+  hints: ["DDE is an old spreadsheet feature where one application asks another to run a command. Open /formula in Burp's browser with Proxy running and add one normal contact first, so you have a working POST /formula/add to experiment with.", "The DDE() spreadsheet function takes a target application, a topic, and a command to run. Send the captured POST to Repeater and change the name parameter into a formula cell that calls DDE(): the exporter only quotes your cell, it never neutralizes it, so a formula trigger at the start survives the download.", "Send the request from Repeater, then request /formula/export.csv and open the file. The trick is packaging the DDE() call so the exported cell still opens as a live formula."],
   tools: "BZ, B",
-  how: 'Repeater: POST an add-contact request with a DDE formula cell in the name field, then download the CSV export. The flag comes back in the X-Flags response header.',
+  how: 'Repeater: POST an add-contact request with a DDE formula cell in the name field, then download the CSV export and check that the cell still opens as a live formula.',
   link: '/formula#formula-dde',
-  start: "Open /formula in Burp's browser with Proxy running, add one contact normally, then send the POST to /formula/add to Repeater. Change the name parameter into a formula cell, send it, then request /formula/export.csv and inspect the X-Flags header.",
+  start: "Open /formula in Burp's browser with Proxy running, add one contact normally, then send the POST to /formula/add to Repeater. Change the name parameter into a formula cell, send it, then request /formula/export.csv and open the file.",
 };
 
 function contactRows(req) {

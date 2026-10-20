@@ -12,11 +12,12 @@ const vuln = {
   id: 'cmdi-ifs',
   name: 'Ping Gadget v3 (spaces stripped)',
   difficulty: 'Medium',
+  est: '10-20 minutes',
   hint: 'Every space is deleted from your input, but the shell still needs word separators. Bash has a built-in variable that expands to whitespace.',
   hints: [
     "Open the page in Burp's browser and submit a normal host, then send the request to Repeater. First try a space-containing injection and watch the response: every space vanishes.",
     "In Repeater, think about where the host value lands in the shell command. The shell still needs word separators, and Bash has a built-in variable that expands to whitespace.",
-    "Chain a second command after the ping with a statement separator, writing every separator with the whitespace variable the filter forgot to strip. Send it in Repeater and read the response body: the flag is awarded only when the second command's real output shows up, so pick a command that prints something unmistakable.",
+    "Chain a second command after the ping with a statement separator, writing every separator with the whitespace variable the filter forgot to strip. Send it in Repeater and read the response body: the flag is awarded only when passwd file lines show up, so read a recognizable file; output from other commands (id, for example) proves execution, but it is not the evidence this gadget checks for.",
   ],
   tools: 'BZ, B',
   how: 'In Repeater, rewrite the injection so every word separator is the shell whitespace variable the filter never strips, then confirm the response body carries the injected command real output before claiming the flag.',

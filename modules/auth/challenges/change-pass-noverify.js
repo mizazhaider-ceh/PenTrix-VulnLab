@@ -12,6 +12,7 @@ const vuln = {
   id: 'change-pass-noverify',
   name: 'Password Change Without Current Password',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'Route your browser through Burp, log in at /auth/login, then open the change-password page and notice it never asks for the current password.',
   hints: ["Proxy your login through Burp so the session is captured. On the change-password page, does the form ask for the current password?", "Intercept the change-password POST in Burp and look at the parameters: the server checks your session cookie, never the old password.", "Send the change-password request to Repeater and replay it with a new password value. A correct implementation would demand proof of the old password first, and that check is missing here."],
   tools: 'BZ, B',

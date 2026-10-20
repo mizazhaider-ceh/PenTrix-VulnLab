@@ -100,7 +100,7 @@ router.get('/stored', (req, res) => {
     </div>
     ${claimBox({
       vulnId: 'stored',
-      payload: 'Set your display name to ' + esc('{{7*7}}') + ' and reload this page.',
+      payload: 'Set your display name to a template expression (shape: {{ expression }}) and reload this page.',
       statusUrl: '/csti/claim-status?v=stored',
       beaconInfo: 'The page token is computed at runtime by the page script as <code>CSTI_NONCE</code>; it never appears in the page source. This flag is victim-bound: after planting your name, load <a href="/csti/stored/victim-visit">/csti/stored/victim-visit</a> so a simulated victim views the directory and the stored template evaluates there. A beacon fired with your own session token is rejected.',
     })}
@@ -166,7 +166,7 @@ router.get('/stored/victim-visit', (req, res) => {
   res.send(page('Victim visit', `
     <h2>Simulated victim visit</h2>
     <p>A fresh victim just loaded the member directory in their own session. ${beacons.length} beacon call(s) fired inside that page load.</p>
-    ${flags || '<p class="dim">No beacon carrying this visit secret arrived, so no flag was awarded. Set your display name to a template that renders as 49 (such as {{7*7}}), then come back here.</p>'}
+    ${flags || '<p class="dim">No beacon carrying this visit secret arrived, so no flag was awarded. Set your display name to a template that renders as 49, then come back here.</p>'}
     <p><a href="/csti/stored">Back to the member directory</a></p>
   `));
 });
@@ -188,6 +188,7 @@ module.exports = {
     id: 'stored',
     name: 'Stored Template in Profile Name',
     difficulty: 'Easy',
+    est: '5-10 minutes',
     hint: 'Display names are stored and every view evaluates them as templates. Your payload persists and fires for every visitor.',
     hints: [
       'Two requests, not one: first plant the payload with a form POST, then it fires when the member list is viewed. Repeater is the natural tool.',
@@ -195,7 +196,7 @@ module.exports = {
       'Then load /csti/stored/victim-visit in the browser: a simulated victim views the directory with a fresh victim token, and your stored template evaluating to 49 inside that visit is what claims the flag. Forging the beacon with a token from your own page view earns nothing.',
     ],
     tools: 'BZ, B',
-    how: 'Plant a template expression (such as {{7*7}}) as your display name through the profile form, then reload the member list: the stored template evaluates on every view and the page beacons proof.',
+    how: 'Plant a template expression as your display name through the profile form, then reload the member list: the stored template evaluates on every view and the page beacons proof.',
     link: '/csti#stored',
     start: 'In Burp: browse /csti/stored through Proxy, submit the profile form with a template as your display name, then reload the directory and watch /csti/beacon fire in the Proxy history.',
   },

@@ -21,10 +21,11 @@ const vuln = {
   id: 'biz-coupon-stack',
   name: 'Coupon Stacking Past 100%',
   difficulty: 'Medium',
+  est: '10-20 minutes',
   hint: 'Each coupon claims "one per order", but the discount math just adds every valid code together. 50 + 40 + 30 = ?',
   hints: ["The coupon input says to separate multiple codes with commas or spaces, and the page lists three codes. What happens if you send more than one code? Try it in Burp Repeater.", "Each valid code's percentage is added to the same discount pile, with no cap. Percentages above 100% turn the total negative, and the shop owes you money.", "In Repeater, replay the POST /bizlogic/coupon-stack request and keep adding valid codes to the codes parameter until the discount crosses 100% and the receipt shows a negative total."],
   tools: 'BZ, B',
-  how: 'Replay the checkout POST in Burp Repeater with multiple coupon codes in the codes field: the percentages add past 100%, the total drops to zero or below, and the flag is awarded.',
+  how: 'Every coupon promises "one per order". The checkout math never got that memo: what happens when discounts are allowed to pile up without a cap?',
   link: '/bizlogic#biz-coupon-stack',
   start: 'Open the checkout page in the browser with Burp Proxy intercepting. Submit the coupon form once, send the POST /bizlogic/coupon-stack request to Repeater, then experiment with code combinations in the codes field until the discount stacks past 100%.',
 };

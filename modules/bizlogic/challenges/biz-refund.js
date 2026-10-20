@@ -22,10 +22,11 @@ const vuln = {
   id: 'biz-refund',
   name: 'Tampered Refund Amount',
   difficulty: 'Medium',
+  est: '10-20 minutes',
   hint: 'The refund form carries the amount in a hidden field. The server refunds whatever number you submit, even more than you paid.',
-  hints: ["Open the refund page in your proxied browser and send the refund POST to Repeater. What parameters does the request carry?", "The amount comes from a hidden form field. Edit it in Repeater and re-send: is it clamped?", "No. Request a refund larger than the order total. The server never checks the refund amount against what you paid."],
+  hints: ["Open the refund page in your proxied browser and send the refund POST to Repeater. What parameters does the request carry?", "The amount comes from a hidden form field. Edit it in Repeater and re-send: is it clamped?", "Try an amount above the order total in Repeater and read the receipt: nothing clamps the refund to what you actually paid."],
   tools: 'BZ, B',
-  how: 'Buy the $50 hoodie, then submit the refund form with an amount larger than $50 by changing the hidden amount field before sending.',
+  how: 'The refund form suggests an amount, and the server treats that suggestion as your decision. What is a refund allowed to be, in this shop?',
   link: '/bizlogic#biz-refund',
   start: 'Start Burp Proxy and open /bizlogic/refund in your proxied browser. Buy the hoodie, then send the refund POST to Repeater and replay it with a larger amount.',
 };

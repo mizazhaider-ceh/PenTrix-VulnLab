@@ -8,12 +8,12 @@ h2{font-size:1.5rem;font-weight:800}
 h3{font-size:1.15rem;font-weight:800}
 p{margin:0 0 16px;max-width:65ch}
 a{color:var(--clay-violet);text-decoration-thickness:2px;text-underline-offset:3px}
-a:hover{color:var(--clay-pink)}
+a:hover{color:#BE185D}
 code,kbd{font-family:var(--font-mono);background:var(--clay-well);padding:2px 8px;border-radius:8px;font-size:.9em}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .skip{position:absolute;left:16px;top:-64px;z-index:50;background:var(--clay-ink);color:#fff;padding:12px 20px;border-radius:var(--r-btn);font-weight:700;text-decoration:none;transition:top var(--dur-fast) var(--ease-out)}
 .skip:focus{top:12px;color:#fff}
-:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(124,58,237,.3);border-radius:8px}
+:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(124,58,237,.8);border-radius:8px}
 .blobs{position:fixed;inset:0;overflow:hidden;z-index:-1;pointer-events:none}
 .blob{position:absolute;width:60vh;height:60vh;border-radius:50%;filter:blur(80px)}
 .blob-1{background:rgba(139,92,246,.1);top:-10%;left:-10%;animation:clay-float 8s ease-in-out infinite}
@@ -22,7 +22,7 @@ code,kbd{font-family:var(--font-mono);background:var(--clay-well);padding:2px 8p
 @keyframes clay-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
 .topbar{position:sticky;top:12px;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1080px;margin:12px auto 0;padding:6px 12px 6px 20px;min-height:64px;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:var(--r-card);box-shadow:var(--shadow-clay-card)}
 .brand{font-family:var(--font-display);font-weight:800;font-size:1.15rem;color:var(--clay-ink);text-decoration:none;display:inline-flex;align-items:center;gap:10px;white-space:nowrap}
-.brand .orb{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;background:linear-gradient(135deg,var(--clay-violet-light),var(--clay-violet));box-shadow:var(--shadow-clay-button);flex:none}
+.brand .orb{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;background:linear-gradient(135deg,var(--clay-violet),var(--clay-violet-deep));box-shadow:var(--shadow-clay-button);flex:none}
 .topbar nav{display:flex;align-items:center;gap:4px}
 .topbar nav a{color:var(--clay-muted);text-decoration:none;font-weight:700;padding:12px 16px;border-radius:var(--r-btn);min-height:44px;display:inline-flex;align-items:center;white-space:nowrap}
 .topbar nav a:hover{color:var(--clay-violet);background:var(--clay-well)}
@@ -49,7 +49,7 @@ code,kbd{font-family:var(--font-mono);background:var(--clay-well);padding:2px 8p
 .clay-btn-secondary:hover{transform:translateY(-4px);color:var(--clay-ink)}
 .clay-btn-secondary:active{transform:scale(.92);box-shadow:var(--shadow-clay-pressed)}
 .clay-btn-sm{min-height:44px;padding:0 20px;font-size:.9rem}
-.clay-btn:focus-visible{outline:none;box-shadow:var(--shadow-clay-button),0 0 0 4px rgba(124,58,237,.3)}
+.clay-btn:focus-visible{outline:none;box-shadow:var(--shadow-clay-button),0 0 0 4px rgba(124,58,237,.8);transition:transform var(--dur-fast) var(--ease-out)}
 .btn{display:inline-block;background:var(--clay-violet);color:#fff;font-weight:700;padding:12px 24px;border-radius:var(--r-btn);text-decoration:none;margin:4px 8px 4px 0;border:none;cursor:pointer;box-shadow:var(--shadow-clay-button)}
 .btn:hover{color:#fff}
 .btn.ghost{background:#fff;color:var(--clay-ink);box-shadow:var(--shadow-clay-card)}
@@ -57,7 +57,7 @@ code,kbd{font-family:var(--font-mono);background:var(--clay-well);padding:2px 8p
 .clay-field>label{font-weight:700;font-size:.9rem;color:var(--clay-ink)}
 .clay-input,.clay-select{width:100%;min-height:56px;border:0;border-radius:var(--r-icon);background:var(--clay-well);color:var(--clay-ink);padding:14px 20px;font:500 1rem/1.4 var(--font-body);box-shadow:var(--shadow-clay-pressed);transition:background-color var(--dur-fast),box-shadow var(--dur-fast)}
 .clay-input::placeholder{color:var(--clay-muted);opacity:1}
-.clay-input:focus,.clay-select:focus{outline:none;background:#fff;box-shadow:var(--shadow-clay-card),0 0 0 4px rgba(124,58,237,.2)}
+.clay-input:focus,.clay-select:focus{outline:none;background:#fff;box-shadow:var(--shadow-clay-card),0 0 0 4px rgba(124,58,237,.8)}
 .clay-select{appearance:none;-webkit-appearance:none;padding-right:48px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%23635F69' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 18px center}
 .clay-err{color:var(--clay-err);font-size:.875rem;font-weight:700}
 input[type=text],input[type=password],input[type=email],input[type=url],input[type=search],textarea,select{background:var(--clay-well);border:0;color:var(--clay-ink);padding:12px 16px;border-radius:var(--r-icon);font-size:1rem;width:100%;box-shadow:var(--shadow-clay-pressed)}
@@ -71,9 +71,9 @@ label{font-size:.9rem;color:var(--clay-muted)}
 a.clay-card{text-decoration:none;display:block}
 a.clay-card:hover{transform:translateY(-8px);box-shadow:24px 24px 48px rgba(160,150,180,.28),-12px -12px 28px rgba(255,255,255,.95),inset 6px 6px 12px rgba(139,92,246,.04),inset -6px -6px 12px rgba(255,255,255,1)}
 a.clay-card:active{transform:scale(.98)}
-a.clay-card:focus-visible{outline:none;box-shadow:var(--shadow-clay-card),0 0 0 4px rgba(124,58,237,.3)}
+a.clay-card:focus-visible{outline:none;box-shadow:var(--shadow-clay-card),0 0 0 4px rgba(124,58,237,.8)}
 .clay-card .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.orb{width:52px;height:52px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;font-size:1.05rem;color:#fff;background:linear-gradient(135deg,var(--clay-violet-light),var(--clay-violet));box-shadow:var(--shadow-clay-button)}
+.orb{width:52px;height:52px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;font-size:1.05rem;color:#fff;background:linear-gradient(135deg,var(--clay-violet),var(--clay-violet-deep));box-shadow:var(--shadow-clay-button)}
 .clay-card h3{font-size:1.25rem;margin-bottom:8px}
 .clay-card .tagline{color:var(--clay-muted);font-size:.95rem;margin-bottom:20px}
 .clay-card .card-foot{margin-top:20px;padding-top:16px;border-top:1px solid var(--hairline)}
@@ -90,7 +90,7 @@ a.clay-card:focus-visible{outline:none;box-shadow:var(--shadow-clay-card),0 0 0 
 .dot-mixed{background:var(--clay-violet)}
 .dot-unknown{background:var(--clay-muted)}
 .progress,.clay-progress{background:var(--clay-well);border-radius:var(--r-pill);height:14px;overflow:hidden;box-shadow:var(--shadow-clay-pressed);min-width:120px}
-.clay-progress .fill,.progress .bar{height:100%;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--clay-violet-light),var(--clay-violet));transition:width var(--dur-slow) var(--ease-out)}
+.clay-progress .fill,.progress .bar{height:100%;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--clay-violet),var(--clay-violet-deep));transition:width var(--dur-slow) var(--ease-out)}
 .progress{margin:8px 0 24px}
 .progress-meta{display:flex;align-items:center;gap:12px;font-size:.85rem;color:var(--clay-muted);font-weight:700}
 .progress-meta .clay-progress{flex:1}
@@ -118,7 +118,7 @@ a.clay-card:focus-visible{outline:none;box-shadow:var(--shadow-clay-card),0 0 0 
 .flag-banner{border-radius:var(--r-card);background:#fff;box-shadow:var(--shadow-clay-card);padding:32px;margin:24px 0;border:2px solid rgba(16,185,129,.35);animation:capture-pop 280ms var(--ease-pop)}
 @keyframes capture-pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 .flag-banner .flag-top{display:flex;align-items:center;gap:16px;margin-bottom:16px}
-.flag-orb{width:60px;height:60px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;color:#fff;background:linear-gradient(135deg,#34D399,var(--clay-emerald));box-shadow:var(--shadow-clay-button)}
+.flag-orb{width:60px;height:60px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;color:#fff;background:linear-gradient(135deg,#059669,#047857);box-shadow:var(--shadow-clay-button)}
 .flag-banner h2{margin:0;font-size:1.4rem}
 .flag-banner .saved{color:var(--clay-muted);font-size:.9rem}
 .flag-well{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--clay-well);border-radius:var(--r-icon);box-shadow:var(--shadow-clay-pressed);padding:16px 20px;margin:16px 0}
@@ -264,3 +264,93 @@ html.page-exit body{opacity:0;transition:opacity 160ms var(--ease-out)}
   .pill:hover,.clay-pill:hover,.badge:hover{transform:none}
 }
 .app-nav{margin-left:auto}
+
+/* ================================================================
+   P3 UI POLISH MARKUP (N3, N4, N5, appended 2026-10-20)
+   ================================================================ */
+
+/* N3: scenario stage grids: cards keep their natural height instead of
+   stretching to the tallest card in the row. */
+.grid.stages{align-items:start}
+
+/* N4: setup-guide table of contents: 44px rows on mobile. */
+@media(max-width:719px){
+  .toc{list-style:none;margin:0 0 24px;padding:0}
+  .toc li a{display:inline-flex;align-items:center;min-height:44px;padding:6px 4px}
+}
+
+/* N5: breadcrumb chrome. The app shell injects a <nav class="breadcrumb">
+   plus a .back-link paragraph at the top of every module, scenario, and
+   path page. Links are muted, the current page is ink, separators are
+   spacing only. Mobile rows reach 44px touch height via padding. */
+.breadcrumb{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-family:var(--font-body);font-size:.9rem;color:var(--clay-muted);margin-bottom:4px}
+.breadcrumb a{color:var(--clay-muted);text-decoration:none;display:inline-flex;align-items:center;border-radius:8px}
+.breadcrumb a:hover{color:var(--clay-violet)}
+.breadcrumb [aria-current="page"]{color:var(--clay-ink);font-weight:700;display:inline-flex;align-items:center}
+.breadcrumb-sep{margin:0 6px;color:var(--clay-muted);flex:none}
+.back-link{margin:0 0 24px;font-size:.9rem}
+.back-link a{color:var(--clay-muted);text-decoration:none;display:inline-flex;align-items:center;border-radius:8px}
+.back-link a:hover{color:var(--clay-violet)}
+@media(max-width:719px){
+  .breadcrumb a,.breadcrumb [aria-current="page"],.back-link a{min-height:44px;padding:10px 6px}
+}
+
+/* N1: quick-login chip rows in the OAuth module and client/IdP pages. */
+.quick-login{display:inline-flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+
+/* ================================================================
+   P3 UI POLISH (appended 2026-10-20, rendering audit fixes)
+   ================================================================ */
+
+/* Starter cards (home, scoreboard empty state): the shared .empty p
+   rule centered this text in a narrow column under a left-aligned
+   heading. Starter copy is left-aligned like the rest of the card. */
+.starter p{margin-left:0;margin-right:0;max-width:65ch}
+
+/* Wrapped button labels center as a block, not as a left-aligned
+   anonymous flex item (seen on full-width mobile primary buttons). */
+.clay-btn{text-align:center}
+
+/* Brand link meets the 44px touch target inside the 64px topbar. */
+.brand{min-height:44px}
+
+/* Fake-app headers (.card > .card-top, e.g. CraftHaven, PenTrix IdP):
+   the flex row was only defined under .clay-card, so the orb, the app
+   name, and the trailing nav or pill collapsed inline with no gap and
+   .app-nav margin-left:auto did nothing. Give plain cards the row. */
+.card>.card-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.card>.card-top .clay-pill{margin-left:auto}
+
+/* Path pages put a .progress bar inside .progress-meta; only the
+   .clay-progress variant was set to flex, so the bar sat at its
+   120px minimum next to the meta text. */
+.progress-meta .progress{flex:1}
+
+/* Long unbroken tokens (URLs, parameter strings) in briefing and
+   challenge copy must wrap instead of pushing the page sideways
+   (OAuth index overflowed by 8px at 390px before this rule). */
+.brief p,.vuln-card p,.note p{overflow-wrap:break-word}
+
+@media(max-width:719px){
+  /* Challenge title links and scoreboard module links are primary
+     tap targets on module and scoreboard pages: give them a full
+     44px row on small screens. */
+  .vuln-card h3 a,.sb-head h3 a{display:inline-flex;align-items:center;min-height:44px}
+  /* Hero call-to-action rows stack at one width on mobile. */
+  .hero .cta-row .clay-btn{width:100%}
+}
+
+/* S1 (UX pass, P1): the hero is above the fold on the home page and
+   must never sit in the hidden reveal set. The reveal gate, the
+   observer, and the 500ms fade left the main heading and both calls
+   to action invisible for about 1.2s, and a stalled observer or a
+   blocked app.js would leave them invisible for good. The hero now
+   paints immediately; reveal animation stays for below-fold cards,
+   and the 2s force-reveal in app.js stays as the backstop. */
+.js .hero.reveal{opacity:1;transform:none}
+
+/* S2 (UX pass): the same focus ring fade the note found on .clay-btn
+   also applies to linked cards, whose base transition runs 500ms.
+   On focus the card keeps only its transform transition, so the
+   ring paints in the same frame as the focus move. */
+a.clay-card:focus-visible{transition:transform var(--dur-fast) var(--ease-out)}

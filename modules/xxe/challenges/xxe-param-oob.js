@@ -14,6 +14,7 @@ const vuln = {
   id: 'xxe-param-oob',
   name: 'Parameter-Entity OOB Exfiltration',
   difficulty: 'Hard',
+  est: 'about 25 to 45 minutes',
   hint: 'Chain parameter entities entirely inline: %file; reads the secret, %oob; declares a new entity whose URL carries %file; to the in-lab collector. Mind the quoting.',
   hints: ["Proxy your browser through Burp and open the import console at /xxe/param. Submit the form once, find POST /xxe/param in Proxy HTTP history, and send it to Repeater so you can replay it while you iterate.", "Parameter entities (%) expand inline inside the DOCTYPE, and the in-lab collector at /xxe/collector/log means you need no external listener. In Repeater, declare one parameter entity that reads the secret file, then a second one whose value is a brand-new <!ENTITY> declaration with a SYSTEM URL pointing at the collector and carrying the file content as a query parameter.", "Reference the second parameter entity to smuggle the new declaration into the document, then reference the new general entity in your <data> body to fire the pingback. Key insight: the parser, not your browser, performs the callback fetch, so the secret leaves server-side; open the collector log afterwards to watch it land. Mind the quoting: the outer parameter entity value is double-quoted, so the inner declaration's URL must use single quotes."],
   tools: "BZ, B, C",

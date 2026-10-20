@@ -18,7 +18,8 @@ const vuln = {
   hint: 'Capture the merge POST in Burp Proxy and replay it in Repeater. The endpoint accepts a JSON body, and JSON.parse happily creates an own property literally named __proto__.',
   hints: ["On the merge console page, click Merge with Burp Proxy intercepting, then send the POST to Repeater. The JSON body is deep-merged with no key filtering, same idea as query-string pollution, different vector.", "In Repeater, change the request body to a JSON object whose top-level key targets the prototype, with a nested object setting the property the admin check reads.", "After Repeater confirms the merge, open the admin check URL in the browser to claim the flag."],
   tools: "BZ, C",
-  how: 'Use Burp Repeater to POST a polluting JSON body to /proto/json/merge that sets the admin-check property through the prototype, then open the admin check.',
+  est: 'about 10 to 20 minutes',
+  how: 'An import endpoint deep-merges a parsed JSON body into the running config with no key filtering, and JSON itself happily carries a key that points straight at the shared prototype.',
   link: '/proto#proto-json',
   start: 'In Burp, open the merge console (/proto/json), click Merge so the POST lands in the proxy history, send it to Repeater, replay it with a polluting JSON body, then open the admin check in the browser.',
 };
@@ -35,12 +36,12 @@ router.get('/json', (req, res) => {
     ${appShell('ConfigDesk', `
       <h2>Merge a JSON body into the app config</h2>
       <label class="clay-field" for="jb">JSON body (Content-Type: application/json)</label><br />
-      <textarea class="clay-input" id="jb" rows="6" cols="60">{"__proto__": {"role": "admin"}}</textarea><br /><br />
+      <textarea class="clay-input" id="jb" rows="6" cols="60">{"<prototype-key>": {"<property>": "<value>"}}</textarea><br /><br />
       <button class="clay-btn clay-btn-primary" onclick="fetch('/proto/json/merge', {method:'POST', headers:{'Content-Type':'application/json'}, body: document.getElementById('jb').value}).then(r => r.text()).then(t => document.getElementById('out').innerHTML = t);">Merge JSON</button>
       <div id="out"></div>
       <hr />
       <p>Or in Burp Repeater:</p>
-      ${payloadBlock('Burp Repeater', 'POST /proto/json/merge HTTP/1.1\nHost: <your-lab-address>\nContent-Type: application/json\n\n{"__proto__": {"role": "admin"}}')}
+      ${payloadBlock('Request shape', 'POST /proto/json/merge HTTP/1.1\nHost: <your-lab-address>\nContent-Type: application/json\n\n{"<prototype-key>": {"<property-the-admin-check-reads>": "<expected-value>"}}')}
       <p>Step 2: <a class="clay-btn clay-btn-secondary" href="/proto/json/admin">Open admin check</a></p>
     `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > JSON import' })}
     ${hintLadder(vuln)}

@@ -13,10 +13,11 @@ const vuln = {
   id: 'crypto-md5-crack',
   name: 'Crack the MD5',
   difficulty: 'Easy',
+    est: '5-10 minutes',
   hint: 'Unsalted MD5 of a weak password. The password is in the in-lab wordlist: hash every candidate until one matches.',
   hints: ["The hash is unsalted MD5 of a dictionary word. What's the attack?", "Copy the leaked hash and the in-lab wordlist into Repeater tabs.", "Hash every wordlist entry with MD5 until one matches the leak, then log in with it through Burp Proxy."],
   tools: 'BZ, W, P',
-  how: 'Crack the unsalted MD5 with the in-lab wordlist, then log in with the recovered password.',
+  how: 'Somewhere on this site, a password hash and a wordlist are both within reach. Unsalted MD5 keeps no secrets from a dictionary.',
   link: '/crypto#crypto-md5-crack',
   start: 'Browse to the LegacyBox login page through Burp Proxy, then fetch the leaked hash and the wordlist in Repeater.',
 };

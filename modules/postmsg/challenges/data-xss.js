@@ -16,6 +16,7 @@ router.get('/data-xss', (req, res) => {
   res.send(page('Link preview · Previewr', `
     ${appShell('Previewr', `
       <h2>Link preview</h2>
+      <p class="dim">Typical time: 10-25 min</p>
       <p>Other pages can send this pane a preview to render. Whatever arrives shows up below.</p>
       <div class="card" id="preview"><p class="dim">(no preview received yet)</p></div>
       <script>
@@ -40,9 +41,9 @@ router.get('/data-xss/attacker', (req, res) => {
     <div class="clay-card">
       <div class="card-top"><b>Attacker page</b><span class="clay-pill">lab 3</span></div>
       <p>This page embeds the victim preview pane in an iframe and sends it a
-      message. The pane renders the message's <code>html</code> property as markup.</p>
+      message. Part of what the message carries is rendered as markup.</p>
       <div class="card"><iframe id="v" src="/postmsg/data-xss" width="100%" height="260" style="border:0" title="Victim preview pane"></iframe></div>
-      ${payloadBlock('What the Fire button sends', `iframe.contentWindow.postMessage(\n  { html: '<img src=x onerror="alert(\\'postMessage XSS\\')">' },\n  '*'\n);`)}
+      ${payloadBlock('Message shape', `iframe.contentWindow.postMessage(\n  { <property the pane reads>: '<markup you craft>' },\n  '*'\n);`)}
       <p><button class="clay-btn clay-btn-primary" id="fire" type="button">Fire payload</button></p>
       <p id="log" class="dim" role="status"></p>
       <script>
@@ -65,11 +66,11 @@ module.exports = {
     id: 'data-xss',
     name: 'Unsanitized Message Data Rendered as HTML',
     difficulty: 'Medium',
-    hint: 'The preview pane drops event.data.html straight into innerHTML. The message can be an object, not just a string.',
+    hint: 'The preview pane trusts whatever a message carries and renders it without sanitizing. A message does not have to be a plain string; read the victim handler to see what shape it expects.',
     hints: [
-      "The preview pane drops event.data.html straight into innerHTML. Load the victim page with Burp Proxy on and watch Proxy history for the requests the page makes.",
+      "Load the victim page with Burp Proxy on, read its message handler in the response, and watch Proxy history for the requests the page makes when a message arrives.",
       "The message can be an object, not just a string. Fire one at the iframe from the browser console, then look for the beacon request in Proxy history.",
-      "Once the beacon is in Proxy history, send it to Repeater to inspect and re-fire. You need an element whose event-handler attribute runs the moment the markup is rendered, with no click needed.",
+      "Once the beacon is in Proxy history, send it to Repeater to inspect it. You need markup whose active part runs the moment it is rendered, with no click needed.",
     ],
     tools: 'BZ, B, DT',
     how: 'Load the attacker page in the browser with Burp Proxy on, send the victim iframe a message carrying HTML, and let the victim page fire its flag beacon. Confirm the beacon in Proxy history and send it to Repeater to inspect.',

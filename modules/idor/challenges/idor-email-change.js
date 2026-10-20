@@ -70,10 +70,11 @@ module.exports = {
     hints: [
       'The email change form carries more than just the new address. Capture the POST in Burp\'s Proxy history and read every parameter.',
       'The form submits a user_id parameter that the server trusts. Send the captured request to Repeater.',
-      'Replay the request in Repeater with another account\'s id in the user_id field (the admin is a strong target), then read the confirmation page carefully: it tells you whose address actually moved.',
+      'Shape: the same change-email request with the account-identifying parameter pointed at a different account. Read the confirmation carefully afterwards: it tells you whose address actually moved.',
     ],
     tools: 'BZ, B',
-    how: 'POST /idor/account/email with another user\'s id in the user_id parameter.',
+    est: 'about 5 to 10 minutes',
+    how: 'An account-settings action takes the target account from a form field, so the caller chooses whose account gets changed.',
     link: '/idor#idor-email-change',
     start: 'In Burp Proxy, log in as alice, open Account settings, and submit the change-email form while watching the request in the proxy history.',
   },

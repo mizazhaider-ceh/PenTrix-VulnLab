@@ -9,7 +9,7 @@ const { sstiRender } = require('../shared');
 
 const router = express.Router();
 
-// GET /ssti/dotblock -> record viewer. Same behavior as router.js: the dot filter runs
+// GET /ssti/dotblock -> record viewer. The dot filter runs
 // on the raw input, the naive engine evaluates {{ }} via sstiRender, and the flag is
 // awarded when the rendered output contains the flag value.
 router.get('/dotblock', (req, res) => {
@@ -50,6 +50,7 @@ module.exports = {
     id: 'ssti-dotblock',
     name: 'Dot Blacklist Bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'Dots are deleted from your input. JavaScript has a second property-access syntax that uses no dots.',
     hints: [
       'Capture the form submission in Burp Proxy and send it to Repeater. Try dot-style property access first and watch the filter delete the dots.',
@@ -57,7 +58,7 @@ module.exports = {
       'Once the rendered output shows the flag value instead of an empty result, resend once to confirm it reproduces, then claim it.',
     ],
     tools: 'BZ, B',
-    how: 'Fuzz the input parameter in Burp Repeater: first confirm dot access is stripped, then switch to the no-dot bracket syntax to read the flag property from the db object.',
+    how: 'Fuzz the input parameter in Burp Repeater: first confirm dot access is stripped, then switch to the no-dot bracket syntax to explore the db object and read what it holds.',
     link: '/ssti#ssti-dotblock',
     start: 'Proxy the form through Burp, send the request to Repeater, and fuzz the input parameter, starting with a harmless baseline and then property-access variations.',
   },

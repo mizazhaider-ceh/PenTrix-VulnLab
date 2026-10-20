@@ -7,7 +7,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { appShell, esc, page, payloadBlock } = require('../../../lib/page');
-const { issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
+const { issueBeaconToken, recordPendingUpload, beaconSnippet, trackStoredUpload } = require('../shared');
 
 const router = express.Router();
 
@@ -55,6 +55,7 @@ router.post('/filter', (req, res) => {
       ${backToModule}`));
   }
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
+  trackStoredUpload(req, clean);
   const ext = path.extname(clean).toLowerCase();
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   let flagHtml = '';
@@ -79,6 +80,7 @@ module.exports = {
     id: 'upload-strip-once',
     name: 'Strip-once filter bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'v6 removes each dangerous extension exactly once with a non-global replace. Nest the extension inside itself so one removal rebuilds it. Storing is not enough: the flag fires only when the stored file is served as active content and its script phones home through the beacon snippet.',
     hints: [
       "Proxy your browsing of /upload in Burp, then send a plain '.svg' upload to Repeater and watch the filter strip the extension once.",
@@ -88,7 +90,7 @@ module.exports = {
     tools: 'BZ, C',
     how: 'POST to /upload/filter in Burp Repeater with a filename that nests the blocked extension inside itself and a body carrying the beacon snippet. The single strip rebuilds the live extension, so the stored file stays active, and the flag fires when the served script phones home.',
     link: '/upload#upload-strip-once',
-    start: 'In Burp Repeater, build a POST to /upload/filter?filename=evil.s.svgvg with the SVG file bytes (beacon snippet included) as the raw body, then send it and open the stored name\'s /upload/view/ link in your browser.',
+    start: 'In Burp Repeater, build a POST to the filter endpoint with your file bytes (beacon snippet included) as the raw body and a filename that experiments with nesting the blocked extension inside itself, then send it and open the stored name\'s /upload/view/ link in your browser.',
   },
   router,
 };

@@ -34,9 +34,9 @@ router.get('/redirect-bypass', (req, res) => {
       code somewhere else entirely.</p>`, 'Lab 1: Redirect URI prefix bypass')}
     <div class="clay-card">
       <h3>Attacker redirect URI</h3>
-      ${payloadBlock('redirect_uri', EVIL)}
-      <p class="note">It starts with the trusted prefix, so the check lets it through,
-      but the host belongs to the attacker.</p>
+      ${payloadBlock('redirect_uri shape', 'http://app.pentrix.lab<something>.attacker-host/cb')}
+      <p class="note">The shape to aim for: a URI whose text starts with the trusted
+      prefix, while the host that actually receives the code belongs to the attacker.</p>
       <p><a class="clay-btn clay-btn-primary" href="${esc(href)}">Start authorization with this redirect_uri</a></p>
     </div>
     <div class="clay-card">
@@ -62,9 +62,10 @@ module.exports = {
     hint: 'The IdP checks redirect_uri with a naive prefix match against http://app.pentrix.lab. What string starts with that but points at an attacker host?',
     hints: ["The redirect_uri check is a naive prefix match. Find the authorize request in Burp Proxy history and study its parameters.", "Send the authorize request to Burp Repeater and try redirect_uri values that start with the trusted prefix.", "Authorize, approve on the consent screen, then watch the redirect target in Proxy history. Where does the code go?"],
     tools: "BZ, B",
-    how: 'Through Burp, request an authorization code with redirect_uri=http://app.pentrix.lab.evil.com/cb and watch the code go to the attacker host.',
+    est: 'about 10 to 20 minutes',
+    how: 'A prefix check on redirect_uri trusts any URI that starts with the right text, including URIs whose host belongs to someone else.',
     link: '/oauth#redirect-bypass',
-    start: 'Open Burp and route your browser through the proxy. Log in to the IdP as alice, then start an authorization with the attacker redirect_uri from the challenge page.',
+    start: 'Open Burp and route your browser through the proxy. Log in to the IdP as alice, then open the challenge page and study, in Proxy history, the authorize request it builds.',
   },
   router,
 };

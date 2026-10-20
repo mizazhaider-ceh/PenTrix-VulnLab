@@ -15,10 +15,11 @@ const vuln = {
   id: 'redirect-backslash',
   name: 'Backslash Allowlist Bypass',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'The code allowlists URLs starting with https://pentrix.lab, but compares the raw string and accepts backslashes as separators. Browsers normalize backslash to slash.',
   hints: ["Intercept the redirect in Burp Proxy and send it to Repeater. The allowlist checks for 'https://', but URLs can use backslashes as separators too.", "In Repeater, probe what the server's check accepts. It inspects the raw string instead of the parsed hostname. Browsers treat backslash as a path separator, so the string the check reads and the host the browser resolves can disagree.", "In Repeater, craft a next value whose raw string starts like an allowlisted URL while its parsed hostname points somewhere else (Repeater's URL-encode option handles the special characters). The key insight: the server validates the string, the browser parses the URL, and those two can disagree on the destination."],
   tools: "BZ, C",
-  how: 'In Burp Repeater, send GET /redirect/trusted with a next value whose raw string satisfies the naive allowlist by using backslash separators in place of slashes, so the string check passes while the real parsed hostname is not pentrix.lab. URL-encode the special characters (Ctrl+U in Repeater), send the request, and read the flag from the 302 response body.',
+  how: 'A raw-string allowlist and a browser URL parser can disagree about the same URL. In Burp Repeater, explore separator spellings until the check passes but the destination the browser would resolve is not the trusted host.',
   link: '/redirect#redirect-backslash',
   start: 'In Burp Proxy, visit /redirect/trusted, submit the Partner URL form, and send the request to Repeater. Then experiment with the next parameter until the check passes but the destination is not the trusted host.',
 };
@@ -39,8 +40,8 @@ function entryPage() {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Go</button>
     </form>
-    <p class="note">Try <code>?next=https:%5C%5Cevil.com</code> (that is
-    <code>https:\\\\evil.com</code> URL-encoded). Browsers normalize backslashes to slashes.</p>
+    <p class="note">Think about which separator spellings a browser accepts in a URL,
+    and how a raw-string prefix check reads those same spellings.</p>
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/redirect">Back to the module</a></p>
   </section>
   ${hintLadder(vuln)}`);

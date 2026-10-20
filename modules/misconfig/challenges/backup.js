@@ -18,14 +18,14 @@ const vuln = {
   hint: 'Admins sometimes leave database dumps where the web server can serve them. Guess the filename.',
   hints: [
     "Think like an admin in Burp's Proxy history: which backup filenames end up in a web root?",
-    "backup.sql in the web root gets served to anyone as plain text. It is a full database dump.",
+    "One classic dump filename in the web root gets served to anyone as plain text: a full database backup, readable end to end.",
     "In Burp Repeater, send GET requests for common backup filenames under /misconfig/ until one returns a dump instead of a 404, then search the response body for plaintext credentials or tokens.",
   ],
   tools: 'BZ, B',
   est: 'about 5 minutes',
-  how: 'With Burp Proxy on, browse to /misconfig, then guess the backup filename in Repeater and read the returned dump for plaintext credentials and tokens.',
+  how: 'A database dump left under the web root is served to anyone who guesses its name, credentials and all.',
   link: '/misconfig#backup',
-  start: 'Proxy your lab address in Burp, browse to /misconfig, then replay the page request in Repeater with the path changed to /misconfig/backup.sql and search the response dump.',
+  start: 'Proxy your lab address in Burp, browse to /misconfig, then replay the page request in Repeater and try common backup filenames under the same prefix, searching any promising response.',
 };
 
 // GET /misconfig/backup.sql -> serves the backup dump verbatim, prefixed with

@@ -16,10 +16,11 @@ const vuln = {
   id: 'bypass',
   name: 'Blocklist bypass',
   difficulty: 'Hard',
+  est: 'about 20 to 40 minutes',
   hint: 'The blocklist is a naive substring check. Loopback has more than one spelling.',
   hints: ["The fetcher blocks '127.0.0.1' as a substring. But an IP address is just a number, and it has more than one spelling. In Burp, send your fetch request to Intruder and prepare a small payload list of alternate loopback spellings to fuzz the url parameter.", "The blocklist is a naive string check on the raw URL text. The URL parser, however, also accepts loopback written as a single decimal number, with hex octets, or with leading-zero octal octets, and normalizes each of those forms back to 127.0.0.1. Try one spelling at a time in Repeater until the blocklist waves it through.", "Rebuild the internal fetch URL using one of the alternate loopback spellings. The string check will wave it through while the URL parser still delivers the request to loopback. Keep fuzzing in Intruder if the first spelling fails."],
   tools: "BZ, C",
-  how: 'Reach the internal secret through /ssrf/fetch2 by rebuilding the fetch URL with an alternate loopback spelling (decimal, hex octets, or leading-zero octal octets). In Burp Repeater send one request per spelling, or in Intruder fuzz the url parameter with a short payload list of alternate spellings.',
+  how: 'Loopback has more than one spelling, and a substring blocklist only knows the spellings it lists. In Burp Repeater or Intruder, find a spelling the blocklist misses that the URL parser still resolves to loopback, and reach the internal secret through /ssrf/fetch2.',
   link: '/ssrf#bypass',
   start: 'Browse to /ssrf/fetch2 through Burp Proxy, use the Fetch a link form once with any URL, then send the request to Repeater.',
 };

@@ -76,9 +76,8 @@ router.get('/', (req, res) => {
       <code>/oauth/client/</code>. <code>${esc(shared.TRUSTED_PREFIX)}</code> is the fictional client
       host; issued codes and tokens are shown on the approval pages because the redirect never
       resolves in your browser.<br><br>
-      <b>Your two hats:</b> IdP session: ${me ? `<b>${esc(me.username)}</b>` : 'not logged in'}
-      (<a href="/oauth/login/alice">alice</a> = victim, <a href="/oauth/login/bob">bob</a> = attacker,
-      <a href="/oauth/login/admin">admin</a>, <a href="/oauth/logout">logout</a>).
+      <b>Your two hats:</b> IdP session: ${me ? `<b>${esc(me.username)}</b>` : 'not logged in'}<br>
+      <span class="quick-login" aria-label="Quick IdP login"><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/alice">alice (victim)</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/bob">bob (attacker)</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/admin">admin</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/logout">logout</a></span><br>
       Client session: ${c ? `<b>${esc(c.username)}</b>` : 'not logged in'}.`)}
     ${trackBanner(module.exports)}
 

@@ -33,8 +33,11 @@ router.get('/claim-status', (req, res) => {
 // GET /postmsg/beacon -> flag capture beacon. Awards only when the victim
 // page's own JavaScript fired with lab-specific data: every victim handler
 // prefixes its beacon payload, and two labs additionally require real lab
-// state (the exfiltrated secret, the deleted account). The three prefix-match
-// labs additionally require the page-bound token.
+// state (the exfiltrated secret, the deleted account). The prefix-match
+// labs, csrf-action included, additionally require the page-bound token:
+// csrf-action also requires that the deletion in this session was driven
+// by the victim page's script (its delete request presented the same
+// token), so a bare delete plus a bare beacon call earns nothing.
 router.get('/beacon', (req, res) => {
   const v = String(req.query.v || '');
   const d = String(req.query.d || '');
@@ -42,8 +45,6 @@ router.get('/beacon', (req, res) => {
   if (VULN_IDS.includes(v) && d) {
     if (v === 'wildcard') {
       ok = !!req.session.pm_secret && d.includes(req.session.pm_secret);
-    } else if (v === 'csrf-action') {
-      ok = d.startsWith('csrf-action:') && req.session.pm_deleted === true;
     } else {
       // Bound to the victim page: the beacon must echo the one-time token the
       // victim page rendered when it loaded in this session.
@@ -51,6 +52,9 @@ router.get('/beacon', (req, res) => {
       const m = req.session.pmNonce;
       const cur = m && Object.prototype.hasOwnProperty.call(m, v) ? m[v] : null;
       ok = d.startsWith(v + ':') && !!cur && cur === n;
+      if (ok && v === 'csrf-action') {
+        ok = req.session.pm_deleted === true && req.session.pm_msg_deleted === true;
+      }
       if (ok) delete m[v]; // single-use
     }
   }

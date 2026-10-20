@@ -29,7 +29,7 @@ function formHtml() {
       <button class="clay-btn clay-btn-primary" type="submit">Check availability</button>
     </form>
     <p class="note">Max length: ${MAX_LEN} characters. The pattern is
-    <code>^(a+)+$</code>. Feed it many a&#39;s, then break the match at the end.</p>
+    <code>^(a+)+$</code>. Think about which inputs make it try the most groupings before it can answer.</p>
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/redos">Module index</a></p>
   `, { mark: '◉', nav: ['Home', 'Plans', 'Sign in'] });
 }
@@ -76,10 +76,11 @@ module.exports = {
     id: 'redos-username',
     name: 'Nested Quantifier Username',
     difficulty: 'Easy',
+    est: 'about 5 to 10 minutes',
     hint: 'The pattern is shown on the page: ^(a+)+$. Give it what it wants, then take it away at the last character.',
     hints: ["The pattern is (a+)+. Send the check request from the Proxy to Repeater in Burp.", "Each 'a' can be grouped many ways. Exponential backtracking, so each extra character multiplies the work. Tune the input length in Repeater.", "Fill the input with the one character the pattern wants, repeated many times, then break the match with a final character it rejects. Watch the response time in Repeater."],
     tools: "BZ, B, C",
-    how: 'In Repeater, submit 27 a\'s plus a trailing character that breaks the match (add a few more, up to the length cap, if the response comes back fast).',
+    how: 'In Repeater, build a near-miss input the textbook pattern has to work hardest on, and tune its length against the response timer until the check crosses the threshold.',
     link: '/redos#redos-username',
     start: 'Browse to /redos/username in your browser with the Burp Proxy on, submit the check form, then send that request to Repeater.',
   },

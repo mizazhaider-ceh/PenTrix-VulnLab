@@ -18,6 +18,7 @@ router.get('/substring', (req, res) => {
   res.send(page('Partner widget · PartnerHub', `
     ${appShell('PartnerHub', `
       <h2>Partner widget</h2>
+      <p class="dim">Typical time: 10-25 min</p>
       ${sim ? `<div class="brief"><p><b>LAB SIMULATION:</b> this page is testing the origin
         <code>${esc(sim)}</code> instead of the real <code>event.origin</code>. A local lab cannot
         mint new DNS origins, so the attacker origin is simulated; the
@@ -51,9 +52,11 @@ router.get('/substring/attacker', (req, res) => {
   res.send(page('Attacker page · PartnerHub', `
     <div class="clay-card">
       <div class="card-top"><b>Attacker page</b><span class="clay-pill">lab 4</span></div>
-      <p>The victim trusts any origin <i>containing</i> <code>pentrix.lab</code>.
-      In production the attacker hosts this page at <code>${esc(evil)}</code>:</p>
-      ${payloadBlock('Why the check passes', `'${evil}'.includes('pentrix.lab')  // true - check passes\n'https://pentrix.lab'.includes('pentrix.lab')      // true - legitimate partner\n'https://evil.com'.includes('pentrix.lab')         // false - blocked`)}
+      <p>The victim checks the origin, but not by exact equality. Read the
+      comparison in the victim source to see how loose it is. In production an
+      attacker would register a lookalike origin that passes that comparison;
+      the lab simulates such an origin instead of minting DNS names:</p>
+      ${payloadBlock('Check shape', `originToTest.includes('<trusted text>')  // true for the real partner,\n// and also for any longer origin string that merely contains that text`)}
       <p>The iframe below loads the victim with the attacker origin simulated
       (see the banner on the victim page), then this page posts the payload:</p>
       <div class="card"><iframe id="v" src="/postmsg/substring?simulateOrigin=${encodeURIComponent(evil)}" width="100%" height="300" style="border:0" title="Victim partner widget"></iframe></div>
@@ -78,10 +81,10 @@ module.exports = {
     id: 'substring',
     name: 'Substring Origin Check Bypass',
     difficulty: 'Medium',
-    hint: 'The check is origin.includes("pentrix.lab"), not an exact match. Which attacker domain contains that string?',
+    hint: 'The widget checks the origin, but not by exact equality. Look at how the comparison is written in the victim source and think about what other origins would pass it.',
     hints: [
       "Route your browser through Burp Proxy and open the attacker page. In Proxy history, check the victim iframe URL and see which attacker origin the lab is simulating.",
-      "Read the origin check in the victim page source (DevTools on the widget). A substring test means any domain containing the trusted string passes; think like a domain squatter.",
+      "Read the origin check in the victim page source (DevTools on the widget). It is not an exact match, so a lookalike origin can pass it; think like a domain squatter and work out which string the check is really looking for.",
       "Click Fire payload on the attacker page, then find the /postmsg/beacon request in Burp Proxy history to confirm the message was accepted under the simulated attacker origin and the token was claimed.",
     ],
     tools: 'BZ, B, DT',

@@ -5,6 +5,8 @@
 // aggregator per MODULE_CONTRACT.md; the route code below is unchanged.
 // The vulnerable grant logic itself lives in ./shared (doTokenExchange,
 // redirectOk, issueCode); this file only wires HTTP to it.
+// Serves challenges: no-state, code-replay, pkce-skip, code-leak,
+// redirect-bypass, scope-upgrade, secret-in-js, implicit (shared IdP side).
 const express = require('express');
 const { getDb } = require('../../lib/db');
 const { esc, fixPanel, flagBox, page } = require('../../lib/page');
@@ -72,10 +74,8 @@ router.get('/idp/authorize', (req, res) => {
         ${hidden}
         <button type="submit">Approve and continue</button>
       </form>`
-      : `<p class="note">You are not logged in to the IdP. Log in as
-        <a href="/oauth/login/alice">alice</a> (victim),
-        <a href="/oauth/login/bob">bob</a> (attacker), or
-        <a href="/oauth/login/admin">admin</a>, then reload this page.</p>`}
+      : `<p class="note">You are not logged in to the IdP. Log in, then reload this page.<br>
+        <span class="quick-login" aria-label="Quick IdP login"><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/alice">alice (victim)</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/bob">bob (attacker)</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/oauth/login/admin">admin</a></span></p>`}
     `}
   `));
 });

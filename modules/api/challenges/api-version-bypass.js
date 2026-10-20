@@ -37,14 +37,15 @@ module.exports = {
     id: 'api-version-bypass',
     name: 'API Version AuthZ Bypass',
     difficulty: 'Medium',
-    hint: 'GET /api/v1/users/:id checks that you only read your own record (unless admin). Somebody copy-pasted the route for v2 and forgot the check.',
+    est: '10-20 minutes',
+    hint: 'Two API versions serve the same user record. Do they enforce the same access rules? Compare them as the same logged-in user in Burp Repeater.',
     hints: [
       "Log in as alice with Burp's Proxy on, then browse to /api/v1/users/3 and read the 403 response.",
       "Send that v1 request to Repeater (Ctrl+R) and tweak the version segment in the path. Compare the two responses.",
-      "v1 checks ownership before answering. v2 was copy-pasted from v1, but the check never made it over."
+      "In Repeater, keep the request identical and change only the version segment of the path. One of the two versions answers a record it should have refused: that contrast is the vulnerability."
     ],
     tools: 'BZ, C',
-    how: 'Log in as alice, send a request for user 3 to Repeater, confirm v1 answers 403, then flip the path version to v2 and resend to read the record and collect the flag.',
+    how: 'Two versions of the same endpoint, two different ideas about who may read a record. Find the version that trusts you too much.',
     link: '/api#api-version-bypass',
     start: 'Route your browser through Burp Proxy, visit /api/login/alice to log in, then browse to /api/v1/users/3 and send that request to Repeater (Ctrl+R).',
   },

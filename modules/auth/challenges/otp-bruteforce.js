@@ -18,7 +18,7 @@ const vuln = {
   hints: ["The OTP is 4 digits. How many possibilities is that, and is there any lockout?", "10,000 codes, no lockout, no expiry. Set a sniper payload position on the otp field and run a numeric brute force.", "In Intruder, mark only the otp parameter with the payload marker, load a 0000-9999 numeric payload set, and read the results with Grep-Match on the success text so the winning row stands out (walkthrough: Tool Setup Guide, section 8). Honest timing: Community Intruder is throttled to roughly 5 to 10 requests per second, so the full 10,000-code walk takes on the order of 20 to 40 minutes. Time your first 100 payloads and multiply by 100 to check before you commit."],
   tools: 'BZ, P, C',
   est: 'about 20 to 40 minutes',
-  how: 'Run an Intruder sniper attack over the otp field of the verify request (numeric payload 0000-9999) to brute-force the 4-digit code for the given admin reset token, then reset the password.',
+  how: 'A valid admin reset token is on screen, but the short code protecting it is not, and nothing limits how fast or how often you may guess it.',
   link: '/auth/otp-reset',
   start: 'Open /auth/otp-reset in your browser with Burp proxying, copy the token, submit the form once, send that POST to Intruder, and set a sniper payload position on the otp field.',
 };

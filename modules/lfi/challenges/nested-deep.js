@@ -49,10 +49,11 @@ router.get('/nested', (req, res) => {
 module.exports = {
   vuln: {
     id: 'nested-deep', name: 'Deep Nesting Bypass', difficulty: 'Easy',
-    hint: 'This filter strips every <code>../</code> in one pass, but it never looks at the result again. Nest your dots so stripping creates a fresh traversal: work out what the string becomes after the single pass.',
+    hint: 'This filter strips every <code>../</code> in one pass, but it never looks at the result again. What can a deletion create?',
     hints: ["The filter does a one-pass global strip of ../. What about nested dots?", "One pass removes every occurrence and then stops. Nest a pattern inside itself so the removal assembles a fresh traversal from the leftovers. Sketch the collapse on paper before firing it.", "Send the page parameter to Burp Repeater and nest dots and slashes so a single global strip rebuilds a traversal from the leftovers. Sketch the collapsed result on paper before you fire it."],
     tools: "BZ, B",
-    how: 'Beat the one-pass global strip on /lfi/nested with nested dots, worked out and fired in Burp Repeater.',
+    est: 'about 5 to 10 minutes',
+    how: 'A single-pass deletion filter can assemble the very pattern it removes, out of the pieces it leaves behind.',
     link: '/lfi/nested',
     start: 'Point your browser through Burp Proxy at your lab address, open /lfi/nested, and send the request to Repeater so you can tamper with the page parameter.',
   },

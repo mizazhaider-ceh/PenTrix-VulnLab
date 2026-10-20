@@ -12,6 +12,7 @@ const vuln = {
   id: 'basic',
   name: 'Ping Gadget (no filtering)',
   difficulty: 'Medium',
+  est: '10-15 minutes',
   hint: 'The host value is pasted straight into a shell command. What happens when you add a second command after it?',
   hints: [
     "Open the page in Burp's browser and submit a normal host. In Proxy history, find the request and send it to Repeater.",

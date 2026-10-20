@@ -81,7 +81,7 @@ module.exports = {
     hints: ["The PIN is from Math.random(). Is that cryptographically secure? A predictable generator is the bug; the missing rate limit is what makes it exploitable by hand.", "No rate limiting. Load the verify POST into Intruder: the space is only 0000-9999. Honest timing: Community Intruder is throttled to roughly 5 to 10 requests per second, so expect on the order of 20 to 40 minutes for the full space. Time your first 100 payloads, multiply by 100, and decide whether to let Intruder run or switch to a 20-line script (about a minute at localhost speed).", "Use a numbers payload (or null payloads) generating 0000-9999. Read the results with Grep-Match on the success text (Tool Setup Guide, section 8) instead of eyeballing 10,000 rows. Watch for a 200 among the 401s."],
     tools: 'BZ',
     est: 'about 10 to 30 minutes',
-    how: 'Generate a PIN, then let Burp Intruder brute-force the whole 4-digit space (0000-9999) against the verify endpoint.',
+    how: 'Request a reset PIN, then count what stands between an attacker and the right one: a small space, a predictable generator, and nothing that slows a guesser down.',
     link: '/crypto#crypto-rand-pin',
     start: 'Open Burp, set it as your browser proxy, and browse to /crypto/pin. Click Generate reset PIN. In Proxy history find POST /crypto/pin/verify, Send to Intruder, and attack the PIN field with a numbers payload from 0000 to 9999. One response returns 200.',
   },

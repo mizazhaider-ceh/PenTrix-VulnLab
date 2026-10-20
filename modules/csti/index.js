@@ -129,14 +129,14 @@ router.get('/', (req, res) => {
       JavaScript engine instead of rendering them on the server. If that engine runs user input
       through <code>Function</code> (or <code>eval</code>), every <code>{{ expression }}</code>
       is live JavaScript in the victim's browser.</p>
-      <p><b>The engine in this module</b> (view source on any lab page) replaces
-      <code>{{ ... }}</code> and <code>[[ ... ]]</code> by compiling the inside with
-      <code>Function</code> and exposing <code>constructor</code> (which is <code>Object</code>)
-      to every expression. The server only <i>stores</i> your template; the browser does the
-      evaluating. Each lab page beacons <code>/csti/beacon</code> once your expression really
-      evaluates: <code>v</code> names the lab, <code>d</code> carries the evaluated result
-      (<code>49</code>, or any data for the constructor breakout), and <code>n</code> echoes the
-      one-time <code>CSTI_NONCE</code> token rendered into the page.</p>`)}
+      <p><b>The engine in this module</b> (view source on any lab page) compiles
+      the inside of its template delimiters with <code>Function</code>. The server only
+      <i>stores</i> your template; the browser does the evaluating, and the engine's
+      exact syntax and reach are yours to discover from the lab pages themselves.
+      Each lab page beacons <code>/csti/beacon</code> once your expression really
+      evaluates: <code>v</code> names the lab, <code>d</code> carries the evaluated result,
+      and <code>n</code> echoes the one-time <code>CSTI_NONCE</code> token rendered
+      into the page.</p>`)}
     ${trackBanner(module.exports)}
 
     <h2>Challenges</h2>

@@ -148,20 +148,41 @@ test('postmsg module', async (t) => {
     assert.ok((await capturedSet(c)).includes('postmsg:Substring Origin Check Bypass'));
   });
 
-  await t.test('csrf-action: forged message alone earns nothing, real deletion earns the flag', async () => {
+  await t.test('csrf-action: bare delete plus beacon earns nothing, the victim script token flow earns the flag', async () => {
     const c = client(srv.base);
-    const pre = await c.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'));
+    const beacon = '/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted');
+    const pre = await c.get(beacon);
     assert.equal(pre.status, 400, 'beacon without a deletion must not award');
+    // The sanctioned cheat, verbatim: a bare client POSTs the delete and
+    // then fires the beacon, with no browser and no JavaScript. The account
+    // is deleted, but no victim page ever loaded, so there is no token and
+    // the deletion does not count as message-driven.
     const del = await c.post('/postmsg/csrf-action/delete');
     assert.equal(del.status, 200);
     assert.equal(del.body.status, 'account deleted (lab only)');
-    const hit = await c.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'));
+    assert.equal((await c.get(beacon)).status, 400, 'bare curl delete plus beacon must not award');
+    // Even a client that loaded the victim page and presents its token to
+    // the beacon earns nothing when the delete itself was bare: the delete
+    // request must also have presented the token, as the victim script does.
+    const vpage = await c.get('/postmsg/csrf-action');
+    const n = pageNonce(vpage.text);
+    assert.ok(!vpage.text.includes(n), 'raw token must not appear in HTML');
+    assert.equal((await c.get(beacon + '&n=' + n)).status, 400, 'beacon token without a token-driven deletion must not award');
+    // The genuine flow, as the victim page's handler runs it: the delete
+    // presents the page token, then the beacon echoes it.
+    const del2 = await c.post('/postmsg/csrf-action/delete', { n });
+    assert.equal(del2.status, 200);
+    const hit = await c.get(beacon + '&n=' + n);
     assert.equal(hit.status, 200);
     assert.ok(hit.text.includes(flagOf('csrf-action')));
     assert.ok((await capturedSet(c)).includes('postmsg:Privileged Action via Forged Message'));
-    // The lab is replayable: resetting clears the deleted state.
+    // The token is single-use: replaying the winning beacon earns nothing.
+    assert.equal((await c.get(beacon + '&n=' + n)).status, 400, 'replayed beacon must not award');
+    // The lab is replayable: resetting clears the deleted state, and a
+    // fresh victim page token on its own still earns nothing after reset.
     await c.get('/postmsg/csrf-action/reset');
-    const after = await c.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'));
+    const fresh = pageNonce((await c.get('/postmsg/csrf-action')).text);
+    const after = await c.get(beacon + '&n=' + fresh);
     assert.equal(after.status, 400, 'beacon after reset must not award');
   });
 
@@ -172,8 +193,10 @@ test('postmsg module', async (t) => {
     await c.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:' + secretToken(w.text)));
     await fireTokenBeacon(c, 'data-xss', 'x');
     await fireTokenBeacon(c, 'substring', 'x');
-    await c.post('/postmsg/csrf-action/delete');
-    await c.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'));
+    const cp = await c.get('/postmsg/csrf-action');
+    const cn = pageNonce(cp.text);
+    await c.post('/postmsg/csrf-action/delete', { n: cn });
+    await c.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted') + '&n=' + cn);
     let got = (await capturedSet(c)).filter((s) => s.startsWith('postmsg:'));
     assert.equal(got.length, 5);
     assert.equal(new Set(got).size, 5);
@@ -221,11 +244,41 @@ test('postmsg A1B adversarial negatives', async (t) => {
   await t.test('csrf-action: the beacon only works in the session where the account was deleted', async () => {
     const a = client(srv.base);
     const b = client(srv.base);
-    const del = await a.post('/postmsg/csrf-action/delete');
+    const beacon = '/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted');
+    const na = pageNonce((await a.get('/postmsg/csrf-action')).text);
+    const nb = pageNonce((await b.get('/postmsg/csrf-action')).text);
+    const del = await a.post('/postmsg/csrf-action/delete', { n: na });
     assert.equal(del.status, 200);
-    assert.equal((await b.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'))).status, 400, 'no deletion in this session: beacon must not award');
-    const hit = await a.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'));
+    assert.equal((await b.get(beacon + '&n=' + nb)).status, 400, 'no deletion in this session: beacon must not award even with its own page token');
+    const hit = await a.get(beacon + '&n=' + na);
     assert.equal(hit.status, 200);
+    assert.ok(hit.text.includes(flagOf('csrf-action')));
+  });
+
+  await t.test('csrf-action: header evidence alone earns nothing, with or without a foreign origin', async () => {
+    const c = client(srv.base);
+    const beacon = '/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted');
+    // Same-site evidence on both requests: exactly what a student replaying
+    // the flow in Repeater inside their own session produces.
+    const delSame = await c.post('/postmsg/csrf-action/delete', undefined, { origin: srv.base, referer: srv.base + '/postmsg/csrf-action' });
+    assert.equal(delSame.status, 200);
+    assert.equal((await c.get(beacon, { referer: srv.base + '/postmsg/csrf-action' })).status, 400, 'same-site delete plus beacon must not award');
+    // Foreign Origin and Referer headers are one header edit away in curl
+    // or Repeater, so they cannot be the award evidence either: without
+    // the victim page token on the delete and the beacon, they earn nothing.
+    await c.get('/postmsg/csrf-action/reset');
+    const delForeign = await c.post('/postmsg/csrf-action/delete', undefined, { origin: 'http://evil.example', referer: 'http://evil.example/attack.html' });
+    assert.equal(delForeign.status, 200);
+    assert.equal((await c.get(beacon, { origin: 'http://evil.example', referer: 'http://evil.example/attack.html' })).status, 400, 'foreign headers without the page token must not award');
+    // A guessed token on both requests is likewise worth nothing, and the
+    // failed guesses must not consume the real token.
+    const vpage = await c.get('/postmsg/csrf-action');
+    await c.post('/postmsg/csrf-action/delete', { n: 'deadbeefdeadbeefdeadbeefdeadbeef' });
+    assert.equal((await c.get(beacon + '&n=deadbeefdeadbeefdeadbeefdeadbeef')).status, 400, 'guessed token must not award');
+    const n = pageNonce(vpage.text);
+    await c.post('/postmsg/csrf-action/delete', { n });
+    const hit = await c.get(beacon + '&n=' + n);
+    assert.equal(hit.status, 200, 'the genuine victim script flow must still award after failed guesses');
     assert.ok(hit.text.includes(flagOf('csrf-action')));
   });
 });

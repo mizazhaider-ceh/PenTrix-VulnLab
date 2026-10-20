@@ -82,6 +82,7 @@ module.exports = {
     id: 'insert-inject',
     name: 'INSERT Injection',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The feedback form builds its INSERT with string interpolation. You cannot stack queries here, but VALUES() happily accepts a subquery.',
     hints: ["The feedback form builds an INSERT query by gluing your input into the VALUES list. You cannot stack queries, but VALUES accepts more than plain text. First, send a normal feedback POST through Burp's Proxy and forward it to Repeater.", "In Repeater, tweak the name field: break out of the quoted value, place a subquery where the next value belongs, then close the statement so the INSERT still parses. A 400 with a database error is a useful oracle for getting the syntax right.", "Make the subquery fetch the admin secret, then reload the feedback wall: your own row should now carry the secret."],
     tools: "BZ, B",

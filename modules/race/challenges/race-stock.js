@@ -21,7 +21,7 @@ const vuln = {
   hints: ["Only 5 items in stock. But buys aren't serialized. Confirm in Burp Repeater that one order of 5 works and shows the items sold count.", "Repeater sends one request at a time, and a race needs many at once. Duplicate the buy Repeater tab, select both tabs, and use Send group in parallel. Community Intruder is throttled and cannot reliably hit the gap, so the Repeater group is the race tool here.", "The await between the stock check and the decrement is the window. Fire both orders of 5 in parallel so every one passes the check against the same stock level, pushing total sold above 5."],
   tools: 'BZ, C',
   est: 'about 10 minutes',
-  how: 'Fire a burst of parallel orders at /race/stock/buy (Repeater: duplicate the tab, then Send group in parallel) whose quantities total more than the 5 items in stock, so every order passes the stock check before any decrement lands and the shop oversells.',
+  how: 'Stock is checked when an order arrives but decremented afterwards, so parallel orders can all be approved against the same last items.',
   link: '/race#race-stock',
   start: 'Capture one POST /race/stock/buy in Burp, send it to Repeater (Ctrl+R), duplicate the tab, then Send group in parallel.',
 };

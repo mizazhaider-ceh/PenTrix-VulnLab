@@ -56,7 +56,7 @@ module.exports = {
   id: 'lfi',
   name: 'Path Traversal / LFI',
   tagline: 'Break out of the docs folder and read the secret file.',
-  description: 'A document viewer and downloader that hand your filename straight to the filesystem. One endpoint has no filtering at all, the other strips "../" exactly once. Reach the hidden secret.txt to capture both flags. Seven more labs deepen the craft: absolute paths, double-encoding, nested filters, an unchecked language parameter, log poisoning, /proc leaks, and a planted secret config.',
+  description: 'A document viewer and downloader hand your filename straight to the filesystem, behind filters of very different strength: none at all, a single-pass strip, one decode, and more. Nine labs deepen the craft: plain and nested traversal, absolute paths, double encoding, an unchecked language parameter, log poisoning, /proc leaks, and a planted secret config.',
   difficulty: 'Intermediate',
   track: 'Injection',
   prerequisites: ['sqli'],

@@ -17,9 +17,10 @@ const vuln = {
   name: 'PKCE Downgrade',
   difficulty: 'Medium',
   hint: 'The authorize endpoint accepts code_challenge, but the token endpoint never requires the code_verifier. Exchange a bound code without one.',
-  hints: ["The flow uses PKCE (code_challenge). Send the token exchange through Burp Repeater so you control every parameter.", "In Repeater, replay the token POST with no code_verifier parameter at all. What does the IdP say back?", "The flag arrives in the token response JSON when a challenge-bound code is exchanged with a missing verifier."],
+  hints: ["The flow uses PKCE (code_challenge). Send the token exchange through Burp Repeater so you control every parameter.", "In Repeater, replay the token POST with no code_verifier parameter at all. What does the IdP say back?", "Shape: a code that was issued against a code_challenge, exchanged with the verifier parameter simply absent. If a token comes back, the binding was never checked."],
   tools: 'BZ, B',
-  how: 'Authorize with a code_challenge in the browser, then replay the token POST in Burp Repeater with the code_verifier parameter removed.',
+  est: 'about 10 to 20 minutes',
+  how: 'The token endpoint never asks for the PKCE verifier, so the challenge bound to the code proves nothing at all.',
   link: '/oauth#pkce-skip',
   start: 'Open Burp and route your browser through the proxy. Log in to the IdP as bob, authorize with a code_challenge, then send the token exchange to Repeater.',
 };
@@ -59,9 +60,8 @@ Content-Type: application/x-www-form-urlencoded
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 
 client_id=pentrix-spa&code=<CODE>`)}
-      <p>The exchange succeeds even though the verifier is missing. The flag is
-      awarded when a challenge-bound code is exchanged with no verifier, and it
-      arrives inside the token response JSON, in the <code>flag</code> field.</p>
+      <p>The exchange succeeds even though the verifier is missing, and the
+      token response confirms the challenge-bound code was accepted without it.</p>
     `, { nav: ['Authorize', 'Token', 'Log'], crumb: 'IdP developer console' })}
     ${hintLadder(vuln)}
     <p><a class="clay-btn clay-btn-secondary" href="/oauth">Back to the OAuth module</a></p>

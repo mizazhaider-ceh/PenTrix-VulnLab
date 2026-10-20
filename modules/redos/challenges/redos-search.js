@@ -20,6 +20,7 @@ const vuln = {
   id: 'redos-search',
   name: 'Regex Injection Search',
   difficulty: 'Medium',
+  est: 'about 10 to 25 minutes',
   hint: 'Your query is compiled into ^((q)+)+$ as the repeated atom. The haystack is 26 a\'s plus !. Which atom gives the nesting something to chew on?',
   hints: [
     'Your search term becomes a regex atom. Can you inject a catastrophic pattern?',
@@ -27,7 +28,7 @@ const vuln = {
     'The catastrophic pattern only explodes because the last character can never match. Capture the search request in Burp Proxy, push it to Repeater, set q to the haystack\'s repeated character, and watch the response time Repeater reports for each send.',
   ],
   tools: 'BZ, B, C',
-  how: 'In Burp, capture /redos/search in Proxy, push the request to Repeater, and submit the haystack\'s repeated character as q so the compiled pattern becomes ^((a)+)+$. The claim fires when the response takes over 1000 ms.',
+  how: 'In Burp Repeater, choose the search term so the pattern the server compiles from it has nested quantifiers something to chew on against the fixed haystack. The claim fires when the response takes over 1000 ms.',
   link: '/redos#redos-search',
   start: 'Proxy on, open /redos/search in the Burp browser and submit the search form once with a harmless query (for example test). In Proxy history, send the request to Repeater. Start tweaking the q parameter and watch the response time.',
 };

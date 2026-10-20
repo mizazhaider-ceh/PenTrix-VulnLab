@@ -154,7 +154,12 @@ test('auth module', async (t) => {
     assert.deepEqual(await captures(real), [`auth:${NAMES['brute-force']}`]);
     for (let i = 0; i < 6; i++) await login(real, 'alice', `again${i}`);
     const again = await login(real, 'alice', 'alice123');
-    assert.ok(again.text.includes(flagOf('brute-force')));
+    // P1A: the capture banner renders exactly once per capture, so this
+    // repeat success re-renders no flag. The flag stays viewable on the
+    // module index (the already-captured flagFor display path).
+    assert.equal(flagsIn(again.text).length, 0, 'repeat success must not re-render the capture banner (P1A)');
+    const modulePage = await real.get('/auth');
+    assert.ok(modulePage.text.includes(flagOf('brute-force')), 'captured flag stays viewable on the module index');
     assert.equal((await captures(real)).length, 1, 'repeat does not double count');
   });
 

@@ -31,6 +31,7 @@ router.get('/wildcard', (req, res) => {
   const sp = tokenScriptParts(secret);
   res.send(page('Widget (wildcard postMessage)', `
     <h2>Trusted widget</h2>
+    <p class="dim">Typical time: 5-10 min</p>
     <p>This widget shares a secret token with the page that embeds it.</p>
     <div class="card">
       <div class="card-top"><b>Widget status</b></div>
@@ -86,11 +87,11 @@ module.exports = {
     id: 'wildcard',
     name: 'Secret Leaked via Wildcard targetOrigin',
     difficulty: 'Easy',
-    hint: 'The widget posts its secret token to parent with targetOrigin "*". Proxy both pages in Burp, open the attacker page in the browser, and watch the beacon fire.',
+    hint: 'Watch how the widget shares its secret with the page that embeds it. Proxy both pages in Burp, open the attacker page in the browser, and watch what arrives there.',
     hints: [
-      'In Burp Proxy, open the victim widget page and read the response: how does it share the secret with the parent frame?',
-      "The broadcast uses targetOrigin '*'. In Proxy history, open the attacker page and find the beacon request that carries the token.",
-      'Send that beacon request to Repeater. It only awards when the data carries the real per-session secret, so let the browser capture the broadcast first, then replay it.',
+      'In Burp Proxy, open the victim widget page and read the response: how does it share the secret with the parent frame, and who is allowed to receive it?',
+      'In Proxy history, open the attacker page and find the beacon request that carries what the widget shared.',
+      'Send that beacon request to Repeater. It only awards when the data carries the real per-session secret, so let the browser capture the broadcast first, then inspect it.',
     ],
     tools: 'BZ, B, DT',
     how: 'Browse the attacker page through Burp Proxy: the victim widget broadcasts its token with targetOrigin "*", the listener captures it and fires the beacon; replay the beacon in Repeater to confirm the claim.',

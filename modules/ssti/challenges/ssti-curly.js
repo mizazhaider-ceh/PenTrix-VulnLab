@@ -55,6 +55,7 @@ module.exports = {
     id: 'ssti-curly',
     name: 'Curly-Brace Strip Bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'The filter removes the first {{ and the first }} only, once each. Feed it more braces than it can strip.',
     hints: ["Capture the form submission in Burp Proxy and send it to Repeater. Try a plain template expression first and watch the filter strip the braces.", "The filter removes each brace pair only once and never re-scans the result. In Repeater, add more brace pairs around the expression and watch the rendered output change.", "Once one valid {{ }} pair survives the single strip pass, the math evaluates. Confirm the raw input still contained {{ }} before the filter ran."],
     tools: 'BZ, B',

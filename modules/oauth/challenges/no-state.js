@@ -19,9 +19,10 @@ const vuln = {
   name: 'Login CSRF (Missing state Parameter)',
   difficulty: 'Medium',
   hint: 'The client callback exchanges any code it is given and never validates state. Mint a code for YOUR account, then get the victim to visit the callback with it.',
-  hints: ["There's no state parameter. What attack does that enable?", "Login CSRF: the attacker starts the flow, the victim finishes it logged in as the attacker.", "In Burp Proxy history, find the attacker link generator response and lift the malicious callback link. Then send it to Repeater in a session whose IdP user is alice."],
+  hints: ["There's no state parameter. What attack does that enable?", "Login CSRF: the attacker starts the flow, the victim finishes it logged in as the attacker.", "Shape: a callback URL carrying a code minted for the attacker's account, visited by a session whose IdP user is the victim. Nothing in the callback lets the client ask who started the flow."],
   tools: 'BZ, B',
-  how: 'In Burp, mint the code as bob, then replay the malicious callback link in a session whose IdP user is alice.',
+  est: 'about 10 to 20 minutes',
+  how: 'Without a state parameter, the client callback cannot tell a login the user started from one an attacker started for them.',
   link: '/oauth#no-state',
   start: 'Route your browser through Burp Proxy. Log in to the IdP as bob (/oauth/login/bob), open the attacker link generator (/oauth/no-state/attacker), and copy the malicious callback link from the response.',
 };
@@ -34,12 +35,13 @@ router.get('/no-state', (req, res) => {
       account and trick the victim into visiting the callback with it: the victim ends up
       logged in to the client as the attacker.`) +
     `<div class="clay-card">
-      <h3>Attack plan</h3>
-      <ol>
-        <li>Log in to the IdP as <a href="/oauth/login/bob">bob</a> (the attacker).</li>
-        <li><a class="clay-btn clay-btn-primary clay-btn-sm" href="/oauth/no-state/attacker">Generate the malicious login link</a></li>
-        <li>Open that link in a second session where the IdP user is <a href="/oauth/login/alice">alice</a> (the victim).</li>
-      </ol>
+      <h3>The scenario</h3>
+      <p>One account starts a login flow, a different account's browser finishes
+      it. The pieces you need are the IdP logins
+      (<a href="/oauth/login/bob">bob</a> as the attacker,
+      <a href="/oauth/login/alice">alice</a> as the victim) and the
+      <a class="clay-btn clay-btn-primary clay-btn-sm" href="/oauth/no-state/attacker">link generator</a>,
+      which mints a callback link for whoever is signed in as the attacker.</p>
       <p class="dim">The flag is awarded when the callback logs the session in as someone other than its own IdP user.</p>
     </div>` +
     hintLadder(vuln) +

@@ -56,12 +56,13 @@ router.get('/view', (req, res) => {
 module.exports = {
   vuln: {
     id: 'traversal', name: 'Basic Path Traversal', difficulty: 'Easy',
-    hint: 'The viewer joins your input to the docs path with no checks at all. Ask for a file in the parent directory with ../ sequences (encoding the slashes can help), and adjust the depth until the secret marker appears.',
-    hints: ["Proxy a normal document request in Burp and look at the file parameter in Repeater. What if the filename contains ../?", "In Repeater, start with one ../ and add more depth until the secret marker shows up in the response. The marker proves the read.", "Send the request to Intruder to fuzz depth: payloads like ..%2f, ....//, and double-encoded variants beat common filters. Watch for the secret marker in responses."],
+    hint: 'The viewer joins your input to the docs path with no checks at all. A filename does not have to name something inside docs.',
+    hints: ["Proxy a normal document request in Burp and look at the file parameter in Repeater. What if the filename contains ../?", "In Repeater, start with one ../ and add more depth. Watch the Contents line: the path the server says it opened tells you when you have climbed out of docs.", "Shape: a filename of repeated parent-directory segments, deep enough to leave docs behind, ending at the file you want. Plain segments work on this endpoint; save the encoded and nested variants for the filtered endpoints in this module."],
     tools: "BZ, B, C",
-    how: 'Intercept the viewer request in Burp Proxy, forward it to Repeater, and escape docs/ with ../ sequences (or an encoded variant) in the file parameter until secret.txt shows its marker.',
+    est: 'about 5 to 10 minutes',
+    how: 'A document viewer builds file paths from user input with no confinement, so the filesystem beyond its folder is one filename away.',
     link: '/lfi/view?file=readme.txt',
-    start: 'In Burp Proxy, intercept a request to the Document Viewer, send it to Repeater, and change the file parameter to climb out of docs/ with ../ sequences.',
+    start: 'In Burp Proxy, intercept a request to the Document Viewer, send it to Repeater, and experiment with the file parameter there.',
   },
   router,
 };

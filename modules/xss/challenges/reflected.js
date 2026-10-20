@@ -51,6 +51,7 @@ module.exports = {
     id: 'reflected',
     name: 'Reflected XSS',
     difficulty: 'Easy',
+    est: 'about 5 to 10 minutes',
     hint: 'The search term is echoed straight back into the results page. What happens if the "search term" is HTML?',
     hints: [
       "Load /xss/search through the Burp Proxy and submit a normal search. Check the GET request in Proxy history: the q parameter is echoed straight back into the results page. What happens if your 'search term' is not text?",

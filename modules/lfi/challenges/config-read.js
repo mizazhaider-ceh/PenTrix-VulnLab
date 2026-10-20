@@ -44,10 +44,11 @@ router.get('/config', (req, res) => {
 module.exports = {
   vuln: {
     id: 'config-read', name: 'Secret Config Read', difficulty: 'Easy',
-    hint: 'A config file with secrets sits one directory above the docs folder, and the config viewer filters nothing. Climb one level and name the planted config file.',
-    hints: ["A config file sits one directory above docs/. No filter blocks it.", "Proxy the Read config form in Burp, send the request to Repeater, then edit the file parameter to climb one level out of docs/.", "The planted config file sits exactly one directory above docs/ and nothing filters your input. In Repeater, climb one level and name that config file (the challenge card names it)."],
+    hint: 'A config file sits near the docs folder, and this viewer filters nothing. What lives just outside a folder is still a path.',
+    hints: ["A config file sits one directory above docs/. No filter blocks it.", "Proxy the Read config form in Burp, send the request to Repeater, then edit the file parameter to climb one level out of docs/.", "Shape: one parent-directory step out of docs/, then a config file name. Config files announce themselves by their extension; try the names a service would plant next to its document folder."],
     tools: "BZ, B",
-    how: 'Intercept the Read config request in Burp and, in Repeater, climb one level out of docs/ to read the planted config.',
+    est: 'about 5 to 10 minutes',
+    how: 'A config viewer with no validation reads whatever path it is given, including the service\'s own configuration next door.',
     link: '/lfi/config',
     start: 'In Burp, browse to /lfi/config with Proxy on, submit the Read config form, and send the captured request to Repeater.',
   },

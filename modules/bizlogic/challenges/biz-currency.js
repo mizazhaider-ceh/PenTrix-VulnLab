@@ -72,10 +72,11 @@ const vuln = {
   id: 'biz-currency',
   name: 'Currency Confusion',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'The $50 total is denominated in USD, but the server accepts any currency label for that number. 50 JPY is not 50 USD.',
   hints: ["Submit the hoodie payment with Burp Proxy running and send the POST to Repeater. The currency field decides the unit that the number 50 is priced in.", "Replay the request in Repeater with a currency where 50 units are worth almost nothing in dollars, then read the receipt: how much did the server really charge?", "The flag lands when the receipt shows a USD-denominated order settling under a foreign currency label for pennies."],
   tools: "BZ, B",
-  how: 'Intercept the checkout POST in Burp Proxy, send it to Repeater, and replay it under a cheap-currency label so a $50 order settles for about $0.34.',
+  how: 'The total is just a number, and the shop lets you choose which currency that number is priced in. Not all currencies are worth the same.',
   link: '/bizlogic#biz-currency',
   start: 'Open /bizlogic/currency in your browser with Burp Proxy on, submit the payment form, and send the POST to Repeater.',
 };

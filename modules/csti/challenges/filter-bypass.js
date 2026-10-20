@@ -81,7 +81,7 @@ router.get('/filter-bypass', (req, res) => {
     </script>
     <p class="note">Goal: make the preview show <b>49</b> without using
     <code>{{</code> or <code>}}</code>. The client engine knows more than one syntax.</p>
-    ${claimBox({ vulnId: 'filter-bypass', payload: esc('[[7*7]]'), statusUrl: '/csti/claim-status?v=filter-bypass', beaconInfo: 'This page beacons for you: when the preview output contains 49, the page fetches /csti/beacon with v=filter-bypass, d=49 and n=<the CSTI_NONCE token rendered into this page>. The token is single-use per page load, so reload for a fresh one after each attempt.' })}
+    ${claimBox({ vulnId: 'filter-bypass', payload: esc('ALT-OPEN expression ALT-CLOSE'), statusUrl: '/csti/claim-status?v=filter-bypass', beaconInfo: 'This page beacons for you: when the preview output contains 49, the page fetches /csti/beacon with v=filter-bypass, d=49 and n=<the CSTI_NONCE token rendered into this page>. The token is single-use per page load, so reload for a fresh one after each attempt.' })}
   `));
 });
 
@@ -105,10 +105,11 @@ module.exports = {
     id: 'filter-bypass',
     name: 'Filter Bypass via Alternative Delimiter',
     difficulty: 'Medium',
+    est: '10-20 minutes',
     hint: 'The server rejects {{ and }}. But the client engine understands a second delimiter syntax, which the filter never heard of.',
     hints: ["The filter blocks {{ }}. But the engine has another delimiter: confirm the rejection in Burp Repeater, then look at how the client engine parses the template.", "Send delimiter guesses through Burp Intruder against the save-greeting endpoint and watch which ones evaluate in the preview instead of rendering literally.", "The alternative delimiter evaluates just like {{ }}. Probe it with an arithmetic expression that yields a distinctive number: the blacklist never heard of it, and the page beacons for you."],
     tools: "BZ, B",
-    how: 'Save a greeting using the alternative delimiter syntax the server filter never heard of (fuzz delimiter pairs with Burp Intruder if you want to discover it yourself), so the preview evaluates 7*7; the page beacons automatically when it sees 49.',
+    how: 'Save a greeting using the alternative delimiter syntax the server filter never heard of (fuzz delimiter pairs with Burp Intruder if you want to discover it yourself), so the preview evaluates your expression; the page beacons automatically when it sees the result.',
     link: '/csti#filter-bypass',
     start: 'Route your browser through Burp Proxy and open the greeting card lab. Send the save-greeting POST to Burp Repeater and note the {{ }} rejection, then try the delimiter the filter does not know. Reload the page in the browser so the preview evaluates it and beacons for you.',
   },

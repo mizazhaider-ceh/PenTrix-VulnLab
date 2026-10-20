@@ -4,10 +4,11 @@
 // server-side variable containing the flag. Once {{ }} evaluation is proven,
 // probe the scope with name={{secretFlag}} to read it. (Named 'rce' for
 // continuity with the module router; the flaw itself is a scope leak, not RCE.)
-// NOTE: challenges 'basic' and 'rce' share the /ssti/greet route in
-// modules/ssti/router.js. This file therefore keeps the complete route
-// behavior, including both award points, identical to router.js. Mounting
-// either this router or the 'basic' router serves a fully working /ssti/greet.
+// NOTE: challenges 'basic' and 'rce' share the /ssti/greet route. This
+// file therefore keeps the complete route behavior, including both award
+// points, identical to the sibling 'basic' challenge file. Mounting either
+// this router or the 'basic' router serves a fully working /ssti/greet.
+// The module itself is assembled in modules/ssti/index.js.
 const express = require('express');
 const { brief, esc, fixPanel, flagBox, hintBox, page, payloadBlock } = require('../../../lib/page');
 const { award, flagFor } = require('../../../lib/flags');
@@ -19,8 +20,8 @@ const vuln = {
   name: 'Scope Leak (Data Exposure, Not RCE)',
   difficulty: 'Medium',
   est: 'about 20 minutes',
-  hint: 'In Burp Repeater, once you know {{ }} is evaluated, ask yourself: what server-side variables are in scope when the expression runs? Probe for a variable that holds the flag: its name is the most obvious one you would pick for this job.',
-  hints: ["Send the /ssti/greet request to Burp Repeater and first confirm {{ }} evaluates by trying a harmless arithmetic expression; the module page tells you the answer to expect.", "In Repeater, change the name parameter and think about which server-side variables the template engine can see while it runs. Probe for the one holding the flag: its name is the most obvious one you would pick for this job.", "Read that in-scope variable directly in Repeater: you only need its conventional name, and the template echoes its value into the greeting. (This is a scope leak, not RCE.)"],
+  hint: 'In Burp Repeater, once you know {{ }} is evaluated, ask yourself: what server-side variables are in scope when the expression runs? Probe candidate names systematically and watch which ones render a value and which render nothing.',
+  hints: ["Send the /ssti/greet request to Burp Repeater and first confirm {{ }} evaluates by trying a harmless arithmetic expression and checking the rendered result.", "In Repeater, change the name parameter and think about which server-side variables the template engine can see while it runs. Probe candidate names one at a time: a name that exists renders its value, a missing one renders empty, and that difference is your map of the scope.", "Once a probed name renders a value in Repeater, the template is echoing an in-scope variable into the greeting. The one holding the flag is the prize. (This is a scope leak, not RCE.)"],
   tools: 'BZ, B, C',
   how: 'In Burp Repeater, send /ssti/greet with the name parameter set to a {{ }} expression that reads the flag variable from the template scope; the rendered greeting echoes its value.',
   link: '/ssti#rce',
@@ -28,7 +29,7 @@ const vuln = {
 };
 
 // GET /ssti/greet -> greeting card rendered by the naive template engine.
-// Behavior identical to router.js: anything inside {{ }} is eval()d with the
+// Behavior identical to the sibling 'basic' challenge file: anything inside {{ }} is eval()d with the
 // function's scope visible, the raw result is injected into the page, and the
 // flags are awarded at the same points (basic on 49, rce on the leaked flag).
 router.get('/greet', (req, res) => {
@@ -59,7 +60,7 @@ router.get('/greet', (req, res) => {
   res.send(page('SSTI Greeting', `
     ${brief('Greeting card',
       `<p>Enter your name and the server greets you. The greeting is rendered by a naive template engine ` +
-      `that evaluates <code>{{ expressions }}</code>. Try <code>{{7*7}}</code> first, then hunt for what is in scope.</p>`)}
+      `that evaluates <code>{{ expressions }}</code>. Start with a small arithmetic expression to prove evaluation, then hunt for what is in scope.</p>`)}
     <div class="card">
       <div class="card-top"><b>Get greeted</b></div>
       <form method="get" action="/ssti/greet">
@@ -72,7 +73,7 @@ router.get('/greet', (req, res) => {
     ${awardHtml}
     ${payloadBlock('Starting point', vuln.start)}
     ${hintBox(esc(vuln.hint))}
-    <p>Quick links: <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti/greet?name={{7*7}}">test {{7*7}}</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti">Back to SSTI module</a></p>
+    <p>Quick links: <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti/greet">Open the greeting card</a> <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/ssti">Back to SSTI module</a></p>
   `));
 });
 

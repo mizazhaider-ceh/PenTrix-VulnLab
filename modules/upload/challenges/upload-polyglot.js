@@ -9,7 +9,7 @@ const fs = require('fs');
 const {
   appShell, brief, esc, page, payloadBlock, hintLadder, toolsPill,
 } = require('../../../lib/page');
-const { cleanFilename, rawUpload, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
+const { cleanFilename, rawUpload, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet, trackStoredUpload } = require('../shared');
 
 const path = require('path');
 
@@ -19,6 +19,7 @@ const vuln = {
   id: 'upload-polyglot',
   name: 'GIF/HTML polyglot',
   difficulty: 'Hard',
+  est: 'about 20 to 40 minutes',
   hint: 'v9 validates only the 6 GIF magic bytes, then serves the file as text/html. A file can be a valid GIF header and valid HTML at once. Storing is not enough: the flag fires only when the served file\'s script phones home through the beacon snippet.',
   hints: [
     "The uploader checks magic bytes. What are the first 6 bytes of a GIF?",
@@ -28,7 +29,7 @@ const vuln = {
   tools: 'BZ, C',
   how: 'Build a GIF/HTML polyglot (the 6 GIF magic bytes, then scriptable HTML carrying the beacon snippet) and POST the raw bytes to /upload/polyglot?filename=... from Burp Repeater, then open its /upload/poly/ render URL in the browser so the script runs and beacons.',
   link: '/upload#upload-polyglot',
-  start: 'In Burp Repeater: POST to /upload/polyglot?filename=x.gif with a raw body that opens with the 6 GIF magic bytes and continues with HTML/JS, then visit the returned /upload/poly/x.gif render link.',
+  start: 'In Burp Repeater, POST a raw body that satisfies the image check while remaining scriptable markup, then visit the returned render link.',
 };
 
 const APP_NAME = 'GifCheck';
@@ -111,6 +112,7 @@ router.post('/polyglot', rawUpload, (req, res) => {
       'Only GIF images pass validation (magic-byte check).'));
   }
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
+  trackStoredUpload(req, clean);
   const text = req.body.toString('utf8');
   const polyUrl = '/upload/poly/' + encodeURIComponent(clean);
   let flagHtml = '';

@@ -187,6 +187,7 @@ module.exports = {
     id: 'stored',
     name: 'Stored XSS',
     difficulty: 'Easy',
+    est: 'about 5 to 10 minutes',
     hint: 'Comments are saved and shown to every visitor unescaped. Your payload persists and fires on every page view.',
     hints: [
       'Comments are saved and shown to every visitor. Where does your comment end up in the HTML?',

@@ -12,12 +12,12 @@ const vuln = {
   name: 'Null Origin Trusted',
   difficulty: 'Medium',
   hint: 'Only one origin value is trusted here, and it is the one sandboxed iframes and file:// pages send.',
-  hints: ["In Repeater, add an Origin header to GET /cors/api/settings and send a few values. Watch the response headers: only one literal value earns Access-Control-Allow-Origin plus Access-Control-Allow-Credentials.", "The winning value is the string null. Real browsers send it from sandboxed iframes (no allow-same-origin) and file:// pages.", "Fastest correct tool: Repeater for everything. Send Origin: null against /cors/api/settings, confirm Access-Control-Allow-Origin: null plus credentials in the response headers, then send a plain Repeater GET to /cors/prove?vuln=cors-null&origin=null with the same Origin: null header to collect the flag. It is a plain GET, no proxy browser needed."],
+  hints: ["In Repeater, add an Origin header to GET /cors/api/settings and send a few values. Watch the response headers: only one literal value earns Access-Control-Allow-Origin plus Access-Control-Allow-Credentials.", "The trusted value is one that sandboxed iframes (no allow-same-origin) and file:// pages send, and that no ordinary website origin should ever be able to claim.", "Fastest correct tool: Repeater for everything. Send your candidate value against /cors/api/settings, confirm the response trusts it with credentials, then prove the same combination through /cors/prove. It is a plain GET, no proxy browser needed."],
   tools: 'BZ, B',
   est: 'about 10 minutes',
-  how: 'Burp proxy browser: open /cors/prove?vuln=cors-null&origin=null; the header check awards the flag',
+  how: 'One origin value earns this API\'s trust, and it is a value no real website should be able to claim. Find the value the API cannot resist.',
   link: '/cors#cors-null',
-  start: 'Repeater: send GET /cors/api/settings with a literal Origin: null header and read the response headers',
+  start: 'Repeater: send GET /cors/api/settings with an Origin header and read the response headers. Try candidate values until one is trusted.',
 };
 
 // VULN: Origin "null" (sandboxed iframes, file:// pages, redirects) is trusted

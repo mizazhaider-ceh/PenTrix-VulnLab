@@ -12,6 +12,7 @@ const vuln = {
   id: 'cmdi-pipe',
   name: 'Ping Gadget v8 (; blocked)',
   difficulty: 'Easy',
+  est: '5-10 minutes',
   hint: 'Semicolons are stripped, but the shell has other ways to chain commands. One of them feeds the first command output into the second.',
   hints: [
     "In Repeater, test the filter first: send a host with a semicolon and watch the page strip it. The filter only watches for semicolons.",
@@ -19,7 +20,7 @@ const vuln = {
     "Confirm the win in Repeater: the flag fires only when your second command's real output shows up in the response body, so end with a command whose output you will recognize.",
   ],
   tools: 'BZ, B, C',
-  how: 'In Burp Repeater, chain a second command after a valid host with the pipe separator (the filter only strips semicolons), then confirm its real output in the response body.',
+  how: 'In Burp Repeater, chain a second command after a valid host with a separator the filter never strips, then confirm its real output in the response body.',
   link: '/cmdi/ping8',
   start: 'Open the Ping Gadget v8 page with Burp Proxy intercepting, submit a normal host like 127.0.0.1, send the request to Repeater, and probe the host parameter there.',
 };

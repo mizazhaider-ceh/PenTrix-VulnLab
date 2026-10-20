@@ -19,12 +19,13 @@ const vuln = {
   id: 'implicit',
   name: 'Implicit Flow Token in URL Fragment',
   difficulty: 'Medium',
-  hint: 'response_type=token puts the access token in the URL fragment. Drive the flow in a Burp-proxied browser: the simulated victim browser records the full URL, fragment included, and userinfo awards the flag when an implicit token belonging to someone else is presented.',
-  hints: ["Fragments never reach the server, so Repeater cannot fetch one directly. Which in-lab page records the victim's full URL, fragment included, and through which Burp Proxy history entry does that record travel?", "In Proxy history, find the POST to /oauth/client/history-log. Its JSON body carries the victim's URL with the fragment still attached. Lift the access_token out of it.", "Open Repeater on GET /oauth/idp/userinfo and present the stolen token using a session that is not alice's. A token that belongs to someone else earns the flag."],
+  hint: 'response_type=token puts the access token in the URL fragment. Fragments never reach a server, so where else does a full URL get written down?',
+  hints: ["Fragments never reach the server, so Repeater cannot fetch one directly. Which in-lab page records the victim's full URL, fragment included, and through which Burp Proxy history entry does that record travel?", "In Proxy history, watch for the request that records the victim's visit. Its body carries the full URL, fragment still attached.", "Shape: a token lifted out of a recorded URL, presented at the userinfo endpoint from a session that is not its owner's. The endpoint trusts the token itself, not the story of how you got it."],
   tools: 'BZ, B, DT',
-  how: 'Run the implicit flow in a Burp-proxied browser as alice, let the simulated victim browser record the fragment-bearing URL in /oauth/client/history, then call userinfo in Repeater with the stolen token as a different session.',
+  est: 'about 15 to 25 minutes',
+  how: 'The implicit flow delivers tokens inside URL fragments, and fragments leak into every place a full URL gets recorded.',
   link: '/oauth#implicit',
-  start: 'Proxy your browser through Burp and open /oauth#implicit. Log in as alice, click "Run the implicit flow" and approve the consent. The browser lands on the callback URL with #access_token=... in the fragment. Then open /oauth/client/implicit-callback with that fragment so the simulated victim browser records the full URL, and watch Burp Proxy history for where the token resurfaces.',
+  start: 'Proxy your browser through Burp and open /oauth#implicit. Run the implicit flow as alice and approve the consent, then study in Proxy history every place the resulting URL turns up.',
 };
 
 router.get('/implicit', (req, res) => {
@@ -37,13 +38,14 @@ router.get('/implicit', (req, res) => {
       in the URL fragment. Fragments never reach the server, but they do end up in browser
       history, and this lab simulates exactly that.`) +
     `<div class="clay-card">
-      <h3>Attack plan</h3>
-      <ol>
-        <li>Log in to the IdP as <a href="/oauth/login/alice">alice</a> (the victim).</li>
-        <li><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(href)}">Run the implicit flow</a> and approve it; copy the fragment URL.</li>
-        <li>Simulate the victim browser: open <a href="/oauth/client/implicit-callback">the implicit callback page</a> with that fragment (paste it after the <code>#</code>), so the URL is recorded.</li>
-        <li>As the attacker, open <a href="/oauth/client/history">the browser history</a>, steal the token, and call the userinfo endpoint with it.</li>
-      </ol>
+      <h3>The scenario</h3>
+      <p>Run the flow as the victim
+      (<a href="/oauth/login/alice">alice</a>):
+      <a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(href)}">Run the implicit flow</a>
+      and approve it. The lab then simulates the victim browser recording the
+      full landing URL: see <a href="/oauth/client/implicit-callback">the implicit callback page</a>
+      and <a href="/oauth/client/history">the browser history</a>. Your job is to
+      find where the token resurfaces, and what the userinfo endpoint accepts.</p>
       ${payloadBlock('Burp Repeater (call userinfo with the stolen token)', `GET /oauth/idp/userinfo?access_token=<TOKEN> HTTP/1.1
 Host: <your-lab-address>
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>

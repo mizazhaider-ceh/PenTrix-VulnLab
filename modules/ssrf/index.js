@@ -40,16 +40,6 @@ router.get('/internal/secret', (req, res) => {
 
 // GET /ssrf -> module index page.
 router.get('/', (req, res) => {
-  const p = port();
-  const internalSecret = `http://127.0.0.1:${p}/ssrf/internal/secret`;
-  const bypassA = `http://2130706433:${p}/ssrf/internal/secret`;
-  const bypassB = `http://0.0.0.0:${p}/ssrf/internal/secret`;
-  const redirectVia = `http://localhost:${p}/ssrf/jump?to=${encodeURIComponent(`http://127.0.0.1:${p}/ssrf/internal/secret`)}`;
-  const userinfoVia = `http://pentrix.lab@127.0.0.1:${p}/ssrf/internal/secret`;
-  const hexVia = `http://0x7f.0.0.1:${p}/ssrf/internal/secret`;
-  const octalVia = `http://0177.0.0.1:${p}/ssrf/internal/secret`;
-  const zeroVia = `http://0.0.0.0:${p}/ssrf/internal/secret`;
-  const metaVia = `http://169.254.169.254/latest/meta-data/iam/security-credentials/`;
 
   const ordered = easyFirst(challenges);
   const consoles = cardConsoles('ssrf', ordered);
@@ -113,52 +103,48 @@ router.get('/', (req, res) => {
     <form action="/ssrf/hex-ip" method="get" class="clay-card">
       <div class="clay-field">
         <label for="url4b">Hex IP fetcher</label>
-        <input class="clay-input" id="url4b" name="url" size="60" placeholder="http://0x7f.0.0.1:PORT/ssrf/internal/secret">
+        <input class="clay-input" id="url4b" name="url" size="60" placeholder="http://example.com/">
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Fetch</button>
     </form>
     <form action="/ssrf/octal-ip" method="get" class="clay-card">
       <div class="clay-field">
         <label for="url4c">Octal IP fetcher</label>
-        <input class="clay-input" id="url4c" name="url" size="60" placeholder="http://0177.0.0.1:PORT/ssrf/internal/secret">
+        <input class="clay-input" id="url4c" name="url" size="60" placeholder="http://example.com/">
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Fetch</button>
     </form>
     <form action="/ssrf/zero-ip" method="get" class="clay-card">
       <div class="clay-field">
         <label for="url4d">0.0.0.0 fetcher</label>
-        <input class="clay-input" id="url4d" name="url" size="60" placeholder="http://0.0.0.0:PORT/ssrf/internal/secret">
+        <input class="clay-input" id="url4d" name="url" size="60" placeholder="http://example.com/">
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Fetch</button>
     </form>
     <form action="/ssrf/fetch-meta" method="get" class="clay-card">
       <div class="clay-field">
         <label for="url5">Cloud metadata fetcher</label>
-        <input class="clay-input" id="url5" name="url" size="60" placeholder="http://169.254.169.254/latest/meta-data/">
+        <input class="clay-input" id="url5" name="url" size="60" placeholder="http://example.com/">
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Fetch</button>
     </form>
     <form action="/ssrf/fetch-file" method="get" class="clay-card">
       <div class="clay-field">
         <label for="url6">File scheme fetcher</label>
-        <input class="clay-input" id="url6" name="url" size="60" placeholder="file:///etc/passwd">
+        <input class="clay-input" id="url6" name="url" size="60" placeholder="http://example.com/">
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Fetch</button>
     </form>
 
     <h2>Quick links</h2>
     <ul>
-      <li><a href="/ssrf/internal/status">Internal status endpoint</a> (see what it returns)</li>
-      <li><a href="/ssrf/fetch?url=${encodeURIComponent(internalSecret)}">Fetch the internal secret via the open fetcher</a></li>
-      <li><a href="/ssrf/fetch2?url=${encodeURIComponent(bypassA)}">Bypass attempt: decimal loopback</a></li>
-      <li><a href="/ssrf/fetch2?url=${encodeURIComponent(bypassB)}">Bypass attempt: 0.0.0.0</a></li>
-      <li><a href="/ssrf/fetch3?url=${encodeURIComponent(redirectVia)}">Redirect lab: bounce through /ssrf/jump to the internal secret</a></li>
-      <li><a href="/ssrf/userinfo?url=${encodeURIComponent(userinfoVia)}">Userinfo trick vs the pentrix.lab allowlist</a></li>
-      <li><a href="/ssrf/hex-ip?url=${encodeURIComponent(hexVia)}">Hex IP bypass</a></li>
-      <li><a href="/ssrf/octal-ip?url=${encodeURIComponent(octalVia)}">Octal IP bypass</a></li>
-      <li><a href="/ssrf/zero-ip?url=${encodeURIComponent(zeroVia)}">0.0.0.0 bypass</a></li>
-      <li><a href="/ssrf/fetch-meta?url=${encodeURIComponent(metaVia)}">Cloud metadata credentials</a></li>
-      <li><a href="/ssrf/fetch-file?url=${encodeURIComponent('file:///etc/passwd')}">file:///etc/passwd</a></li>
+      <li><a href="/ssrf/internal/status">Internal status endpoint</a> (see what it returns when you ask it directly)</li>
+      <li><a href="/ssrf/fetch">Open fetcher</a></li>
+      <li><a href="/ssrf/fetch2">Blocklisted fetcher</a></li>
+      <li><a href="/ssrf/fetch3">Redirect-following fetcher</a></li>
+      <li><a href="/ssrf/userinfo">Allowlisted fetcher</a></li>
+      <li><a href="/ssrf/fetch-meta">Cloud metadata fetcher</a></li>
+      <li><a href="/ssrf/fetch-file">File scheme fetcher</a></li>
     </ul>
   ${fixSection('ssrf', challenges)}
 `));

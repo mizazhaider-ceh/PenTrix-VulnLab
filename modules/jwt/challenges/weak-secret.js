@@ -74,9 +74,10 @@ module.exports = {
     hint: 'HS256 security is only as strong as the secret. This one is a classic default. Guess it, then sign your own token offline.',
     hints: ["The HMAC secret is a classic default. What are the usual suspects?", "Sign the same admin claims with each candidate secret, then feed the signed tokens to Intruder as a sniper payload list on the token field.", "In Intruder, grep every response for the success marker. The candidate whose response welcomes you as admin used the right secret."],
     tools: "BZ, N, W",
-    how: 'Recover the weak secret with a tiny wordlist, sign an admin token with the winning secret, and submit it. Burp Intruder can replay each candidate signed token while you grep for the success response.',
+    est: 'about 10 to 20 minutes',
+    how: 'HS256 is only as strong as its secret, and this secret is the kind developers leave behind in tutorials and test configs.',
     link: '/jwt#weak-secret',
-    start: 'Browse to /jwt/weak with Burp running. Intercept the token submit and send it to Intruder. Build a tiny wordlist of classic default secrets, sign admin-claims tokens per candidate offline, and sniper them through Intruder while grepping for the welcome response.',
+    start: 'Browse to /jwt/weak with Burp running. Decode the sample token, intercept the token submit, and send it to Repeater or Intruder so you can test candidate tokens quickly once you start guessing secrets offline.',
   },
   router,
 };

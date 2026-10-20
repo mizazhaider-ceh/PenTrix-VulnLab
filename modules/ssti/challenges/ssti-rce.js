@@ -44,7 +44,7 @@ router.get('/exec', (req, res) => {
     </div>
     ${result}
     ${awardHtml}
-    ${hintBox('You are one <code>require("child_process")</code> away from the shell. What does <code>execSync("id")</code> return?')}
+    ${hintBox('There is no sandbox between the template and the Node.js runtime. Think about which built-in module runs system commands, and how its raw output becomes text the page can render.')}
     <p><a href="/ssti">Back to SSTI module</a></p>
   `));
 });
@@ -54,12 +54,13 @@ module.exports = {
     id: 'ssti-rce',
     name: 'SSTI to Remote Code Execution',
     difficulty: 'Hard',
+    est: 'about 20 to 45 minutes',
     hint: 'There is no sandbox: expressions run in Node.js with require() in scope. In Repeater, reach child_process and run a system command from the expr parameter.',
     hints: ["Capture the /ssti/exec form request in Burp Proxy and send it to Repeater. Probe the expr parameter with a small arithmetic expression to confirm the engine evaluates {{ }}.", "In Repeater, remember the engine runs the full Node.js runtime: expressions can reach require(). Which built-in module runs system commands?", "In Repeater, require the child-process module from the template scope, run a harmless system command synchronously, and convert its raw output to text so it renders in the response."],
     tools: 'BZ, B, C',
-    how: 'In Repeater, send expr={{require("child_process").execSync("id").toString()}} and read the uid= output from the rendered result.',
+    how: 'In Repeater, use the template expression to reach the Node.js module that runs system commands, run a harmless one, and render its output as text in the result.',
     link: '/ssti#ssti-rce',
-    start: 'With Burp Proxy on, open /ssti/exec in the browser, submit an expression, and send the request to Repeater. Try expr={{7*7}} first; the page should echo 49.',
+    start: 'With Burp Proxy on, open /ssti/exec in the browser, submit an expression, and send the request to Repeater. Start with a small arithmetic expression to confirm the engine evaluates it.',
   },
   router,
 };

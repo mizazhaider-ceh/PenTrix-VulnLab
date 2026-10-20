@@ -2,7 +2,7 @@
 // template engine as /ssti/greet, but first deletes every underscore from the
 // input. The flag lives in the in-scope variable db_pass.
 // (No 'use strict' here: the vulnerable renderer relies on `with`, which strict
-// mode forbids. This keeps behavior identical to modules/ssti/router.js.)
+// mode forbids. The module is assembled in modules/ssti/index.js.)
 const express = require('express');
 const { brief, esc, flagBox, fixPanel, hintBox, page } = require('../../../lib/page');
 const { award, flagFor } = require('../../../lib/flags');
@@ -54,7 +54,7 @@ router.get('/nounderscore', (req, res) => {
     </div>
     ${result}
     ${awardHtml}
-    ${hintBox('You cannot type the underscore, but JavaScript can build any character: <code>String.fromCharCode(95)</code> is <code>_</code>. Combine it with <code>eval</code>.')}
+    ${hintBox('You cannot type the underscore, but JavaScript can build any character from its code at run time. Think about how to assemble a name you are not allowed to type, then have the engine evaluate the assembled result.')}
     <p><a href="/ssti">Back to SSTI module</a></p>
   `));
 });
@@ -64,10 +64,11 @@ module.exports = {
     id: 'ssti-nounderscore',
     name: 'Underscore Blacklist Bypass',
     difficulty: 'Medium',
+    est: 'about 10 to 25 minutes',
     hint: 'Underscores are deleted from your input. In Repeater, JavaScript can build any character from its code: String.fromCharCode(95) is _.',
     hints: ["Capture the note form request in Burp Proxy and send it to Repeater first. Then probe the input parameter with a small arithmetic expression to confirm the engine still evaluates {{ }}.", "In Repeater, JavaScript can build the underscore character from its code: String.fromCharCode(95). You do not need to type the underscore at all.", "In Repeater, assemble the underscore-containing name at run time and evaluate the assembled string. The filter only ever sees your raw input, not what eval builds from it."],
     tools: 'BZ, B, C',
-    how: 'In Repeater, place an eval() inside {{ }} that assembles the underscore-containing variable name at run time, e.g. input={{eval("db"+String.fromCharCode(95)+"pass")}}.',
+    how: 'In Repeater, assemble the underscore-containing variable name at run time from character codes and evaluate the assembled string inside {{ }}, so the filter never sees an underscore in your raw input.',
     link: '/ssti#ssti-nounderscore',
     start: 'With Burp Proxy on, open /ssti/nounderscore in the browser, submit a note, and send the request to Repeater. Try input={{7*7}} to confirm the engine still evaluates templates, then defeat the underscore filter in the input parameter.',
   },

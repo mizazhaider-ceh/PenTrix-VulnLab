@@ -52,9 +52,9 @@ router.get('/', (req, res) => {
       the request passes through verbs, headers, and caches. This module attacks those:
       log forging with CR/LF bytes (confirmed in the log viewer, not on input),
       verb confusion (GET-vs-POST), and a naive cache keyed on the URL path alone.</p>
-      <p><b>Heads up:</b> the cache-deception flag is returned in an <code>X-Flag</code>
-      response header (the response is CSS, not HTML),
-      and every capture is also saved to your scoreboard.</p>`)}
+      <p><b>Heads up:</b> one challenge here answers with a stylesheet, not a page,
+      so read full responses in Burp, headers included. Every capture is also
+      saved to your scoreboard.</p>`)}
     ${trackBanner(module.exports)}
     <h2>Challenges</h2>
     <p>Three flaws hide in the protocol layer below the app. Each challenge card
