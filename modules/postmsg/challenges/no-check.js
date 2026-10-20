@@ -4,7 +4,7 @@
 // beacon (a shared module-level route) with a page-bound one-time token.
 const express = require('express');
 const { page } = require('../../../lib/page');
-const { pmNonce } = require('../shared');
+const { pmNonceScript } = require('../shared');
 
 const router = express.Router();
 
@@ -32,7 +32,7 @@ router.get('/no-check', (req, res) => {
     </div>
     <script>
       // Page-bound token: only a handler running in this loaded page can know it.
-      var PM_NONCE = ${JSON.stringify(pmNonce(req, 'no-check'))};
+      ${pmNonceScript(req, 'no-check')}
       window.addEventListener('message', function (e) {
         // VULN: no origin check at all - any website can drive this handler,
         // and the message is rendered as HTML.

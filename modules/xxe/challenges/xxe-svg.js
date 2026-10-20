@@ -4,7 +4,7 @@
 const express = require('express');
 const { page, esc, brief, hintBox, flagBox, fixPanel } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { expandEntities, SECRET_ABS } = require('../shared');
+const { expandEntities, SECRET_ABS, markerProven } = require('../shared');
 
 const router = express.Router();
 
@@ -36,7 +36,7 @@ router.post('/svg', async (req, res) => {
   const texts = [...expanded.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi)].map((m) => m[1].trim()).filter(Boolean);
   const shown = texts.length ? texts.join(' | ') : '(no <text> elements found)';
   let flags = '';
-  if (expanded.includes('XXE-SECRET-4471')) {
+  if (markerProven(svg, expanded, 'XXE-SECRET-4471')) {
     flags += flagBox(award(req, 'xxe', 'xxe-svg'));
     flags += fixPanel('xxe', 'xxe-svg');
   }
@@ -54,10 +54,11 @@ module.exports = {
     id: 'xxe-svg',
     name: 'XXE in Uploaded SVG',
     difficulty: 'Medium',
+    est: 'about 10 minutes',
     hint: 'The SVG text extractor runs the same entity-expanding parser. An SVG is just XML, and XML can carry a DOCTYPE.',
     hints: ["Start in Burp Proxy: capture a normal POST /xxe/svg request from the form so you have a baseline you can replay before changing anything.", "Send that request to Repeater. An SVG is still XML, so a DOCTYPE declaring an external file-reading entity rides along through the extractor's parser. Put the entity reference inside a visible <text> element.", "Send the request and read the extractor output: your entity content lands in the <text> extraction results, so watch that section of the response for the spliced file content."],
     tools: "BZ, B",
-    how: 'Burp the SVG extractor form, send the POST to Repeater, and put an SVG whose DOCTYPE declares a file:// entity for the secret file with the reference inside a <text> element into the svg parameter. Read the extracted text output for the spliced content.',
+    how: 'An SVG is XML too. If the extractor expands entities before reading the text, the file content ends up where the label used to be.',
     link: '/xxe#xxe-svg',
     start: 'Proxy your browser through Burp and open GET /xxe/svg. Submit the form once with a plain SVG, find the POST /xxe/svg request in Proxy HTTP history, send it to Repeater, then replace the svg field with your DOCTYPE entity payload and send.',
   },

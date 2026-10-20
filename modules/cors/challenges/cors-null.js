@@ -12,8 +12,9 @@ const vuln = {
   name: 'Null Origin Trusted',
   difficulty: 'Medium',
   hint: 'Only one origin value is trusted here, and it is the one sandboxed iframes and file:// pages send.',
-  hints: ["In Repeater, add an Origin header to GET /cors/api/settings and send a few values. Watch the response headers: only one literal value earns Access-Control-Allow-Origin plus Access-Control-Allow-Credentials.", "The winning value is the string null. Real browsers send it from sandboxed iframes (no allow-same-origin) and file:// pages.", "Send Origin: null in Repeater, confirm the Access-Control-Allow-Origin: null response header, then collect the flag in the Burp proxy browser at /cors/prove?vuln=cors-null&origin=null."],
+  hints: ["In Repeater, add an Origin header to GET /cors/api/settings and send a few values. Watch the response headers: only one literal value earns Access-Control-Allow-Origin plus Access-Control-Allow-Credentials.", "The winning value is the string null. Real browsers send it from sandboxed iframes (no allow-same-origin) and file:// pages.", "Fastest correct tool: Repeater for everything. Send Origin: null against /cors/api/settings, confirm Access-Control-Allow-Origin: null plus credentials in the response headers, then send a plain Repeater GET to /cors/prove?vuln=cors-null&origin=null with the same Origin: null header to collect the flag. It is a plain GET, no proxy browser needed."],
   tools: 'BZ, B',
+  est: 'about 10 minutes',
   how: 'Burp proxy browser: open /cors/prove?vuln=cors-null&origin=null; the header check awards the flag',
   link: '/cors#cors-null',
   start: 'Repeater: send GET /cors/api/settings with a literal Origin: null header and read the response headers',
@@ -46,7 +47,7 @@ router.get('/null-origin', (req, res) => {
     <div class="vuln-card">
       <h3>Live endpoint</h3>
       <p><a href="/cors/api/settings"><code>/cors/api/settings</code></a></p>
-      ${payloadBlock('Burp Repeater', 'GET /cors/api/settings HTTP/1.1\nHost: localhost:3000\nOrigin: null\n\n')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/settings HTTP/1.1\nHost: <your-lab-address>\nOrigin: null\n\n')}
     </div>
     <p>Only <code>Origin: null</code> is trusted here (with credentials). Prove
     it with exactly that origin.</p>

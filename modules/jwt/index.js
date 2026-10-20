@@ -5,7 +5,7 @@
 // here, copied from modules/jwt/router.js.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/none-admin'),
@@ -95,22 +95,17 @@ router.get('/', (req, res) => {
     'aud-bypass': '/jwt/aud',
     'kid-default': '/jwt/kiddefault',
   };
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('jwt', ordered, links);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3><a href="${links[v.id]}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)}</h3>
+      <h3><a href="${links[v.id]}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)} ${capturedPill(req, 'jwt', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('jwt', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('JWT Attacks', `
     ${brief('JWT Attacks', `
       A JSON Web Token is three base64url segments joined by dots:
@@ -129,7 +124,7 @@ router.get('/', (req, res) => {
     challenge card has a hint ladder: level 1 nudges, level 2 teaches the technique,
     level 3 shows the payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('jwt', challenges)}
 `));
 });
 

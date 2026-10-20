@@ -4,6 +4,7 @@ const express = require('express');
 const { page, esc, brief, flagBox, fixPanel, hintLadder } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const shared = require('../shared');
+const { passwordMatches } = require('../../../lib/account-state');
 
 const router = express.Router();
 
@@ -11,12 +12,13 @@ const vuln = {
   id: 'user-enum',
   name: 'Username Enumeration',
   difficulty: 'Easy',
-  hint: 'The login says "user not found" for bad usernames but "wrong password" for real ones. Probe names like alice, bob, admin, or anything else, then submit the confirmed username on the submit page.',
-  hints: ["Log in once with a made-up username, then once with a real-sounding one and a wrong password. Compare the two responses in Burp: what changes?", "The different error messages are an oracle for which usernames exist. Send the login POST to Intruder and set a sniper payload position on the username field.", "In Intruder, mark only the username parameter with the payload marker, load a short candidate wordlist, and add grep-match rules for the two error phrases so the valid usernames stand out in the results. Submit one you confirmed, in the same browser session."],
+  hint: 'The login answers differently for unknown usernames than it does for real ones with a bad password. Probe names like alice, bob, admin, or anything else, then submit the confirmed username on the submit page.',
+  hints: ["Log in once with a made-up username, then once with a real-sounding one and a bad password. Compare the two responses in Burp: what changed between them?", "That difference is an oracle for which accounts exist: one answer for names that do not, another for names that do. Send the login POST to Intruder and set a sniper payload position on the username field.", "In Intruder, mark only the username parameter with the payload marker, load a short candidate wordlist, and add a Grep-Match rule for the exact phrase you observed in your own probe of a real account (copy it from your probe response, not from any hint: the hint ladder renders on this very page, so any phrase written here would match every response and hide the oracle). Submit one you confirmed, in the same browser session."],
   tools: 'BZ, B',
-  how: 'Sniper through candidate usernames at /auth/enum-login in Burp Intruder, spot the valid ones by their different response, then submit a confirmed username in the same session.',
+  est: 'about 10 minutes',
+  how: 'Sniper through candidate usernames at /auth/enum-login in Burp Intruder, spot the valid ones by their different response (Grep-Match on the phrase from your own probe), then submit a confirmed username in the same session.',
   link: '/auth/enum-login',
-  start: 'Open http://localhost:3000/auth/enum-login through the Burp proxy browser, submit the form once with a guess, then send that POST to Intruder.',
+  start: 'Open /auth/enum-login through the Burp proxy browser, submit the form once with a guess, then send that POST to Intruder.',
 };
 
 function loginView(req, opts) {
@@ -55,7 +57,7 @@ router.post('/enum-login', (req, res) => {
   if (!user) {
     return res.send(loginView(req, { error: `User <b>${esc(username)}</b> not found.` }));
   }
-  if (user.password !== password) {
+  if (!passwordMatches(req, user, password)) {
     req.session.enumFound = req.session.enumFound || [];
     if (!req.session.enumFound.includes(user.username)) {
       req.session.enumFound.push(user.username);

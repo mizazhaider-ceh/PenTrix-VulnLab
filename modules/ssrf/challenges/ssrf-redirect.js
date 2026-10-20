@@ -22,7 +22,7 @@ const vuln = {
   tools: "BZ, C",
   how: 'In Burp Repeater, GET /ssrf/fetch3 with the url parameter set to the app\'s own /ssrf/jump address aimed at the internal secret URL, so the redirect lands on the blocked host.',
   link: '/ssrf#ssrf-redirect',
-  start: 'Browse to http://localhost:3000/ssrf/fetch3 through Burp Proxy, submit any URL in the form, and send the intercepted request to Repeater. In Repeater, confirm /ssrf/jump?to=/ssrf/internal/status answers 302, then change the url parameter to the full /ssrf/jump address aimed at the internal secret and send again; the page shows the flag.',
+  start: 'Browse to /ssrf/fetch3 through Burp Proxy, submit any URL in the form, and send the intercepted request to Repeater. In Repeater, confirm /ssrf/jump?to=/ssrf/internal/status answers 302, then change the url parameter to the full /ssrf/jump address aimed at the internal secret and send again; the page shows the flag.',
 };
 
 const APP_NAME = 'HopFetch';

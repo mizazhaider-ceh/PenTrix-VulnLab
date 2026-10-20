@@ -62,8 +62,9 @@ const { award, flagFor, captured } = require('../../lib/flags');
 6. **Provide attack surface.** Every vuln needs a visible form, link, or endpoint
    to attack. No hidden routes the user can't discover from your pages.
 7. **Session flags only.** Do not invent your own flag strings. Flag format is fixed.
-8. **Never hardcode a flag.** Flags are random per deployment and live only in
-   the `flags` table. Use `award(req, '<id>', '<vuln-id>')` to award and
+8. **Never hardcode a flag.** Flags are randomly generated per install at
+   first boot on the student's own machine, no flag literal exists in any
+   tracked file, and only genuine exploits earn flags. Use `award(req, '<id>', '<vuln-id>')` to award and
    `flagFor('<id>', '<vuln-id>')` to display an already-captured flag. Never
    write a literal `PENTRIX{...}` value in code (format examples like
    `PENTRIX{...}` in docs are fine).

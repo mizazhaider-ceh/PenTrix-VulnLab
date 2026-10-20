@@ -22,6 +22,7 @@ const vuln = {
     'In Repeater, replay the login POST as admin with that same lab_sid cookie attached. The response shows the sid did not change across login.',
   ],
   tools: 'BZ, B, DT',
+  est: 'about 10 minutes',
   how: 'Set the lab_sid cookie to a known value (with the preset link, or by editing the Cookie header in Repeater), log in as admin, and confirm the sid did not change.',
   link: '/session#fixation',
   start: 'In Burp Proxy, open the fixation console and click "Set my session cookie to sid=attacker123". In Repeater, replay the login POST as admin with that same lab_sid cookie attached, then compare the session id shown before and after login.',
@@ -93,7 +94,7 @@ router.get('/fixation/preset', (req, res) => {
 
 // POST /session/fixation/login -> login that keeps the pre-login sid.
 router.post('/fixation/login', (req, res) => {
-  const user = shared.checkCreds(req.body.username, req.body.password);
+  const user = shared.checkCreds(req, req.body.username, req.body.password);
   if (!user) return res.status(403).send(deniedPage('Bad username or password.'));
   const preset = shared.sidOf(req);
   // VULN: the pre-login session id is kept after login instead of being

@@ -34,7 +34,7 @@ router.get('/price-tamper', (req, res) => {
     </form>
     <p class="note">View the page source: the price is a hidden form field. Try it in Burp Repeater: click "Buy now for $50" with Proxy intercepting, send the request to Repeater with Ctrl+R, change <code>price</code>, and send.</p>
     <div class="payload"><div class="payload-head"><span>Burp Repeater</span></div><pre class="payload-body">POST /bizlogic/price-tamper/buy HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 25
 

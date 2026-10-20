@@ -21,7 +21,7 @@ const vuln = {
   tools: "BZ, B",
   how: 'Confirm /cors/api/token answers any Origin with Access-Control-Allow-Origin: * and lists X-Admin-Token in Access-Control-Expose-Headers, then prove it in the browser at /cors/prove?vuln=cors-expose-headers&origin=https://evil.com.',
   link: '/cors#cors-expose-headers',
-  start: 'Open http://localhost:3000/cors/expose through the Burp proxy browser, click "Check session status" to capture the session API request, then send it to Repeater and replay it with an attacker Origin to read the response headers.',
+  start: 'Open /cors/expose through the Burp proxy browser, click "Check session status" to capture the session API request, then send it to Repeater and replay it with an attacker Origin to read the response headers.',
 };
 
 // GET /cors/api/token -> admin session status. A sensitive response header is
@@ -57,7 +57,7 @@ router.get('/expose', (req, res) => {
     <div class="clay-card">
       <h2>API and origin checker</h2>
       <p>Raw endpoint: <a href="/cors/api/token"><code>/cors/api/token</code></a></p>
-      ${payloadBlock('Burp Repeater', 'GET /cors/api/token HTTP/1.1\nHost: localhost:3000\n\n')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/token HTTP/1.1\nHost: <your-lab-address>\n\n')}
       <p>The checker sends a real request to the endpoint with the Origin you
       type and shows the exact response headers, the same check a browser
       performs before allowing a cross-origin read.</p>

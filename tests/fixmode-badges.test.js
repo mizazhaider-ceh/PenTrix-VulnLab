@@ -54,8 +54,8 @@ function badgeLibFor(dbPath) {
 
 // Mirrors the intended POST /fix/:module/:vuln/test route logic:
 // check the fix in the sandbox, award a badge only when it passes.
-function awardIfVerified(req, module, vulnId, studentCode) {
-  const result = fixmode.testFix(module, vulnId, studentCode);
+async function awardIfVerified(req, module, vulnId, studentCode) {
+  const result = await fixmode.testFix(module, vulnId, studentCode);
   if (!result.ok) return { ok: false, error: result.error, badge: null };
   const badge = fixbadges.awardFixBadge(req, module, vulnId);
   return { ok: true, error: null, badge, alreadyHad: badge === null };
@@ -116,7 +116,7 @@ test('fix badges (M11 break-then-fix)', async (t) => {
     assert.ok(blocks.some((b) => b.module === MOD && b.vulnId === VULN), 'sqli/login-bypass block must be listed');
     const block = fixmode.getFixBlock(MOD, VULN);
     assert.ok(block, 'fix block must load');
-    const validation = fixmode.validateBlock(block);
+    const validation = await fixmode.validateBlock(block);
     assert.equal(validation.valid, true, validation.error);
   });
 
@@ -126,12 +126,12 @@ test('fix badges (M11 break-then-fix)', async (t) => {
     assert.equal(fixbadges.fixBadgeCount(req), 0);
 
     const block = fixmode.getFixBlock(MOD, VULN);
-    const check = fixmode.testFix(MOD, VULN, block.fixedCode);
+    const check = await fixmode.testFix(MOD, VULN, block.fixedCode);
     assert.equal(check.ok, true, check.error);
     assert.equal(check.exploitBlocked, true);
     assert.equal(check.legitWorks, true);
 
-    const awarded = awardIfVerified(req, MOD, VULN, block.fixedCode);
+    const awarded = await awardIfVerified(req, MOD, VULN, block.fixedCode);
     assert.equal(awarded.ok, true);
     assert.ok(awarded.badge, 'first verified fix must return a badge record');
     assert.equal(awarded.badge.module, MOD);
@@ -158,7 +158,7 @@ test('fix badges (M11 break-then-fix)', async (t) => {
     assert.equal(fixbadges.fixBadgeCount(req), 1);
     assert.equal(fixbadges.fixBadgeList(req).length, 1);
 
-    const viaRoute = awardIfVerified(req, MOD, VULN, fixmode.getFixBlock(MOD, VULN).fixedCode);
+    const viaRoute = await awardIfVerified(req, MOD, VULN, fixmode.getFixBlock(MOD, VULN).fixedCode);
     assert.equal(viaRoute.ok, true);
     assert.equal(viaRoute.alreadyHad, true, 'verified re-submit reports alreadyHad');
     assert.equal(fixbadges.fixBadgeCount(req), 1);
@@ -197,7 +197,7 @@ test('fix badges (M11 break-then-fix)', async (t) => {
     fixbadges = badgeLibFor(dbFile);
     const req = fakeReq('fixbadge-persistent-user');
     const block = fixmode.getFixBlock(MOD, VULN);
-    const awarded = awardIfVerified(req, MOD, VULN, block.fixedCode);
+    const awarded = await awardIfVerified(req, MOD, VULN, block.fixedCode);
     assert.equal(awarded.ok, true);
     assert.ok(awarded.badge);
     assert.equal(fixbadges.fixBadgeCount(req), 1);
@@ -224,14 +224,14 @@ test('fix badges (M11 break-then-fix)', async (t) => {
 
     // Reference fixedCode: passes, earns a badge.
     const req = fakeReq('fixbadge-user-good');
-    const good = awardIfVerified(req, MOD, VULN, block.fixedCode);
+    const good = await awardIfVerified(req, MOD, VULN, block.fixedCode);
     assert.equal(good.ok, true, good.error);
     assert.ok(good.badge);
     assert.equal(fixbadges.fixBadgeCount(req), 1);
 
     // Still-vulnerable code: exploit works, rejected, no badge.
     const req2 = fakeReq('fixbadge-user-bad');
-    const bad = awardIfVerified(req2, MOD, VULN, block.vulnerableCode);
+    const bad = await awardIfVerified(req2, MOD, VULN, block.vulnerableCode);
     assert.equal(bad.ok, false);
     assert.ok(/exploit still works/i.test(bad.error), 'error should say the exploit still works');
     assert.equal(bad.badge, null);
@@ -240,14 +240,14 @@ test('fix badges (M11 break-then-fix)', async (t) => {
 
     // Fix that blocks the exploit but breaks legit use: rejected, no badge.
     const req3 = fakeReq('fixbadge-user-broken');
-    const broken = awardIfVerified(req3, MOD, VULN, 'function vulnFn(username, password) { return null; }');
+    const broken = await awardIfVerified(req3, MOD, VULN, 'function vulnFn(username, password) { return null; }');
     assert.equal(broken.ok, false);
     assert.ok(/normal use is broken/i.test(broken.error));
     assert.equal(broken.badge, null);
     assert.equal(fixbadges.fixBadgeCount(req3), 0);
 
     // Missing challenge: clean failure, no badge.
-    const missing = awardIfVerified(req3, MOD, 'no-such-challenge');
+    const missing = await awardIfVerified(req3, MOD, 'no-such-challenge');
     assert.equal(missing.ok, false);
     assert.equal(missing.badge, null);
     assert.equal(fixbadges.fixBadgeCount(req3), 0);
@@ -265,6 +265,14 @@ test('fix badges (M11 break-then-fix)', async (t) => {
 
     // Editor page renders for a known challenge.
     const c = client(srv.base);
+    // P1-9: app.js runs with saveUninitialized: false, so a client that
+    // stores nothing gets no session cookie and sessionIdOf() returns null.
+    // Establish a stored session first by loading a page that writes session
+    // state (the XSS search page issues the page-bound nonce into the
+    // session), so the client holds a session cookie for the badge lookup.
+    const seed = await c.get('/xss/search');
+    assert.equal(seed.status, 200, 'session-seeding page must load');
+    assert.ok(sessionIdOf(c), 'seeding request must issue a session cookie');
     const editor = await c.get(`/fix/${MOD}/${VULN}`);
     assert.equal(editor.status, 200);
     assert.ok(editor.text.includes('id="fix-form"'), 'editor page must contain the fix form');
@@ -288,7 +296,12 @@ test('fix badges (M11 break-then-fix)', async (t) => {
     assert.equal(badgeCountFor(dataDir, sid), 1);
 
     // Still-vulnerable code from a fresh client: rejected, no badge row.
+    // Same saveUninitialized handling as above: seed a stored session first
+    // so this fresh client also holds a cookie and its own distinct id.
     const c2 = client(srv.base);
+    const seed2 = await c2.get('/xss/search');
+    assert.equal(seed2.status, 200, 'session-seeding page must load for the fresh client');
+    assert.ok(sessionIdOf(c2), 'seeding request must issue a session cookie for the fresh client');
     const bad = await c2.postJson(`/fix/${MOD}/${VULN}/test`, { code: block.vulnerableCode });
     assert.equal(bad.status, 200);
     assert.ok(bad.text.includes('Fix not passing yet'), 'result page must say Fix not passing yet');

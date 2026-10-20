@@ -131,4 +131,56 @@ test('platform', async (t) => {
     again.setCookie(cookie);
     assert.equal((await scoreOf(again)).got, 1, 'captured flag lost after restart');
   });
+
+  // P5-6 drift guard: every challenge file under modules/*/challenges/ must
+  // carry the required // VULN: marker at its vulnerable sink. Twenty files
+  // lacked it (expert A2); this test fails if a file ever loses its marker.
+  await t.test('drift guard: every one of the 201 challenge files carries the // VULN: marker', () => {
+    const files = [];
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.js')) files.push(p);
+    });
+    walk(path.join(ROOT, 'modules'));
+    const challengeFiles = files.filter((f) => f.split(path.sep).includes('challenges'));
+    assert.equal(challengeFiles.length, EXPECTED_CHALLENGES, 'challenge file count drifted');
+    const missing = challengeFiles
+      .filter((f) => !/\/\/ VULN:/.test(fs.readFileSync(f, 'utf8')))
+      .map((f) => path.relative(ROOT, f));
+    assert.deepEqual(missing, [], 'challenge files missing the // VULN: marker');
+  });
+
+  // P5-6 platform error paths: branches the suite used to ignore. Oversized
+  // bodies must be refused with 413 (not 500), malformed JSON with 400, and
+  // unknown routes with the 404 page.
+  await t.test('platform error paths: oversized bodies get 413, malformed JSON gets 400, unknown routes get 404', async () => {
+    const big = `username=${'x'.repeat(200 * 1024)}&password=x`;
+    const over = await fetch(`${srv.base}/sqli/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: big,
+      redirect: 'manual',
+    });
+    assert.equal(over.status, 413, 'oversized urlencoded body must be 413');
+
+    const overJson = await fetch(`${srv.base}/sqli/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'x'.repeat(200 * 1024) }),
+      redirect: 'manual',
+    });
+    assert.equal(overJson.status, 413, 'oversized JSON body must be 413');
+
+    const badJson = await fetch(`${srv.base}/sqli/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{not valid json',
+      redirect: 'manual',
+    });
+    assert.equal(badJson.status, 400, 'malformed JSON body must be 400');
+
+    const nf = await fetch(`${srv.base}/no-such-route-xyz`, { redirect: 'manual' });
+    assert.equal(nf.status, 404, 'unknown route must be 404');
+  });
 });

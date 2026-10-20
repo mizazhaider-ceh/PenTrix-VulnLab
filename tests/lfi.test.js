@@ -97,6 +97,22 @@ test('lfi module', async (t) => {
     assert.equal((again.text.match(FLAG_RE) || [])[0], flagOf('double-encode'));
   });
 
+  await t.test('double-encode: %73ecret.txt reads the file but is no traversal, so no flag', async () => {
+    const c = client(srv.base);
+    // The cheat: a single-encoded letter (no traversal at all) still resolves
+    // to the in-docs secret and used to award on the bare "%" in the raw input.
+    const cheat = await c.get('/lfi/double?page=%73ecret.txt');
+    assert.equal(cheat.status, 200);
+    assert.ok(cheat.text.includes('LFI-SECRET-8830'), 'the read itself still works');
+    assert.equal((cheat.text.match(FLAG_RE) || []).length, 0, 'a bare percent must not award');
+    assert.ok(!(await capturedSet(c)).includes('lfi:Encoding Bypass'));
+    // Reading the secret plainly is equally far from a double-encoded traversal.
+    const plain = await c.get('/lfi/double?page=secret.txt');
+    assert.ok(plain.text.includes('LFI-SECRET-8830'));
+    assert.equal((plain.text.match(FLAG_RE) || []).length, 0, 'a plain in-docs read must not award');
+    assert.ok(!(await capturedSet(c)).includes('lfi:Encoding Bypass'));
+  });
+
   await t.test('nested-deep: a global single pass strips ../ once, nested dots regenerate it', async () => {
     const c = client(srv.base);
     const shortcut = await c.get('/lfi/nested?page=secret.txt');

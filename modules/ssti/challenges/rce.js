@@ -18,6 +18,7 @@ const vuln = {
   id: 'rce',
   name: 'Scope Leak (Data Exposure, Not RCE)',
   difficulty: 'Medium',
+  est: 'about 20 minutes',
   hint: 'In Burp Repeater, once you know {{ }} is evaluated, ask yourself: what server-side variables are in scope when the expression runs? Probe for a variable that holds the flag: its name is the most obvious one you would pick for this job.',
   hints: ["Send the /ssti/greet request to Burp Repeater and first confirm {{ }} evaluates by trying a harmless arithmetic expression; the module page tells you the answer to expect.", "In Repeater, change the name parameter and think about which server-side variables the template engine can see while it runs. Probe for the one holding the flag: its name is the most obvious one you would pick for this job.", "Read that in-scope variable directly in Repeater: you only need its conventional name, and the template echoes its value into the greeting. (This is a scope leak, not RCE.)"],
   tools: 'BZ, B, C',

@@ -4,6 +4,8 @@
 // exchange directly. The flag condition lives in the shared token endpoint:
 // doTokenExchange awards 'secret-in-js' when a direct (non-callback) request
 // presents the matching client_secret. This file owns only the challenge page.
+// VULN: the "confidential" client's secret is served inside public
+// JavaScript, so anyone can read it and perform the token exchange directly.
 const express = require('express');
 const { page, esc, hintLadder, toolsPill, difficultyPill, payloadBlock } = require('../../../lib/page');
 
@@ -51,11 +53,11 @@ router.get('/secret-in-js', (req, res) => {
       </ol>
       <p>Open the bundle URL in your proxied browser (or Repeater) and read it:</p>
       ${payloadBlock('Burp Repeater (read the public bundle)', `GET /oauth/client/app.js HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 
 `)}
       ${payloadBlock('Burp Repeater (direct token exchange)', `POST /oauth/idp/token HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 

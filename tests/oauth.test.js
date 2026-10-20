@@ -193,6 +193,9 @@ test('oauth module', async (t) => {
 
   await t.test('code-replay: first exchange earns nothing, second exchange of the same code earns the flag', async () => {
     const c = client(srv.base);
+    // The student works from the Lab 7 challenge page; the session flow it
+    // stamps is what scopes the code issued next to this challenge.
+    await c.get('/oauth/code-replay');
     await c.get('/oauth/login/bob');
     const text = await approve(c, {
       client_id: 'pentrix-spa', redirect_uri: CALLBACK, response_type: 'code', scope: 'read',
@@ -229,6 +232,43 @@ test('oauth module', async (t) => {
     assert.equal(hit.status, 200);
     assert.equal(hit.body.flag, flagOf('pkce-skip'));
     assert.ok((await capturedSet(c)).includes('oauth:PKCE Downgrade'));
+  });
+
+  await t.test('code-replay bleed: replaying a PKCE-issued code mid-flow earns no code-replay flag, replay inside the code-replay challenge earns it', async () => {
+    const c = client(srv.base);
+    await c.get('/oauth/login/bob');
+    // Mid-flow in the PKCE challenge: open its page, get a challenge-bound
+    // code, and exchange it twice WITH a verifier (the honest PKCE shape).
+    await c.get('/oauth/pkce-skip');
+    const boundText = await approve(c, {
+      client_id: 'pentrix-spa', redirect_uri: CALLBACK, response_type: 'code', scope: 'read',
+      code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', code_challenge_method: 'S256',
+    });
+    const pkceCode = codeOf(boundText);
+    const p1 = await exchange(c, { client_id: 'pentrix-spa', code: pkceCode, code_verifier: 'any-verifier' });
+    assert.equal(p1.status, 200);
+    assert.ok(!('flag' in p1.body), 'first PKCE exchange with a verifier must not award');
+    const p2 = await exchange(c, { client_id: 'pentrix-spa', code: pkceCode, code_verifier: 'any-verifier' });
+    assert.equal(p2.status, 200);
+    assert.ok(p2.body.access_token, 'the replay itself still succeeds (codes stay reusable)');
+    assert.notEqual(p2.body.access_token, p1.body.access_token, 'replay should mint a fresh token');
+    assert.ok(!('flag' in p2.body), 'replaying a PKCE-issued code must not pop the code-replay flag');
+    assert.ok(!(await capturedSet(c)).includes('oauth:Authorization Code Replay'),
+      'code-replay must stay uncaptured after a PKCE-flow replay');
+    // The honest code-replay solve in the same session still awards: open
+    // the Lab 7 page, get a plain code in that flow, exchange it twice.
+    await c.get('/oauth/code-replay');
+    const text = await approve(c, {
+      client_id: 'pentrix-spa', redirect_uri: CALLBACK, response_type: 'code', scope: 'read',
+    });
+    const code = codeOf(text);
+    const first = await exchange(c, { client_id: 'pentrix-spa', code });
+    assert.equal(first.status, 200);
+    assert.ok(!('flag' in first.body), 'first exchange inside the code-replay flow must not award');
+    const second = await exchange(c, { client_id: 'pentrix-spa', code });
+    assert.equal(second.status, 200);
+    assert.equal(second.body.flag, flagOf('code-replay'));
+    assert.ok((await capturedSet(c)).includes('oauth:Authorization Code Replay'));
   });
 
   await t.test('scoreboard counts each captured challenge once', async () => {
@@ -270,7 +310,8 @@ test('oauth module', async (t) => {
       client_id: 'pentrix-client', redirect_uri: CALLBACK, response_type: 'code', scope: 'read',
     });
     await exchange(c, { client_id: 'pentrix-client', client_secret: sm[1], code: codeOf(jtext) });
-    // code-replay (exchange twice; only the second awards)
+    // code-replay (work from the Lab 7 page, exchange twice; only the second awards)
+    await c.get('/oauth/code-replay');
     const rtext = await approve(c, {
       client_id: 'pentrix-spa', redirect_uri: CALLBACK, response_type: 'code', scope: 'read',
     });

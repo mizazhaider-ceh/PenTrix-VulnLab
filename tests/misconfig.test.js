@@ -57,6 +57,19 @@ const BASIC = (u, p) => 'Basic ' + Buffer.from(`${u}:${p}`).toString('base64');
 
 test('misconfig module', async (t) => {
   const { srv, dataDir } = await bootLab(t);
+  // PUT exploit tests write pwn-*/sb-* scratch files into the misconfig
+  // public-files dir; remove them afterwards so runs leave the tree clean.
+  t.after(() => {
+    const dir = require('node:path').join(__dirname, '..', 'modules', 'misconfig', 'public-files');
+    const fs = require('node:fs');
+    try {
+      for (const f of fs.readdirSync(dir)) {
+        if (/^(pwn|sb)-.*\.txt$/.test(f)) {
+          try { fs.unlinkSync(require('node:path').join(dir, f)); } catch { /* gone */ }
+        }
+      }
+    } catch { /* dir absent */ }
+  });
   const flagOf = (id) => flagFromDb(dataDir, 'misconfig', id);
 
   await t.test('module page renders, links resolve, no em dash', async () => {
@@ -103,6 +116,10 @@ test('misconfig module', async (t) => {
     const r = await c.get('/misconfig/backup.sql');
     assert.equal(r.status, 200);
     assert.ok(r.text.includes('svc_backup'), 'the dump should read like a real database backup');
+    // P3-9: the award must be VISIBLE in the response (banner with the real
+    // flag), and the old flag-shaped decoy must be gone.
+    assert.ok(r.text.includes(flagOf('backup')), 'the real flag must be visible in the served dump banner');
+    assert.ok(!r.text.includes('DECOY_DO_NOT_USE'), 'the decoy token must not be served');
     assert.ok((await capturedSet(c)).includes('misconfig:Exposed Database Backup'));
   });
 
@@ -118,6 +135,10 @@ test('misconfig module', async (t) => {
     assert.equal((await c.get('/misconfig/files/nope.txt')).status, 404);
     const hit = await c.get('/misconfig/files/secret.txt');
     assert.equal(hit.status, 200);
+    assert.ok(hit.text.includes('FLAG CAPTURED'), 'the listing capture must be visible in the served file');
+    assert.ok(hit.text.includes(flagOf('listing')), 'the real flag must be visible in the served file banner');
+    assert.ok(!hit.text.includes('DECOY_DO_NOT_USE'), 'the decoy token must not be served');
+    assert.equal((hit.text.match(FLAG_RE) || []).length, 1, 'exactly one flag-shaped string in the served file');
     assert.ok((await capturedSet(c)).includes('misconfig:Directory Listing Leak'));
   });
 
@@ -208,7 +229,9 @@ test('misconfig module', async (t) => {
     assert.deepEqual(await capturedSet(c), [], 'the upload alone must not award');
     const back = await c.get('/misconfig/files/' + name);
     assert.equal(back.status, 200);
-    assert.equal(back.text, 'hello pentrix');
+    assert.ok(back.text.includes('FLAG CAPTURED'), 'the PUT capture must be visible in the read-back');
+    assert.ok(back.text.includes(flagOf('put')), 'the real flag must be visible in the read-back banner');
+    assert.ok(back.text.includes('hello pentrix'), 'the read-back must still serve the uploaded content');
     assert.ok((await capturedSet(c)).includes('misconfig:Unauthenticated HTTP PUT'));
   });
 

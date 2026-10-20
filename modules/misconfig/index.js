@@ -4,7 +4,7 @@
 // file under ./challenges, this file only wires them together and renders the
 // module index page.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/debug'),
@@ -23,22 +23,18 @@ const router = express.Router();
 
 // GET /misconfig -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('misconfig', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'misconfig', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('misconfig', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Security Misconfiguration', `
     ${brief('Security Misconfiguration', `
       Defaults kill. This module collects the classics: <b>debug mode left on</b>
@@ -56,7 +52,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('misconfig', challenges)}
 `));
 });
 

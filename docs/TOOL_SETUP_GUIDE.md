@@ -217,7 +217,10 @@ Intruder does what you do in Repeater, but automatically: it takes a request and
 3. Switch to the **Payloads** tab. For this lab, simple lists are enough: numbers (1, 2, 3) or short word lists you type in or paste.
 4. Click **Start attack**. A results table appears with one row per payload value, showing the response length and status code.
 
-One honest note: **Burp Community Edition throttles Intruder** (it inserts a delay between requests), so attacks run slower than in the paid version. For this lab the lists are small, so the throttle is only mildly annoying, not a blocker. Keep your payload lists short and focused.
+One honest note: **Burp Community Edition throttles Intruder** (it inserts a delay between requests), so attacks run slower than in the paid version. For this lab that matters in two different ways:
+
+- **Brute-force lists (OTP codes, PINs, passwords):** the throttle is a slowdown, not a blocker. The lab's lists are small (4 digits is 10,000 payloads), so the attack finishes, just later. Every brute-force challenge in this lab ships an honest time estimate: run a 100-payload test attack, time it, and multiply to estimate your machine.
+- **Race conditions:** the throttle is a **hard blocker**. A race needs 10 to 20 requests to land inside a 150 to 250 ms window, and throttled Intruder spreads them out so the window closes between requests. Do not use Intruder for races: use **Send group in parallel** (section 7 below), which fires every request near-simultaneously and is the Community-safe race tool.
 
 ## 4. Decoder: reading and writing encodings
 
@@ -243,6 +246,57 @@ Typical lab use: send the same request twice with one value changed, send both r
 ## 6. Logger: the full story
 
 Logger (in newer Burp versions it replaces the old Target scope logging) is the always-on record of everything Burp sees, Proxy traffic included, with powerful filtering. If you ever need to reconstruct "what exactly did I do in the last ten minutes", Logger has the full traffic story. Make sure it is enabled (Proxy and platform traffic logging switched on in Logger settings) so the record exists when you need it.
+
+## 7. Send group in parallel: racing requests the Community way
+
+Intruder is the wrong tool for race conditions in Community Edition: it is throttled, so its requests spread out and the race window closes between them. Repeater has the right tool, and it fires every request near-simultaneously, the "single-packet attack" that real race exploits use.
+
+1. Send the request to Repeater (Ctrl+R) and make sure it works once, exactly as the challenge needs it.
+2. Right-click the Repeater tab and choose **Duplicate tab**. Repeat until you have as many identical tabs as the challenge asks for (20 for the coupon and balance races, 2 for the vote and stock races).
+3. Select all the tabs (click the first, Shift-click the last), right-click the selection, and choose **Send group in parallel**.
+4. Burp fires every tab at once. Read the responses: look for the invariant break (two redeems, a negative balance, double votes).
+
+This works because the tabs are already fully-formed requests: nothing is iterated, nothing is throttled, they just all leave at the same instant. Every race challenge in the race module is winnable this way, and the hint ladders there teach it step by step. (If you ever move to Pro work, the Turbo Intruder extension is the scripted equivalent: one request template, `gate` payloads, all requests released together.)
+
+## 8. Reading Intruder results with Grep-Match
+
+Intruder shows you a wall of rows: status code and response length per payload. When failures and the one success share the same status and similar lengths, eyeballing the table does not work. Grep-Match adds columns that flag rows containing text you choose, so the winner stands out.
+
+1. Run your attack (or pick a finished one). In the attack window, open the **Settings** view (the gear tab, sometimes under "Grep - Match").
+2. Click **Add** and type a phrase that appears **only** in the success response, not in failures. Pick something you saw in Repeater while testing: a heading like "Password changed", a flag format, a distinctive sentence. Never guess: test both responses in Repeater first and use Comparer to confirm the phrase is unique to success.
+3. Burp adds one column per rule, with a checkmark on matching rows. Sort or filter by the column: the checkmarked rows are your winners.
+4. Real example from this lab: the 4-digit OTP brute force. Failures say "Wrong code", the success says "Password changed". A Grep-Match rule for "Password changed" checkmarks exactly one row out of 10,000, no length-watching needed.
+
+**Honest time estimates for the brute-force labs in this lab:**
+
+- **4-digit OTP / PIN (10,000 payloads):** measured on the lab host at about 130 to 150 requests per second with a plain parallel script, so a script finishes in roughly 70 to 80 seconds. Burp Community Intruder is throttled, so expect tens of minutes there. Before a long run, attack with just 100 payloads, time it, and multiply by 100: that is your honest estimate for your machine.
+- **Rule of thumb:** payloads under ~20,000 are Community-feasible with patience; anything with a million payloads is not. This lab has no million-payload grind: if a challenge ever feels like one, you are missing the intended technique.
+
+## 9. Generate CSRF PoC: Burp writes the attack page for you
+
+Every CSRF challenge ends the same way: you must produce an HTML page that, when a logged-in victim opens it, submits the forged request cross-site. Burp writes that page for you.
+
+1. Capture the state-changing request in Proxy (submit the form once in the browser).
+2. Right-click the request in Proxy history and choose **Engagement tools > Generate CSRF PoC** (in newer versions: right-click > **Generate CSRF PoC**).
+3. Burp shows a ready-made HTML page: a form (or an image/script tag for GET requests) that auto-submits your request. Click **Copy HTML** or **Test in browser** to verify it replays the request.
+4. The generated page proves the shape of the attack. For the flag, what matters is the cross-site evidence: the lab's CSRF challenges award when the forged request arrives with attacker-controlled Referer/Origin, exactly what a real victim's browser would send. Read the challenge page for what evidence each one checks.
+
+## 10. Match and Replace: let Burp rewrite traffic for you
+
+Repeating the same manual edit on every request gets old fast (swapping a session cookie on every request while you test fixation, for example). **Match and Replace** rules do it automatically.
+
+1. Go to **Proxy > Options** (or **Proxy settings**, depending on your Burp version) and find the **Match and Replace** section.
+2. Click **Add**. A rule has: which direction it applies to (request or response), what to match (a literal string or regex, and which part: first line, header, body), and what to replace it with.
+3. Example: to test with a fixed session cookie everywhere, add a request rule that matches `Cookie: lab_sid=[^;\s]+` in the header and replaces it with `Cookie: lab_sid=attacker123`. Every request your browser sends through the proxy now carries the fixed cookie, no manual edits.
+4. Rules stack in order and apply to everything in scope, so keep them narrow (scope-limited, specific regexes) and delete them when you move on, or they will surprise you in the next challenge.
+
+## 11. JWT forging without leaving Burp
+
+The JWT module's hints mention a short `node -e` script for minting tokens. You can do the same work Burp-natively:
+
+- **Decoder (base64url):** a JWT is three base64url segments joined by dots. Paste the token into Decoder, split it, and **Decode as Base64** (use the URL-safe variant) each segment to read the header and payload. Edit the JSON, **Encode as Base64** again, and you have two of the three segments; for `alg: none` attacks that is the whole token.
+- **JWT Editor extension:** install it from the **Extensions > BApp Store** tab inside Burp. It parses tokens in Proxy and Repeater automatically, lets you edit claims in a form, and re-signs with a key you provide, including the classic algorithm-confusion attack (sign HS256 with the server's RSA public key bytes).
+- **The PEM newline trap (one line, read this before the alg-confusion lab):** when you copy the RSA public key from the challenge page, the PEM block must keep its exact line breaks. A PEM pasted as one long line is a different byte string than the multi-line original, and HMAC verification will fail even though the "same" key is used. Paste it into Decoder or a file, check the line breaks survived, and only then use it as the HMAC secret.
 
 ## Worked mini-example: intercepting a login (mechanics only)
 
@@ -610,13 +664,13 @@ Burp Suite is your primary tool for almost everything. The supporting tools belo
 | Authentication attacks | Burp Suite (Intruder) | Hydra, custom wordlists (SecLists) |
 | SSRF | Burp Suite (Repeater) | Burp Collaborator for out-of-band checks |
 | File upload | Burp Suite (Repeater) | file command, exiftool for file inspection |
-| JWT | Burp Suite (Repeater) | Burp Decoder, jwt.io style offline checkers |
+| JWT | Burp Suite (Repeater) | Burp Decoder (base64url), JWT Editor extension |
 | LFI / path traversal | Burp Suite (Repeater) | ffuf for file name fuzzing |
 | Command injection | Burp Suite (Repeater) | Burp Collaborator for time-based and out-of-band checks |
-| CSRF | Burp Suite (Proxy) | generate the PoC with Burp's built-in generator |
+| CSRF | Burp Suite (Proxy) | Burp's built-in Generate CSRF PoC (section 9 above) |
 | XXE | Burp Suite (Repeater) | Burp Collaborator for out-of-band data theft |
 | Crypto | Burp Suite (Decoder, Repeater) | CyberChef, Python for custom scripts |
-| Race conditions | Burp Suite (Repeater, Intruder) | Turbo Intruder extension for parallel requests |
+| Race conditions | Burp Suite (Repeater, Send group in parallel) | Turbo Intruder extension as the scripted alternative |
 | Directory discovery | ffuf or gobuster | dirsearch, wfuzz |
 | Recon / mapping | Burp Suite (Proxy, Target site map) | nikto, browser dev tools |
 

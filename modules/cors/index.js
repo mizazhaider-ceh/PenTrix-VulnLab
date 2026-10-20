@@ -6,7 +6,7 @@
 // would), inspects the response headers, and awards the flag only when the
 // vulnerable header combination is genuinely demonstrated.
 const express = require('express');
-const { fixCta, brief, esc, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, flagBox, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection, consoleMap } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const challenges = [
@@ -45,7 +45,9 @@ vulnerable combination is genuinely demonstrated. This mirrors what
 
 // GET /cors -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => {
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('cors', ordered, consoleMap('/cors/', PAGE_FOR));
+  const cards = ordered.map(({ vuln: v }, i) => {
     const done = captured(req, 'cors', v.id);
     const slug = PAGE_FOR[v.id] || v.id;
     return `
@@ -55,20 +57,13 @@ router.get('/', (req, res) => {
         ${done ? '<span class="captured">flag captured</span>' : ''}
       </h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
       <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="/cors/${esc(slug)}">Open challenge</a></p>
     </article>`;
   }).join('\n');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('cors', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('CORS Misconfiguration', `
     ${brief('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -79,7 +74,7 @@ router.get('/', (req, res) => {
     <code>/cors/prove</code> endpoint once you demonstrate the vulnerable
     Origin/header combination for real.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('cors', challenges)}
 `));
 });
 
@@ -130,13 +125,13 @@ const PROVE = {
   },
   'cors-subdomain': {
     path: '/cors/api/partner',
-    need: 'Pass the suffix check with an attacker-controlled subdomain of trusted.pentrix.lab.',
-    why: 'The check is only a string suffix match with no allowlist, so evil.trusted.pentrix.lab is accepted.',
+    need: 'Pass the suffix check with any attacker-controlled subdomain of trusted.pentrix.lab (any invented label works).',
+    why: 'The check is only a string suffix match with no allowlist, so any label you invent under .trusted.pentrix.lab is accepted.',
     check: (h, origin) => {
       const host = parsedHost(origin);
       return h['access-control-allow-origin'] === origin &&
         h['access-control-allow-credentials'] === 'true' &&
-        host.includes('evil');
+        host.endsWith('.trusted.pentrix.lab');
     },
   },
   'cors-expose-headers': {

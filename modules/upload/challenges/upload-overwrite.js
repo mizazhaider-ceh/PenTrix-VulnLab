@@ -6,11 +6,10 @@
 // ../shared.js (created by the module finisher).
 const express = require('express');
 const fs = require('fs');
-const { award } = require('../../../lib/flags');
 const {
-  appShell, brief, esc, fixPanel, flagBox, hintLadder, page, payloadBlock, toolsPill,
+  appShell, brief, esc, hintLadder, page, payloadBlock, toolsPill,
 } = require('../../../lib/page');
-const { avatarPath, AVATAR_ORIGINAL, AVATAR_VICTIM, rawUpload } = require('../shared');
+const { avatarPath, AVATAR_ORIGINAL, AVATAR_VICTIM, rawUpload, issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
 
 const router = express.Router();
 
@@ -18,16 +17,16 @@ const vuln = {
   id: 'upload-overwrite',
   name: 'Avatar overwrite',
   difficulty: 'Medium',
-  hint: 'Avatar paths are predictable (avatar-<user>.png) and the endpoint never checks that you own the target user. Bob already has an avatar.',
+  hint: 'Avatar paths are predictable (avatar-<user>.png) and the endpoint never checks that you own the target user. Bob already has an avatar. Storing is not enough: the flag fires only when the replaced avatar is served back as HTML and its script phones home through the beacon snippet.',
   hints: [
     "Avatars are stored at a predictable path per user. Can you write to someone else's path?",
     "Capture the avatar upload in Burp Proxy, send it to Repeater, and change the target username in the query string.",
-    "KEY INSIGHT: the avatar storage path is derived from the username with no ownership check. In Repeater, craft the request so the stored name collides with the victim's existing avatar path, replacing their avatar with your content.",
+    "KEY INSIGHT: the avatar storage path is derived from the username with no ownership check. In Repeater, craft the request so the stored name collides with the victim's existing avatar path, replacing their avatar with bytes that carry the beacon snippet, then open the victim avatar URL so the script phones home.",
   ],
   tools: 'BZ, C',
-  how: 'Send your bytes to POST /upload/avatar?user=bob (Burp Repeater is the natural fit) so the victim avatar URL /upload/avatar/bob serves attacker content.',
+  how: 'Send your bytes (carrying the beacon snippet) to POST /upload/avatar?user=bob (Burp Repeater is the natural fit), then open /upload/avatar/bob so the replaced avatar, served as HTML, runs its script and beacons.',
   link: '/upload#upload-overwrite',
-  start: 'In Burp Repeater: POST to /upload/avatar?user=bob with a raw body of your choosing (your own avatar bytes or markup), then GET /upload/avatar/bob to confirm the victim avatar now serves your bytes.',
+  start: 'In Burp Repeater: POST to /upload/avatar?user=bob with a raw body of your choosing (markup carrying the beacon snippet), then GET /upload/avatar/bob in your browser to confirm the victim avatar now serves your bytes and its script phones home.',
 };
 
 const APP_NAME = 'PixelPortraits';
@@ -112,7 +111,12 @@ router.post('/avatar', rawUpload, (req, res) => {
   fs.writeFileSync(avatarPath(user), req.body);
   let flagHtml = '';
   if (user === AVATAR_VICTIM && !fs.readFileSync(avatarPath(user)).equals(AVATAR_ORIGINAL)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-overwrite')) + fixPanel('upload', 'upload-overwrite') + `<p class="dim">Bob's avatar now serves your bytes: <a href="/upload/avatar/bob">/upload/avatar/bob</a>.</p>`;
+    // Overwriting the bytes arms the beacon only; the flag fires when the
+    // replaced avatar is served back (sniffed as HTML) and its script phones
+    // home, proving the overwrite actually executed.
+    recordPendingUpload(req, 'upload-overwrite', user);
+    const token = issueBeaconToken(req, 'upload-overwrite');
+    flagHtml = `<p class="dim">Bob's avatar now serves your bytes: <a href="/upload/avatar/bob">/upload/avatar/bob</a>. Open it in your browser with your bytes carrying the beacon snippet, and the flag fires when its script phones home.</p>${payloadBlock('Beacon snippet (upload-overwrite)', beaconSnippet('upload-overwrite', user, token))}`;
   } else {
     flagHtml = `<p class="dim">Stored. The victim's avatar is <a href="/upload/avatar/bob">/upload/avatar/bob</a> (user <code>bob</code>).</p>`;
   }

@@ -12,14 +12,16 @@ const { award } = require('../../../lib/flags');
 // expandExternalDtd is the external-DTD expander from router.js. The collector
 // routes (/xxe/collector, /xxe/collector/log, /xxe/collector/dtd) must also be
 // wired by the finisher; this file only links to them.
-const { expandExternalDtd, SECRET_ABS, oobLog } = require('../shared');
+const { expandExternalDtd, SECRET_ABS, oobProven, claimPingbacks, countUniquePingbacks } = require('../shared');
 
 const router = express.Router();
 
 // GET /xxe/dtd -> the external DTD challenge form.
 router.get('/dtd', (req, res) => {
   const base = `http://${req.get('host')}`;
-  const sample = `<!DOCTYPE r [\n<!ENTITY % dtd SYSTEM "${base}/xxe/collector/dtd">\n%dtd;\n]>\n<data>&pingback;</data>`;
+  // Per-session DTD slot (P1-1): the sample points at this session's own
+  // hosted-DTD URL, shown on the collector page.
+  const sample = `<!DOCTYPE r [\n<!ENTITY % dtd SYSTEM "${base}/xxe/collector/dtd/${req.sessionID}">\n%dtd;\n]>\n<data>&pingback;</data>`;
   res.send(page('External DTD', `
     <h2>External DTD exfiltration</h2>
     ${brief('Challenge', `
@@ -41,16 +43,20 @@ router.get('/dtd', (req, res) => {
   `));
 });
 
-// POST /xxe/dtd -> expand the external DTD, award only when this request made
-// the server exfiltrate the secret to the collector.
+// POST /xxe/dtd -> expand the external DTD, award only when this request's
+// own entity expansion read the secret from disk and pinged it back to the
+// collector. The shared collector log plays no part in the award, so a
+// direct ping of the log, or another student's exfiltration, earns nothing.
+// VULN: the importer loads an attacker-supplied external DTD, so parameter
+// entities can read local files and exfiltrate them to a collector URL.
 router.post('/dtd', async (req, res) => {
   const xml = String(req.body.xml || '').slice(0, 20000);
-  const before = oobLog.length;
-  const expanded = await expandExternalDtd(xml);
-  const hits = oobLog.slice(before).filter((e) => e.d.includes('XXE-SECRET-4471'));
+  const trace = { fetches: [], reads: [], selfBase: `http://${req.get('host')}`, cookie: req.headers.cookie || '' };
+  const expanded = await expandExternalDtd(xml, trace);
+  claimPingbacks(req.sessionID, trace);
+  const pingbacks = countUniquePingbacks(trace);
   let flags = '';
-  // VULN: award only when this request made the server exfiltrate the secret to the collector.
-  if (hits.length > 0) {
+  if (oobProven(xml, trace, 'XXE-SECRET-4471')) {
     flags += flagBox(award(req, 'xxe', 'xxe-external-dtd'));
     flags += fixPanel('xxe', 'xxe-external-dtd');
   }
@@ -60,7 +66,7 @@ router.post('/dtd', async (req, res) => {
     <h2>Import result</h2>
     ${flags}
     <div class="clay-card">
-      <p>Pingbacks to the collector from this request carrying the secret: <b>${hits.length}</b>.
+      <p>Pingbacks to the collector fired by this request: <b>${pingbacks}</b>.
       (<a href="/xxe/collector">view the collector log</a>)</p>
       <h3>Parsed content</h3>
       <pre>${esc(shown.slice(0, 2000))}</pre>
@@ -75,10 +81,11 @@ module.exports = {
     id: 'xxe-external-dtd',
     name: 'External DTD Exfiltration',
     difficulty: 'Medium',
+    est: 'about 25 minutes',
     hint: 'Host a malicious DTD on the in-lab OOB collector, pull it in with a parameter entity, and make the DTD ping the collector back with the file content in the URL.',
     hints: ["The DTD doesn't have to be inline. Browse to /xxe/collector through Burp Proxy and use the host-a-DTD form to serve one from the lab itself.", "In your import XML, point the DOCTYPE's external subset at http://HOST/xxe/collector/dtd through a parameter entity. The parser fetches it server-side, and anything declared there runs with the same privileges as inline entities.", "Your hosted DTD can read the secret file into a parameter entity and declare a pingback entity that points at /xxe/collector/log?d=%file;. Send the import XML from Burp Repeater, then reload the collector log to watch the exfil land."],
     tools: "BZ",
-    how: 'In Burp Proxy, host a DTD on /xxe/collector that reads secret.txt into %file; and declares a pingback entity to /xxe/collector/log?d=%file;, then send XML to /xxe/dtd from Repeater that pulls the hosted DTD in through a parameter entity.',
+    how: 'External DTDs are fetched server-side and trusted. Host one on the in-lab collector and make the import pull it in, then watch the pingbacks land.',
     link: '/xxe#xxe-external-dtd',
     start: 'In Burp Proxy, open /xxe/collector and use the host-a-DTD form; then send POST /xxe/dtd from Repeater with XML that imports http://HOST/xxe/collector/dtd via a parameter entity, and confirm the pingback in the collector log.',
   },

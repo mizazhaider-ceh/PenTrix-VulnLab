@@ -54,7 +54,7 @@ module.exports = {
     tools: "BZ, B",
     how: 'Beat the one-pass global strip on /lfi/nested with nested dots, worked out and fired in Burp Repeater.',
     link: '/lfi/nested',
-    start: 'Point your browser through Burp Proxy at http://localhost:3000, open /lfi/nested, and send the request to Repeater so you can tamper with the page parameter.',
+    start: 'Point your browser through Burp Proxy at your lab address, open /lfi/nested, and send the request to Repeater so you can tamper with the page parameter.',
   },
   router,
 };

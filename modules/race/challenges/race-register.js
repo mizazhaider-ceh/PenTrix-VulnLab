@@ -16,11 +16,12 @@ const vuln = {
   name: 'Duplicate Username Registration',
   difficulty: 'Medium',
   hint: 'Usernames must be unique: the code checks, then inserts. Two registrations of the same name racing each other both pass the check.',
-  hints: ["Usernames must be unique. But the uniqueness check can be raced. Confirm in Burp Repeater that one signup with a fresh name works and shows the accounts table.", "Repeater sends one request at a time, and a race needs many at once. Send the signup request to Intruder and raise the concurrent request count.", "The await between the check and the insert is the window. Fire a burst of parallel signups with the same username, then reload the signup page and count how many times the name appears: more than once proves the check lost the race."],
+  hints: ["Usernames must be unique. But the uniqueness check can be raced. Confirm in Burp Repeater that one signup with a fresh name works and shows the accounts table.", "Repeater sends one request at a time, and a race needs many at once. Duplicate the signup Repeater tab, select both tabs, and use Send group in parallel. Community Intruder is throttled and cannot reliably hit the gap, so the Repeater group is the race tool here.", "The await between the check and the insert is the window. Fire both signups in parallel with the same username, then reload the signup page and count how many times the name appears: more than once proves the check lost the race."],
   tools: 'BZ, C',
+  est: 'about 10 minutes',
   how: 'Fire a burst of parallel signups for the same username at /race/register so both pass the uniqueness check before either insert lands, leaving two accounts with one name.',
   link: '/race#race-register',
-  start: 'Capture one POST /race/register in Burp, then send it to Intruder and run the attack with concurrent requests enabled.',
+  start: 'Capture one POST /race/register in Burp, send it to Repeater (Ctrl+R), duplicate the tab, then Send group in parallel.',
 };
 
 // Challenge-local presentation: a clay app shell for the signup screens.
@@ -30,11 +31,11 @@ function accounts(crumb, body) {
 
 function backLinks() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race">Back to module</a>
-  <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a></p>`;
+  <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form></p>`;
 }
 
 router.get('/register', (req, res) => {
-  const list = shared.state().accounts;
+  const list = shared.state(req).accounts;
   const rows = list.map((a) => `<tr><td>${esc(a.username)}</td></tr>`).join('')
     || '<tr><td><i>no accounts yet</i></td></tr>';
   res.send(page('Create an account', accounts('Sign up', `
@@ -61,7 +62,7 @@ router.get('/register', (req, res) => {
       <h2>Try it yourself</h2>
       <p>One signup at a time behaves. Two signups for the same username, fired
       at the same instant, may not:</p>
-      ${payloadBlock('Burp Intruder', 'Send the signup POST to Intruder (Ctrl+I), set payloads/threads for 2 parallel requests, start the attack and watch the responses.')}
+      ${payloadBlock('Burp Repeater: Send group in parallel', 'Send the signup POST to Repeater (Ctrl+R), duplicate the tab so you have two identical requests, select both tabs, right-click and choose Send group in parallel. Reload the page and count the name.')}
     </section>
     ${hintLadder(vuln)}
     ${backLinks()}
@@ -82,7 +83,7 @@ router.post('/register', async (req, res) => {
   }
   // VULN: uniqueness is checked, then an await, then the row is inserted;
   // parallel registrations of the same name both pass the check.
-  if (shared.state().accounts.some((a) => a.username === username)) {
+  if (shared.state(req).accounts.some((a) => a.username === username)) {
     return res.send(page('Create an account', accounts('Sign up', `
       <section class="clay-card">
         <h2>Username taken</h2>
@@ -95,7 +96,7 @@ router.post('/register', async (req, res) => {
   await shared.sleep(shared.WINDOW());
   // Re-read state after the gap, exactly like the original router's live
   // binding, so a lab reset mid-race lands in the fresh state.
-  const R = shared.state();
+  const R = shared.state(req);
   R.accounts.push({ username, password });
   const dupes = R.accounts.filter((a) => a.username === username).length;
 

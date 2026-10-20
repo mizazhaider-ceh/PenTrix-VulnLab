@@ -6,11 +6,10 @@
 // ../shared.js (created by the module finisher).
 const express = require('express');
 const fs = require('fs');
-const { award } = require('../../../lib/flags');
 const {
-  appShell, brief, esc, fixPanel, flagBox, hintLadder, page, payloadBlock, toolsPill,
+  appShell, brief, esc, page, payloadBlock, hintLadder, toolsPill,
 } = require('../../../lib/page');
-const { cleanFilename, rawUpload, UPLOADS_DIR } = require('../shared');
+const { cleanFilename, rawUpload, UPLOADS_DIR, issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
 
 const path = require('path');
 
@@ -20,14 +19,14 @@ const vuln = {
   id: 'upload-polyglot',
   name: 'GIF/HTML polyglot',
   difficulty: 'Hard',
-  hint: 'v9 validates only the 6 GIF magic bytes, then serves the file as text/html. A file can be a valid GIF header and valid HTML at once.',
+  hint: 'v9 validates only the 6 GIF magic bytes, then serves the file as text/html. A file can be a valid GIF header and valid HTML at once. Storing is not enough: the flag fires only when the served file\'s script phones home through the beacon snippet.',
   hints: [
     "The uploader checks magic bytes. What are the first 6 bytes of a GIF?",
-    "In Burp Repeater, send a raw request body that starts with those 6 magic bytes and continues with HTML containing script.",
-    "KEY INSIGHT: a polyglot must satisfy both parsers at once. The magic-byte check only reads the first bytes (the 6-byte GIF header), so build a file that passes that check while the browser parses the rest as HTML with script, then open its render URL.",
+    "In Burp Repeater, send a raw request body that starts with those 6 magic bytes and continues with HTML containing the beacon snippet for this challenge.",
+    "KEY INSIGHT: a polyglot must satisfy both parsers at once. The magic-byte check only reads the first bytes (the 6-byte GIF header), so build a file that passes that check while the browser parses the rest as HTML with the beacon snippet inside, then open its render URL so the script phones home.",
   ],
   tools: 'BZ, C',
-  how: 'Build a GIF/HTML polyglot (the 6 GIF magic bytes, then scriptable HTML) and POST the raw bytes to /upload/polyglot?filename=... from Burp Repeater, then open its /upload/poly/ render URL in the browser.',
+  how: 'Build a GIF/HTML polyglot (the 6 GIF magic bytes, then scriptable HTML carrying the beacon snippet) and POST the raw bytes to /upload/polyglot?filename=... from Burp Repeater, then open its /upload/poly/ render URL in the browser so the script runs and beacons.',
   link: '/upload#upload-polyglot',
   start: 'In Burp Repeater: POST to /upload/polyglot?filename=x.gif with a raw body that opens with the 6 GIF magic bytes and continues with HTML/JS, then visit the returned /upload/poly/x.gif render link.',
 };
@@ -116,7 +115,11 @@ router.post('/polyglot', rawUpload, (req, res) => {
   const polyUrl = '/upload/poly/' + encodeURIComponent(clean);
   let flagHtml = '';
   if (/<script[\s>]|on\w+\s*=/i.test(text)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-polyglot')) + fixPanel('upload', 'upload-polyglot') + `<p class="dim">Magic bytes passed, scriptable HTML survived: rendered at <a href="${polyUrl}" target="_blank" rel="noopener">${polyUrl}</a>.</p>`;
+    // Storing the polyglot arms the beacon only; the flag fires when the
+    // file is served as text/html and its script phones home.
+    recordPendingUpload(req, 'upload-polyglot', clean);
+    const token = issueBeaconToken(req, 'upload-polyglot');
+    flagHtml = `<p class="dim">Magic bytes passed, scriptable HTML survived. Open <a href="${polyUrl}" target="_blank" rel="noopener">${polyUrl}</a> in your browser with this file carrying the beacon snippet, and the flag fires when its script phones home.</p>${payloadBlock('Beacon snippet (upload-polyglot)', beaconSnippet('upload-polyglot', clean, token))}`;
   } else {
     flagHtml = `<p class="dim">Stored, but no scriptable HTML was found. The lab wants a GIF header plus real HTML/JS after it.</p>`;
   }

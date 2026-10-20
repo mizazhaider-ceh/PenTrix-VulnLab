@@ -4,7 +4,7 @@
 const express = require('express');
 const { award } = require('../../../lib/flags');
 const { fixPanel, flagBox } = require('../../../lib/page');
-const { gadgetPage, runPing, PASSWD_EVIDENCE } = require('../shared');
+const { gadgetPage, runPing, evidenceInOutput, PASSWD_EVIDENCE } = require('../shared');
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const vuln = {
   hints: [
     "Open the page in Burp's browser and submit a normal host, then send the request to Repeater. Try a classic separator in the host value first and watch the filter strip it.",
     "The shell treats more than ; & | as command separators. In a URL, %0a decodes to one of them. Try placing that between a valid host and a second command.",
-    "In Repeater, place a URL-encoded newline between a valid host and a command that prints recognizable output, so each line runs as its own statement. Send it and read the response body: the flag is awarded only when the second command's real output shows up.",
+    "In Repeater, place a URL-encoded newline between a valid host and a command that prints a recognizable file, like cat /etc/passwd, so each line runs as its own statement. Send it and read the response body: the flag is awarded only when the passwd lines from that file show up. Output from other commands (id, for example) proves execution, but it is not the evidence this gadget checks for.",
   ],
   tools: 'BZ, B',
   how: 'In Repeater, inject a URL-encoded newline between a valid host and a second command so the shell runs each line as its own statement, then confirm the response body carries that command real output before claiming the flag.',
@@ -35,7 +35,7 @@ router.get('/ping5', (req, res) => {
   const filtered = host.replace(/[;&|]/g, '');
   runPing(filtered, (outputHtml, out) => {
     let flagHtml = '';
-    if (host.includes('\n') && PASSWD_EVIDENCE.test(out)) {
+    if (host.includes('\n') && evidenceInOutput(out, [host, filtered], PASSWD_EVIDENCE)) {
       const flag = award(req, 'cmdi', vuln.id);
       flagHtml = flagBox(flag) + fixPanel('cmdi', vuln.id);
     }

@@ -14,9 +14,10 @@ const vuln = {
   hint: 'The check is hostname.endsWith(".trusted.pentrix.lab") with no allowlist of real subdomains behind it.',
   hints: ["The check is hostname.endsWith('.trusted.pentrix.lab'). No allowlist of real subdomains sits behind it. In Repeater, add an Origin header to GET /cors/api/partner and watch the ACAO response header.", "Any subdomain of trusted.pentrix.lab passes the suffix check, including ones you control. In Repeater, swap in a subdomain label of your own choosing and resend.", "The suffix check cannot tell your invented subdomain apart from a real one, so the endpoint echoes your origin back with Access-Control-Allow-Credentials: true, and the flag box appears."],
   tools: "BZ, B",
+  est: 'about 10 minutes',
   how: 'Burp Repeater: GET /cors/api/partner with an Origin header for your own invented subdomain under trusted.pentrix.lab; the suffix check echoes it back with credentials, proving the trust boundary; or prove via /cors/prove?vuln=cors-subdomain&origin=https://evil.trusted.pentrix.lab',
   link: '/cors#cors-subdomain',
-  start: 'Burp: send GET /cors/api/partner to Repeater, add an Origin header, and try subdomain labels under the trusted suffix until the endpoint echoes your origin back with ACAO and credentials.',
+  start: 'Burp: send GET /cors/api/partner to Repeater, add an Origin header, and try a subdomain label of your own invention under the trusted suffix. The prove check accepts any invented label, not one specific word.',
 };
 
 // GET /cors/api/partner -> partner discount data. The CORS check is a
@@ -57,7 +58,7 @@ router.get('/subdomain', (req, res) => {
     <div class="clay-card">
       <h2>API and origin checker</h2>
       <p>Raw endpoint: <a href="/cors/api/partner"><code>/cors/api/partner</code></a></p>
-      ${payloadBlock('Burp Repeater', 'GET /cors/api/partner HTTP/1.1\nHost: localhost:3000\nOrigin: https://evil.trusted.pentrix.lab\n\n')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/partner HTTP/1.1\nHost: <your-lab-address>\nOrigin: https://evil.trusted.pentrix.lab\n\n')}
       <p>The checker sends a real request to the endpoint with the Origin you
       type and shows the exact response headers, the same check a browser
       performs before allowing a cross-origin read.</p>

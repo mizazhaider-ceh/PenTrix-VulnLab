@@ -7,7 +7,7 @@
 const express = require('express');
 // Module-level helper (kept out of this file on purpose): the finisher must
 // provide jsonpNonce via modules/jsonp/shared.js. See final report.
-const { jsonpNonce } = require('../shared');
+const { jsonpNonceShares } = require('../shared');
 
 const router = express.Router();
 
@@ -21,7 +21,8 @@ router.get('/snippet', (req, res) => {
   // shape is recorded here, but only an executed script echoing the token back
   // to /jsonp/beacon-xss earns the flag.
   if (/</.test(cb)) req.session.jsonpMimeAttempt = true;
-  const body = `${cb}({"note":"hello","token":"${jsonpNonce(req, 'mimetype')}"});`;
+  const shares = jsonpNonceShares(req, 'mimetype');
+  const body = `${cb}({\"note\":\"hello\",\"pxa\":\"${shares.pxa}\",\"pxk\":\"${shares.pxk}\"});`;
   res.send(body);
 });
 
@@ -29,10 +30,10 @@ const vuln = {
   id: 'mimetype',
   name: 'JSONP MIME Sniffing',
   difficulty: 'Easy',
-  hint: 'The response is served as text/html, so the browser parses it as a document, not just script. Your injected markup must read the per-session token from the response text and beacon it to /jsonp/beacon-xss.',
-  hints: ["In Burp Proxy, open /jsonp/snippet?callback=hello in the browser and watch the response in Proxy history. It is served as text/html, so the browser treats it as a document, not as a script. What happens to a callback value that looks like HTML?", "Send that request to Repeater and try an HTML-shaped callback value. The response text carries a per-session token; think about how code running in that document could read it and send it back.", "Load the Repeater-crafted URL in Burp's browser so the injected markup executes. Echo the token to /jsonp/beacon-xss and the beacon response shows the flag."],
+  hint: 'The response is served as text/html, so the browser parses it as a document, not just script. Your injected markup must read the pxa and pxk share fields from the response text, combine them at runtime, and beacon the rebuilt token to /jsonp/beacon-xss.',
+  hints: ["In Burp Proxy, open /jsonp/snippet?callback=hello in the browser and watch the response in Proxy history. It is served as text/html, so the browser treats it as a document, not as a script. What happens to a callback value that looks like HTML?", "Send that request to Repeater and try an HTML-shaped callback value. The response text carries the token only as pxa and pxk share fields; think about how code running in that document could read them, combine them at runtime, and send the result back.", "Load the Repeater-crafted URL in Burp's browser so the injected markup executes. Echo the token to /jsonp/beacon-xss and the beacon response shows the flag."],
   tools: 'BZ, B',
-  how: 'Craft the /jsonp/snippet request in Repeater with an HTML-shaped callback, then open that URL in the browser: served as text/html, the response is parsed as a document and your markup runs. Read the per-session token from the response text and echo it to /jsonp/beacon-xss?v=mimetype&n=<token>; the beacon response shows the flag.',
+  how: 'Craft the /jsonp/snippet request in Repeater with an HTML-shaped callback, then open that URL in the browser: served as text/html, the response is parsed as a document and your markup runs. Read the pxa and pxk share fields from the response text, combine them at runtime, and echo the rebuilt token to /jsonp/beacon-xss?v=mimetype&n=<token>; the beacon response shows the flag.',
   link: '/jsonp#mimetype',
   start: 'In Burp Proxy, open /jsonp/snippet?callback=hello in the browser and watch the response headers in Proxy history. Send the request to Repeater and try HTML-shaped callback values until the Repeater URL, opened in the browser, runs your markup; then echo the per-session token to /jsonp/beacon-xss?v=mimetype&n=<token>.',
 };

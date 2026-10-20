@@ -11,6 +11,8 @@ const router = express.Router();
 const THRESHOLD_MS = 1000;
 // Nested quantifier in the local part: a long run of valid characters with
 // no @ forces exponential backtracking.
+// VULN: the email validator nests a quantifier inside a quantifier, so a
+// crafted input makes the match take exponentially longer (ReDoS).
 const EMAIL_RE = /^(([a-zA-Z0-9_\-\.]+)+)@([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}$/;
 const MAX_LEN = 33;
 

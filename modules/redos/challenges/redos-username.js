@@ -12,6 +12,8 @@ const router = express.Router();
 const THRESHOLD_MS = 1000;
 // The textbook catastrophic pattern: every partition of the a-run is tried
 // before the trailing mismatch fails the match.
+// VULN: the username pattern nests a plus quantifier inside a plus group,
+// so a near-miss input makes the match take exponentially longer (ReDoS).
 const USER_RE = /^(a+)+$/;
 const MAX_LEN = 30;
 

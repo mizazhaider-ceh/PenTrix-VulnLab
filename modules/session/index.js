@@ -4,7 +4,7 @@
 // predictable session ids, sid in the URL leaking through a proxy log, sessions
 // that never expire, and session ids leaking through a verbose debug log.
 const express = require('express');
-const { fixCta, brief, difficultyPill, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner  } = require('../../lib/page');
+const { brief, difficultyPill, esc, hintLadder, page, toolsPill, trackBanner, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/fixation'),
@@ -23,22 +23,18 @@ router.use(express.urlencoded({ extended: false }));
 
 // GET /session -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('session', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'session', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('session', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Session Management', `
     ${brief('Session Management', `
       <p><b>What is session management?</b> After you log in, the server hands your
@@ -56,7 +52,7 @@ router.get('/', (req, res) => {
     <p>Six ways login state breaks. Each challenge card has a hint ladder: level 1
     nudges, level 2 teaches the technique, level 3 shows the payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('session', challenges)}
 `));
 });
 

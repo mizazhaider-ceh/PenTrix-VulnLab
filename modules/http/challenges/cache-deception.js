@@ -11,8 +11,14 @@ const { page, esc, flagBanner, fixPanel, hintLadder, toolsPill,
 const router = express.Router();
 
 // path -> { user, body }: naive cache keyed on path only. Lives in this
-// challenge file so the module split keeps it private to this challenge.
-const CDN = {};
+// challenge file so the module split keeps it private to this challenge,
+// and scoped per session (P1-1): each browser session gets its own edge
+// cache, so one student's primed victim response is never served to another
+// student. The solo attack still works: prime the cache as the victim, then
+// come back "as someone else" in the same session (log out, or switch to
+// the other demo user) and fetch the same path.
+const { createSessionState } = require('../../../lib/session-state');
+const CDNS = createSessionState(() => ({}));
 const CDN_SECRETS = { alice: 'ALICE-CDN-SECRET-9d2f', bob: 'BOB-CDN-SECRET-41ab' };
 
 const vuln = {
@@ -20,11 +26,11 @@ const vuln = {
   name: 'Cache Deception',
   difficulty: 'Medium',
   hint: 'The cache key is the path only. Cache the victim\'s personalized CSS, then fetch it as someone else.',
-  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. In Burp Repeater, request the CSS twice in different sessions and compare the raw responses.", "Use Burp Proxy with a browser: log in as alice in one window and open the stylesheet to prime the cache, then fetch the same path from a fresh session (a private window or a cookie-less Repeater tab).", "The cache key is the path alone, so the second request is served alice's personalized copy. The flag rides in the X-Flag response header, not the body, so inspect the response headers in Repeater."],
+  hints: ["The CDN caches /http/account.css by path only. The CSS is personalized. In Burp Repeater, request the CSS twice, first signed in as alice and then after logging out, and compare the raw responses.", "Use Burp Proxy with a browser: log in as alice and open the stylesheet to prime the cache, then log out (or log in as bob) in the same browser and fetch the same path. The cache never checks that you are still alice.", "The cache key is the path alone, so the second request is served alice's personalized copy. The flag rides in the X-Flag response header, not the body, so inspect the response headers in Repeater."],
   tools: 'BZ, B, C',
-  how: 'Poison the cache as alice (log in, then GET /http/account.css), then fetch /http/account.css from a fresh Burp session and read the X-Flag response header.',
+  how: 'Poison the cache as alice (log in, then GET /http/account.css), then log out (or switch to bob) and fetch /http/account.css again, and read the X-Flag response header.',
   link: '/http#cache-deception',
-  start: 'Send your browser through Burp Proxy. 1) Log in as alice and visit /http/account.css to cache her personalized stylesheet. 2) Open a fresh session with no cookies (private window, or a cookie-less Repeater tab) and request /http/account.css again. 3) Read the X-Flag response header.',
+  start: 'Send your browser through Burp Proxy. 1) Log in as alice and visit /http/account.css to cache her personalized stylesheet. 2) In the same browser, log out so you are a guest again (or log in as bob), then request /http/account.css once more. 3) Read the X-Flag response header.',
 };
 
 // GET /cache -> the CDN demo dashboard: who you are, the two-step attack
@@ -32,6 +38,7 @@ const vuln = {
 router.get('/cache', (req, res) => {
   const me = req.session.httpUser || 'guest';
   const done = captured(req, 'http', 'cache-deception');
+  const CDN = CDNS.get(req);
   const keys = Object.keys(CDN);
 
   const head = `<div class="card">
@@ -43,7 +50,7 @@ router.get('/cache', (req, res) => {
   const sessionCard = me === 'guest'
     ? `<div class="card">
         <div class="card-top"><b>Your session</b></div>
-        <p>You are browsing as <b>guest</b>. Log in as the victim first, then attack from a fresh session.</p>
+        <p>You are browsing as <b>guest</b>. Log in as the victim first, prime the cache, then attack as a different identity.</p>
         <div class="cta-row">
           <a class="clay-btn clay-btn-primary" href="/http/cache-login?user=alice">Log in as alice</a>
           <a class="clay-btn clay-btn-secondary" href="/http/cache-login?user=bob">Log in as bob</a>
@@ -64,10 +71,10 @@ router.get('/cache', (req, res) => {
       <li>As the <b>victim</b>: log in as alice, then open
         <a href="/http/account.css" target="_blank" rel="noopener"><code>/http/account.css</code></a>.
         The CDN caches her personalized response.</li>
-      <li>As the <b>attacker</b>: in a fresh session (a private window, or a
-        cookie-less Repeater tab), request the same URL.</li>
+      <li>As the <b>attacker</b>: log out (you are a guest again) or log in as bob in the
+        same browser, then request the same URL. Your cache never noticed the swap.</li>
     </ol>
-    ${payloadBlock('Attack flow (Burp)', '1. Burp Proxy: log in as alice, then visit /http/account.css to poison the cache.\n2. Repeater: GET /http/account.css from a fresh cookie-less session.\n3. Read the X-Flag header in the Repeater response.')}
+    ${payloadBlock('Attack flow (Burp)', '1. Burp Proxy: log in as alice, then visit /http/account.css to poison the cache.\n2. Log out (or switch to bob), then Repeater: GET /http/account.css.\n3. Read the X-Flag header in the Repeater response.')}
   </div>`;
 
   const cacheCard = `<div class="card">
@@ -109,8 +116,9 @@ router.get('/cache-logout', (req, res) => {
   res.redirect('/http/cache');
 });
 
-// GET /cache-purge -> empty the edge cache.
+// GET /cache-purge -> empty this session's edge cache.
 router.get('/cache-purge', (req, res) => {
+  const CDN = CDNS.get(req);
   for (const k of Object.keys(CDN)) delete CDN[k];
   res.redirect('/http/cache');
 });
@@ -121,6 +129,7 @@ router.get('/cache-purge', (req, res) => {
 // entry belongs to someone else, the flag goes out in the X-Flag header.
 router.get('/account.css', (req, res) => {
   const me = req.session.httpUser || 'guest';
+  const CDN = CDNS.get(req);
   const key = req.path;
   const hit = CDN[key];
   if (hit) {

@@ -111,6 +111,23 @@ test('cmdi module', async (t) => {
     assert.ok(hit.text.includes(flagOf('cmdi-tab')));
   });
 
+  await t.test('quoted echo of the expected output earns nothing anywhere', async () => {
+    const c = client(srv.base);
+    // The shell strips the quotes, so a quoted echo prints exactly the
+    // evidence-shaped text a naive check looks for, with no real command run.
+    const basicQ = await c.get(pingUrl('ping', '127.0.0.1;echo "uid=1000(root) gid=0(root) groups=0(root)"'));
+    assert.ok(!basicQ.text.match(FLAG_RE), 'a quoted echo must not award basic');
+    const pipeQ = await c.get(pingUrl('ping8', "127.0.0.1|echo 'uid=1000(root) gid=0(root)'"));
+    assert.ok(!pipeQ.text.match(FLAG_RE), 'a quoted echo must not award cmdi-pipe');
+    const nlQ = await c.get(pingUrl('ping5', '127.0.0.1\necho "root:x:0:0:root:/root:/bin/bash"'));
+    assert.ok(!nlQ.text.match(FLAG_RE), 'a quoted echo must not award cmdi-newline');
+    const printfQ = await c.get(pingUrl('ping', '127.0.0.1;printf "uid=0(root)\\n"'));
+    assert.ok(!printfQ.text.match(FLAG_RE), 'a printf of the marker must not award basic');
+    const tabQ = await c.get(pingUrl('ping9', '127.0.0.1;echo\t"root:x:0:0:root:/root:/bin/bash"'));
+    assert.ok(!tabQ.text.match(FLAG_RE), 'a quoted echo must not award cmdi-tab');
+    assert.deepEqual((await capturedSet(c)).filter((s) => s.startsWith('cmdi:')), []);
+  });
+
   await t.test('repeating an exploit does not double count the scoreboard', async () => {
     const c = client(srv.base);
     await c.get(pingUrl('ping', '127.0.0.1;id'));

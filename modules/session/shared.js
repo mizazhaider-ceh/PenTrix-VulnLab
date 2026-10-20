@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
 const { esc, page } = require('../../lib/page');
+const { effectivePassword } = require('../../lib/account-state');
 
 const COOKIE = 'lab_sid';
 
@@ -22,10 +23,16 @@ function sidOf(req) {
   return req.cookies ? req.cookies[COOKIE] : undefined;
 }
 
-function checkCreds(username, password) {
+// The comparison is override-aware (P1-1): a password this session changed
+// through a reset lab is the one this session's logins accept, while other
+// sessions keep logging in with the seeded password.
+function checkCreds(req, username, password) {
   const db = getDb();
-  return db.prepare('SELECT username, role FROM users WHERE username = ? AND password = ?')
-    .get(String(username || ''), String(password || ''));
+  const row = db.prepare('SELECT username, role, password FROM users WHERE username = ?')
+    .get(String(username || ''));
+  if (!row) return null;
+  if (effectivePassword(req, row.username, row.password) !== String(password || '')) return null;
+  return { username: row.username, role: row.role };
 }
 
 function denied(msg) {

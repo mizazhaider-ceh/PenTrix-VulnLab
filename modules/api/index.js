@@ -1,7 +1,7 @@
 'use strict';
 // API Security Flaws: intentionally vulnerable JSON API training targets.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/mass-assignment'),
@@ -24,22 +24,24 @@ router.get('/login/alice', (req, res) => {
 // GET /api -> module index page (developer docs for the fictional Acme API).
 router.get('/', (req, res) => {
   const who = req.session.user ? esc(req.session.user.username) : 'nobody';
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('api', ordered, {
+      'mass-assignment': '/api/me',
+      exposure: '/api/users/view',
+      'rate-limit': { href: '', cmd: "curl -i -X POST \"http://<your-lab-address>/api/login\" -H \"Content-Type: application/json\" -d '{\"username\":\"alice\",\"password\":\"<password>\"}'" },
+      'ratelimit-xff': { href: '', cmd: "curl -i -X POST \"http://<your-lab-address>/api/v1/login\" -H \"Content-Type: application/json\" -H \"X-Forwarded-For: 10.0.0.9\" -d '{\"username\":\"alice\",\"password\":\"<password>\"}'" },
+      'api-version-bypass': '/api/v2/users/2',
+    });
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'api', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('api', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Acme API Docs', `
     ${brief('API Security Flaws', `
       A tiny JSON API for a fictional startup. The endpoints below are the
@@ -76,7 +78,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('api', challenges)}
 `));
 });
 

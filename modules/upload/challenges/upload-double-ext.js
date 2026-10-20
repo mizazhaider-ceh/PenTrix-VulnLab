@@ -8,8 +8,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { appShell, esc, flagBox, fixPanel, page } = require('../../../lib/page');
-const { award } = require('../../../lib/flags');
+const { appShell, esc, page, payloadBlock } = require('../../../lib/page');
+const { issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
 
 const router = express.Router();
 
@@ -82,15 +82,28 @@ router.post('/ext-blacklist', (req, res) => {
   }
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
+  // Storing proves nothing on its own: each bypass only arms its own
+  // challenge's beacon. The matching flag fires later, when the stored file
+  // is served as active content and its script phones home (see
+  // modules/upload/index.js POST /upload/beacon). One POST can therefore
+  // never award both challenge ids: the beacon re-checks the bypass shape
+  // for the specific id being claimed.
   let flagHtml = '';
   if (['.svg', '.html', '.htm'].includes(ext.toLowerCase())) {
     // VULN: case-sensitive blacklist bypassed , ".SVG" is still SVG.
-    flagHtml += flagBox(award(req, 'upload', 'upload-case')) + fixPanel('upload', 'upload-case') + `<p class="dim">Case bypass: <code>${esc(clean)}</code> was stored and is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    recordPendingUpload(req, 'upload-case', clean);
+    const token = issueBeaconToken(req, 'upload-case');
+    flagHtml += `<p class="dim">Case bypass stored: <code>${esc(clean)}</code>. Open <a href="${viewUrl}">${viewUrl}</a> in your proxied browser with this file carrying the case-bypass beacon snippet, and the flag fires when its script phones home.</p>${payloadBlock('Beacon snippet (upload-case)', beaconSnippet('upload-case', clean, token))}`;
   }
   if (/\.(svg|html?)\./i.test(clean)) {
     // VULN: double extension , the final ".jpg" passed, but the file is
     // served as SVG/HTML because of the earlier extension.
-    flagHtml += flagBox(award(req, 'upload', 'upload-double-ext')) + fixPanel('upload', 'upload-double-ext') + `<p class="dim">Double extension bypass: <code>${esc(clean)}</code> passed as <code>${esc(ext)}</code> but is served as active content at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    // NOTE: this route is shared with the upload-case challenge (a sibling
+    // challenge file); the handler is kept identical so both challenges
+    // behave exactly the same. The finisher dedupes the route.
+    recordPendingUpload(req, 'upload-double-ext', clean);
+    const token = issueBeaconToken(req, 'upload-double-ext');
+    flagHtml += `<p class="dim">Double extension stored: <code>${esc(clean)}</code> passed as <code>${esc(ext)}</code>. Open <a href="${viewUrl}">${viewUrl}</a> in your proxied browser with this file carrying the double-extension beacon snippet, and the flag fires when its script phones home.</p>${payloadBlock('Beacon snippet (upload-double-ext)', beaconSnippet('upload-double-ext', clean, token))}`;
   }
   if (!flagHtml) flagHtml = `<p class="dim">Stored. Neither a case variant nor a double extension was used, so nothing was bypassed.</p>`;
   res.send(dropPage('Uploaded',
@@ -126,14 +139,14 @@ module.exports = {
     id: 'upload-double-ext',
     name: 'Extension blacklist bypass',
     difficulty: 'Medium',
-    hint: 'The filter blocks .svg/.html by exact final extension only, and the viewer guesses the content type from the full filename. What does path.extname("shell.svg.jpg") return? Think about which name the blacklist check sees versus which name the viewer serves.',
+    hint: 'The filter blocks .svg/.html by exact final extension only, and the viewer guesses the content type from the full filename. What does path.extname("shell.svg.jpg") return? Think about which name the blacklist check sees versus which name the viewer serves. Storing is not enough: the flag fires only when the served file\'s script phones home through the beacon snippet.',
     hints: [
       "Send the upload POST to Repeater and change only the ?filename= value. What does path.extname('shell.svg.jpg') return?",
-      'Forward the modified request with an SVG body in Repeater. The response page hands you a /upload/view/ link: open it in your browser and check the served content type.',
-      'KEY INSIGHT: the blacklist inspects only the final extension, but the viewer guesses the type from the whole filename. In Intruder or Repeater, look for a name that passes the first check while satisfying the second.',
+      'Forward the modified request with an SVG body carrying this challenge\'s beacon snippet in Repeater. The response page hands you a /upload/view/ link: open it in your browser and check the served content type.',
+      'KEY INSIGHT: the blacklist inspects only the final extension, but the viewer guesses the type from the whole filename. In Intruder or Repeater, look for a name that passes the first check while satisfying the second, then let the served file\'s script phone home.',
     ],
     tools: 'BZ, C',
-    how: 'Upload to POST /upload/ext-blacklist?filename=... using a name whose final extension passes the blacklist (for example .jpg) while an earlier segment of the name still reads as .svg or .html, with SVG markup in the raw body. Open the returned /upload/view/ link: the viewer guesses the content type from the full filename and serves the file back as image/svg+xml or text/html, so the stored script executes in the browser.',
+    how: 'Upload to POST /upload/ext-blacklist?filename=... using a name whose final extension passes the blacklist (for example .jpg) while an earlier segment of the name still reads as .svg or .html, with SVG markup carrying the beacon snippet in the raw body. Open the returned /upload/view/ link: the viewer guesses the content type from the full filename and serves the file back as image/svg+xml or text/html, so the stored script executes in the browser and its beacon call earns the flag.',
     link: '/upload#upload-double-ext',
     start: 'Open the PixelDrop upload page with Burp Proxy intercepting, submit the ext-blacklist form, and send the captured POST to Repeater. Tweak the ?filename= value until a stored name passes the extension check but still gets served back as SVG or HTML when you open its /upload/view/ link in the browser.',
   },

@@ -6,6 +6,7 @@
 // starting with | (or =|).
 const express = require('express');
 const { getDb } = require('../../../lib/db');
+const { insertEntry, isOwnEntry, allEntries } = require('../shared');
 const { award } = require('../../../lib/flags');
 const { page, appShell } = require('../../../lib/page');
 
@@ -66,8 +67,7 @@ router.post('/add', (req, res) => {
   if (!name.trim()) {
     return res.status(400).send(addErrorPage());
   }
-  getDb().prepare('INSERT INTO formula_entries (name, note, created_at) VALUES (?, ?, ?)')
-    .run(name, note, new Date().toISOString());
+  insertEntry(req, name, note);
   res.redirect('/formula');
 });
 
@@ -77,7 +77,7 @@ router.post('/add', (req, res) => {
 // formula-pipe flag is awarded and returned in the X-Flags header (also saved
 // to the scoreboard).
 router.get('/export.csv', (req, res) => {
-  const rows = getDb().prepare('SELECT name, note FROM formula_entries ORDER BY id').all();
+  const rows = allEntries();
   const lines = ['Name,Note'];
   const hits = new Set();
   for (const r of rows) {
@@ -85,8 +85,9 @@ router.get('/export.csv', (req, res) => {
     // VULN: cells are quoted but never neutralized for spreadsheet formulas, so
     // attacker-controlled =, +, -, @, | prefixes reach the spreadsheet live.
     for (const cell of [String(r.name), String(r.note)]) {
+      // P1-1: only cells this session supplied can earn it a flag.
       const v = classify(cell);
-      if (v) hits.add(v);
+      if (v && isOwnEntry(r, req)) hits.add(v);
     }
   }
   const csv = lines.join('\r\n') + '\r\n';

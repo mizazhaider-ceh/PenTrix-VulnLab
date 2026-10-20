@@ -36,26 +36,62 @@ function runPing(host, done) {
 
 // Decide whether the injection actually went through.
 // Verification model: the flag is awarded only when the shell output proves a
-// second command really ran. The student's own input is scrubbed from the
-// output first, so merely echoing a marker (e.g. ?host=uid= with no injection)
-// cannot award. Plain substring checks used to false-positive on shell error
-// text (e.g. "sh: 1: uid=: not found" contains the bare text "uid=" with zero
-// real command output), so every check below is a real-output-shaped regex:
-// structure that genuine command output has and shell error text never does.
-//   id             -> "uid=1000(user) gid=..." (digits plus the name in parens;
-//                   a failed "uid=999" attempt only yields "sh: 1: uid=999:
-//                   not found", which has no parens)
+// second command really ran. Real-output-shaped regexes are used: structure
+// that genuine command output has and shell error text never does.
+//   id             -> "uid=1000(user) gid=..." (digits plus the name in parens)
 //   cat /etc/passwd -> a full passwd line anchored at line start, e.g.
-//                   "root:x:0:0:root:/root:/bin/bash" (bare "root:" from an
-//                   echo never matches)
+//                   "root:x:0:0:root:/root:/bin/bash"
 //   ls -l          -> "total 1234" at line start
+//
+// Anti-spoof rule (quoted echo): any evidence-shaped text that also appears
+// in the student's own input, in raw form or with its quote marks stripped,
+// cannot count. A payload like ;echo "uid=1000(root)" makes the shell print
+// exactly that string (the shell removes the quotes), so the evidence in the
+// output is just the student's own text coming back. Variants cover single
+// quotes, double quotes, backticks, backslash escapes and $'...' quoting:
+// the text is compared after stripping those characters from the input, so
+// an echoed copy never matches, while genuine command output (which is
+// nowhere in the input) always does.
 const ID_EVIDENCE = /\b[ug]id=\d+\([^()\n]*\)/;
 const PASSWD_EVIDENCE = /^(?:root|daemon):[^:\r\n]*:\d+:\d+:/m;
 const EXEC_EVIDENCE = [ID_EVIDENCE, PASSWD_EVIDENCE, /^total \d+/m];
+
+function inputVariants(inputs) {
+  const variants = [];
+  for (const i of inputs || []) {
+    if (!i) continue;
+    const raw = String(i);
+    variants.push(raw);
+    const noQuotes = raw.replace(/["'`]/g, '');
+    if (noQuotes !== raw) variants.push(noQuotes);
+    const noEscapes = raw.replace(/["'`\\$]/g, '');
+    if (noEscapes !== raw && noEscapes !== noQuotes) variants.push(noEscapes);
+  }
+  return variants;
+}
+
+// True when `out` contains at least one evidence-shaped match that is NOT
+// contained in any input variant (i.e. not a quoted echo of the input).
+function evidenceInOutput(out, inputs, evidence) {
+  const list = (Array.isArray(evidence) ? evidence : [evidence]).filter(Boolean);
+  const variants = inputVariants(inputs);
+  const s = String(out || '');
+  for (const re of list) {
+    const flags = re.flags.includes('g') ? re.flags : re.flags + 'g';
+    const global = new RegExp(re.source, flags);
+    for (const m of s.matchAll(global)) {
+      const hit = m[0];
+      if (!hit) continue;
+      if (!variants.some((v) => v.includes(hit))) return true;
+    }
+  }
+  return false;
+}
+
 function executedSomething(out, inputs) {
-  let s = String(out || '');
-  for (const i of inputs) if (i) s = s.split(i).join('');
-  return EXEC_EVIDENCE.some((re) => re.test(s));
+  // Kept for the gadgets that accept any of the standard evidences; now uses
+  // the echo-proof check above.
+  return evidenceInOutput(out, inputs, EXEC_EVIDENCE);
 }
 
 // Full page for a ping gadget challenge. opts:
@@ -83,4 +119,4 @@ function gadgetPage(opts) {
   return page(v.name, appShell(APP_NAME, body, { crumb: 'Diagnostics / ' + v.name, nav: APP_NAV }));
 }
 
-module.exports = { APP_NAME, APP_NAV, pingForm, runPing, executedSomething, gadgetPage, ID_EVIDENCE, PASSWD_EVIDENCE };
+module.exports = { APP_NAME, APP_NAV, pingForm, runPing, executedSomething, evidenceInOutput, gadgetPage, ID_EVIDENCE, PASSWD_EVIDENCE };

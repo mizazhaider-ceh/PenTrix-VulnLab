@@ -1,7 +1,7 @@
 'use strict';
 // postMessage Flaws: intentionally vulnerable postMessage training targets.
 const express = require('express');
-const { fixCta, brief, esc, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, flagBox, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 
 const challenges = [
@@ -76,22 +76,18 @@ router.get('/beacon', (req, res) => {
 
 // GET /postmsg -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('postmsg', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'postmsg', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('postmsg', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('postMessage Flaws', `
     ${brief('postMessage Flaws', `
       <p><b>postMessage in 30 seconds:</b> web pages can send each other messages with
@@ -111,7 +107,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('postmsg', challenges)}
 `));
 });
 

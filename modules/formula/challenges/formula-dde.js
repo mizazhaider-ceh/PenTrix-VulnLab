@@ -6,6 +6,7 @@
 // survive the export and the flag is awarded on download.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
+const { insertEntry, isOwnEntry, visibleEntries, allEntries } = require('../shared');
 const { award, captured } = require('../../../lib/flags');
 const { page, esc, brief, hintLadder, toolsPill, appShell } = require('../../../lib/page');
 
@@ -56,8 +57,8 @@ const vuln = {
   start: "Open /formula in Burp's browser with Proxy running, add one contact normally, then send the POST to /formula/add to Repeater. Change the name parameter into a formula cell, send it, then request /formula/export.csv and inspect the X-Flags header.",
 };
 
-function contactRows() {
-  const entries = db.prepare('SELECT name, note FROM formula_entries ORDER BY id DESC').all();
+function contactRows(req) {
+  const entries = visibleEntries(req, 'id DESC');
   return entries.map((e) => `
     <tr><td>${esc(e.name)}</td><td>${esc(e.note)}</td></tr>`).join('\n');
 }
@@ -103,7 +104,7 @@ router.get('/', (req, res) => {
       <p><a class="clay-btn clay-btn-secondary" href="/formula/export.csv"><b>Download CSV export</b></a></p>
     </div>
     <h2>Current contacts</h2>
-    <div class="tbl-scroll"><table class="tbl"><tr><th>Name</th><th>Note</th></tr>${contactRows()}</table></div>
+    <div class="tbl-scroll"><table class="tbl"><tr><th>Name</th><th>Note</th></tr>${contactRows(req)}</table></div>
     <h2>Challenge</h2>
     ${challengeCard(req)}
   `, { nav: ['Contacts', 'Export', 'Settings'], crumb: 'ContactBase / Contacts' })));
@@ -120,14 +121,13 @@ router.post('/add', (req, res) => {
         <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/formula">Back</a></p>
       </div>`, { nav: ['Contacts', 'Export', 'Settings'] })));
   }
-  db.prepare('INSERT INTO formula_entries (name, note, created_at) VALUES (?, ?, ?)')
-    .run(name, note, new Date().toISOString());
+  insertEntry(req, name, note);
   res.redirect('/formula');
 });
 
 // ------------------------------------------------------- the export endpoint
 router.get('/export.csv', (req, res) => {
-  const rows = db.prepare('SELECT name, note FROM formula_entries ORDER BY id').all();
+  const rows = allEntries();
   const lines = ['Name,Note'];
   const hits = new Set();
   for (const r of rows) {
@@ -135,8 +135,9 @@ router.get('/export.csv', (req, res) => {
     // VULN: cells are quoted but never neutralized for spreadsheet formulas, so
     // attacker-controlled =, +, -, @, | prefixes reach the spreadsheet live.
     for (const cell of [String(r.name), String(r.note)]) {
+      // P1-1: only cells this session supplied can earn it a flag.
       const v = classify(cell);
-      if (v) hits.add(v);
+      if (v && isOwnEntry(r, req)) hits.add(v);
     }
   }
   const csv = lines.join('\r\n') + '\r\n';

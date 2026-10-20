@@ -475,7 +475,7 @@ near-duplicates auth/apikey-leak.
 
 | ID | Lvl | Learning objective | Tools | Validation | Verdict |
 |---|---|---|---|---|---|
-| crypto-rand-pin | Easy | `Math.random` PIN brute-forced over 000000-999999 | P, C | OUT (correct PIN submitted) | strong |
+| crypto-rand-pin | Easy | `Math.random` PIN brute-forced over 0000-9999 | P, C | OUT (correct PIN submitted) | strong |
 | crypto-ecb-oracle | Hard | ECB block-equality leaks; byte-at-a-time decryption | P, C | OUT (plaintext == secret) | strong |
 | crypto-cbc-bitflip | Hard | CBC malleability: flip IV bits to turn `guest` into `admin` | P, C | OUT (role admin in cookie) | strong |
 | crypto-hash-ext | Hard | Merkle-Damgard length extension forges admin MAC | P, C | OUT (valid MAC over extended msg) | strong |

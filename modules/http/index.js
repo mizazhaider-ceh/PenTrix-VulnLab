@@ -3,7 +3,7 @@
 // middleware (form parsing, _method verb override) and the module index page
 // live here; the challenge routes live in modules/http/challenges/*.js.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/crlf-log'),
@@ -35,22 +35,17 @@ const START_ROUTES = {
 
 // GET /http -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('http', ordered, START_ROUTES);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3><a href="${esc(START_ROUTES[v.id])}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)}</h3>
+      <h3><a href="${esc(START_ROUTES[v.id])}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)} ${capturedPill(req, 'http', v.id)}</h3>
       <p><i>Attack:</i> ${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('http', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('HTTP Layer Flaws', `
     ${brief('Module briefing', `
       <p><b>What lives at the HTTP layer?</b> Before your application code even runs,
@@ -66,7 +61,7 @@ router.get('/', (req, res) => {
     has a hint ladder: level 1 nudges, level 2 teaches the technique, level 3
     shows the payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('http', challenges)}
 `));
 });
 

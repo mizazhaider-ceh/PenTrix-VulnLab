@@ -16,7 +16,10 @@ const router = express.Router();
 const vuln = {
   id: 'basic',
   name: 'Basic Template Injection',
-  difficulty: 'Medium',
+  // Rebalanced from Medium (P3-10): proving evaluation with {{7*7}} is the
+  // module's gentlest step, and the module previously had zero Easy challenges.
+  difficulty: 'Easy',
+  est: 'about 5 minutes',
   hint: 'The greeting is built with a naive template engine: anything you put inside {{ }} gets evaluated. Start by proving it with simple arithmetic, like a multiplication the page could only echo back if it really ran your expression.',
   hints: ["The greeting echoes your name back. Capture the form request in Burp Proxy and send it to Repeater, then try typing your name as a template expression instead.", "In Repeater, anything between {{ }} in the name value is evaluated server side. Tweak the expression and watch the rendered greeting change in the response.", "Prove the engine evaluates templates: in Repeater, place a small arithmetic expression between {{ }} in the name parameter. If the page echoes the computed answer instead of your literal text, you have SSTI and the flag is yours."],
   tools: 'BZ, B',

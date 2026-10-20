@@ -1,16 +1,32 @@
+// Process guards first: no require below may throw or reject before the
+// guards are installed, and the async-handler patch must land before any
+// router is created (app verb methods are copied onto the app at creation).
+require('./lib/process-guards').installProcessGuards();
+require('./lib/async-handler').patchExpress();
+
 const express = require('express');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
 const { getDb, ensureFlags, DB_PATH } = require('./lib/db');
 const { page, esc, difficultyPill, progressBar, emptyState, payloadBlock, errorPage,
-  fixEditorPage, fixResultHtml, fixBadgePill } = require('./lib/page');
+  fixEditorPage, fixResultHtml, fixBadgePill, trackOf, trackIndex } = require('./lib/page');
 const { captured } = require('./lib/flags');
+const rctx = require('./lib/request-context');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Boot gate (P5-1): until the listen() callback below marks the lab ready,
+// every request gets a static 503 page. Nothing mid-boot (body parsers,
+// session store, module routes) ever runs for a request in that window,
+// so a stack trace can never leak during a restart.
+const { createBootGate } = require('./lib/boot-gate');
+const bootGate = createBootGate();
+app.use(bootGate.middleware);
 
 // /upload takes raw file bytes (express.raw in its router); the global form
 // parser must not eat them first. curl's --data-binary defaults to
@@ -23,25 +39,131 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(cookieParser());
-// Session secret: set SESSION_SECRET in the environment for any graded or
-// shared use. The fallback below is committed and insecure by design (it only
-// needs to be unique per browser for a local training lab); never rely on it
-// where session integrity matters.
-const SESSION_SECRET = process.env.SESSION_SECRET || 'pentrix-vulnlab-insecure-dev-secret';
-if (!process.env.SESSION_SECRET) {
-  console.warn('[warn] SESSION_SECRET not set, using insecure dev fallback (fine for local labs only)');
+// Session secret (P1-9): SESSION_SECRET in the environment wins. Otherwise a
+// random secret is generated once and persisted next to the lab database
+// (gitignored, mode 0600), so restarts keep existing sessions valid while no
+// deployment ever runs on the old committed fallback value. The literal
+// fallback below survives only for read-only filesystems where the secret
+// file cannot be written; it is fine for a one-off local lab and nothing else.
+
+function resolveSessionSecret() {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  const secretPath = path.join(path.dirname(DB_PATH), '.session-secret');
+  try {
+    const existing = fs.readFileSync(secretPath, 'utf8').trim();
+    if (existing.length >= 32) return existing;
+  } catch (e) { /* first boot: generate below */ }
+  const generated = crypto.randomBytes(32).toString('hex');
+  try {
+    fs.mkdirSync(path.dirname(secretPath), { recursive: true });
+    fs.writeFileSync(secretPath, generated + '\n', { mode: 0o600 });
+    console.log('[ok] generated a persistent session secret for this install');
+    return generated;
+  } catch (e) {
+    console.warn('[warn] could not persist a session secret; using insecure dev fallback (fine for local labs only)');
+    return 'pentrix-vulnlab-insecure-dev-secret';
+  }
 }
+
+const SESSION_SECRET = resolveSessionSecret();
+
+// This process boot's identity (P1-3). A session stores the boot id it
+// started on; when the id no longer matches, the student sees the restart
+// notice once (see the request-context middleware after the session setup).
+const BOOT_ID = crypto.randomBytes(8).toString('hex');
 const { SqliteStore } = require('./lib/session-store');
+const sessionStore = new SqliteStore(path.join(path.dirname(DB_PATH), 'sessions.db'));
+// lib/flags re-reads the merged stored flags through this reference when a
+// request's session snapshot may be stale (parallel bursts, P1-6).
+rctx.setSessionStore(sessionStore);
 app.use(session({
-  store: new SqliteStore(path.join(path.dirname(DB_PATH), 'sessions.db')),
+  store: sessionStore,
   secret: SESSION_SECRET,
   resave: false,
-  saveUninitialized: true,
+  // saveUninitialized off (P1-9): anonymous browsing no longer writes a
+  // session row per visitor; a session is only stored once a handler puts
+  // something in it (a flag, a login, per-session challenge state).
+  saveUninitialized: false,
   // VULN (deliberate): cookies readable by JS so XSS cookie-stealing demos work.
   cookie: { httpOnly: false },
 }));
+
+// ---- request context + restart-volatility notice (P1-3, P4-3) ----
+// Wraps every request in the request context lib/flags and lib/page.js
+// share (award tracking for the "Next challenge" button), and watches for
+// sessions that outlived a lab restart: an established session keeps the
+// boot id it started with, and a mismatch flags this request so the
+// <!--px-boot-notice--> placeholder in page() is filled on the way out.
+// Only established sessions (something stored besides the cookie jar) are
+// stamped, so the marker never defeats saveUninitialized: false (P1-9).
+app.use((req, res, next) => {
+  rctx.run(req, () => {
+    try {
+      const s = req.session;
+      const established = s && Object.keys(s).some((k) => k !== 'cookie');
+      if (established) {
+        if (!s.bootId) {
+          s.bootId = BOOT_ID;
+        } else if (s.bootId !== BOOT_ID) {
+          s.bootId = BOOT_ID;
+          req.__pxBootChanged = true;
+        }
+      }
+    } catch (e) { /* the notice is best-effort and never blocks a request */ }
+    next();
+  });
+});
+app.use((req, res, next) => {
+  const origSend = res.send;
+  res.send = function (body) {
+    if (typeof body === 'string' && body.includes('<!--px-boot-notice-->')) {
+      body = body.split('<!--px-boot-notice-->').join(req.__pxBootChanged ? bootNoticeHtml() : '');
+    }
+    return origSend.call(this, body);
+  };
+  next();
+});
+
+// The restart banner (clay .warn card, matching /about's warning). The
+// dismiss button only hides it in the browser (public/app.js); the server
+// shows it once per restart because the boot id is updated on sight.
+function bootNoticeHtml() {
+  return `<div class="wrap"><div class="warn" role="status" data-boot-notice>
+    <p class="warn-title"><span class="dot" aria-hidden="true"></span>The lab restarted</p>
+    <p>The lab restarted since your session began, so progress from the previous boot may be gone: the scoreboard can fall back to 0 and per-boot secrets were rotated. <b>Record each flag as you earn it</b> (every flag box has a Copy button), so a restart never costs you your work.</p>
+    <p><button type="button" class="clay-btn clay-btn-secondary clay-btn-sm" data-boot-dismiss>Dismiss</button></p>
+  </div></div>`;
+}
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ---- shared chrome guarantee (P4-8) ----
+// Every page built with page() in lib/page.js renders the full shell:
+// topbar, nav, footer. The score chip and the nav highlight are the two
+// pieces a caller can accidentally drop (shell routes pass them, module
+// routers do not). Fill them in here, on the way out, so challenge
+// sub-pages carry the same chrome as the home page: any page template
+// that still contains the <!--px-chrome--> placeholder gets the live
+// chip for this session, and the nav link matching this path gets
+// aria-current when no caller set one. Non-HTML responses are untouched.
+const NAV_SECTIONS = ['scoreboard', 'scenarios', 'paths', 'about'];
+app.use((req, res, next) => {
+  const origSend = res.send;
+  res.send = function (body) {
+    if (typeof body === 'string' && body.includes('<!--px-chrome-->')) {
+      body = body.split('<!--px-chrome-->').join(scoreChipHtml(req));
+      if (!body.includes('aria-current="page"')) {
+        const seg = String(req.path || '').split('/').filter(Boolean)[0] || '';
+        const href = seg === '' ? '/' : (NAV_SECTIONS.includes(seg) ? '/' + seg : '');
+        if (href) {
+          body = body.replace(`<a href="${href}">`, `<a href="${href}" aria-current="page">`);
+        }
+      }
+    }
+    return origSend.call(this, body);
+  };
+  next();
+});
 
 getDb(); // init + seed
 
@@ -88,6 +210,13 @@ if (fs.existsSync(modulesDir)) {
   }
 }
 app.locals.registry = registry;
+// Ordered challenge catalog for the capture banner's "Next challenge"
+// button (P4-3): lib/page.js resolves the successor of the challenge this
+// request just awarded from this list.
+rctx.setCatalog(registry.map((m) => ({
+  id: m.id,
+  vulns: (m.vulns || []).map((v) => ({ id: v.id, link: v.link })),
+})));
 
 // ---- M13 career paths (defs live in paths/; the framework mounts below,
 // after the fixmode block, so the wiring order is explicit) ----
@@ -101,7 +230,10 @@ ensureFlags(registry.flatMap((m) => m.vulns.map((v) => ({ modId: m.id, vulnId: v
   .concat(scenariosMod.scenarios.map((s) => ({ modId: 'scenario', vulnId: s.id }))));
 
 // ---- shell helpers (M4) ----
-const DIFFICULTIES = ['Beginner', 'Easy', 'Intermediate', 'Medium', 'Mixed', 'Hard'];
+// One difficulty taxonomy (P4-7): modules and paths use
+// Beginner / Intermediate / Advanced; challenges use Easy / Medium / Hard.
+// The module filter offers the module scale, including Advanced.
+const DIFFICULTIES = ['Beginner', 'Easy', 'Intermediate', 'Medium', 'Mixed', 'Hard', 'Advanced'];
 // Difficulties actually present in the registry, in pedagogical order, so the
 // filter never offers a dead-end option.
 const presentDiffs = DIFFICULTIES.filter((d) => registry.some((m) => m.difficulty === d));
@@ -121,24 +253,38 @@ function totals(req) {
 }
 
 function scoreChipHtml(req) {
-  const { got, total } = totals(req);
-  return `<span class="score-chip" title="Flags captured"><span aria-hidden="true">🚩</span> ${got}/${total}</span>`;
+  // Defensive: error pages (404/413/500) call this too, and an error raised
+  // before session middleware ran leaves req.session undefined, which makes
+  // captured() throw. An error page must never throw while rendering, or
+  // Express falls back to its default handler and serves a stack trace.
+  try {
+    const { got, total } = totals(req);
+    return `<span class="score-chip" title="Flags captured"><span aria-hidden="true">🚩</span> ${got}/${total}</span>`;
+  } catch (e) {
+    return '';
+  }
 }
 
 // M12: scoreboard section for the kill-chain scenarios. It reuses the
 // sb-module card styling (the extra sb-scenarios marker stays for future
-// CSS), and rows mirror the module row markup but without data-key, so the
-// sb-module test parsing in tests/helpers.js is untouched.
-function scenariosSectionHtml(req) {
+// CSS). Rows carry data-search/data-key like module rows so the filter form
+// and the client-side filter treat scenarios the same way (the scenario
+// name stays link-wrapped, so the sb-module test parsing in
+// tests/helpers.js, which expects <td><b>, does not pick these rows up).
+function scenariosSectionHtml(req, statusOk, q) {
   const list = scenariosMod.scenarios;
   const done = list.filter((s) => captured(req, 'scenario', s.id)).length;
   const rows = list.map((s) => {
     const hit = captured(req, 'scenario', s.id);
+    if (statusOk === 'captured' && !hit) return '';
+    if (statusOk === 'missing' && hit) return '';
+    if (q && !(s.name + ' kill-chain scenarios').toLowerCase().includes(q)) return '';
     const st = hit
       ? '<span class="status status-captured"><span class="dot" aria-hidden="true"></span>Captured</span>'
       : '<span class="status status-missing"><span class="dot" aria-hidden="true"></span>Not captured</span>';
-    return `<tr><td>${st}</td><td><a href="/scenarios/${esc(s.id)}"><b>${esc(s.name)}</b></a></td><td>${difficultyPill(s.difficulty)}</td></tr>`;
+    return `<tr data-search="${esc((s.name + ' kill-chain scenarios').toLowerCase())}" data-key="${hit ? 'captured' : 'missing'}"><td>${st}</td><td><a href="/scenarios/${esc(s.id)}"><b>${esc(s.name)}</b></a></td><td>${difficultyPill(s.difficulty)}</td></tr>`;
   }).join('');
+  if (!rows && (statusOk !== 'all' || q)) return '';
   return `<section class="sb-module sb-scenarios" aria-label="Kill-chain scenarios">
     <div class="sb-head"><span class="orb" aria-hidden="true">🔗</span>
       <h3><a href="/scenarios">Kill-chain scenarios</a></h3>
@@ -152,11 +298,30 @@ function scenariosSectionHtml(req) {
   </section>`;
 }
 
-// Gentlest entry point: first Beginner module, else first Easy, else first.
+// Canonical entry module (P4-6): misconfig. It is the module whose learning
+// track literally says "Start here", and it is the agreed first step across
+// the home page, the track banner, and the Zero to Web Pentester path.
+const ENTRY_MODULE_ID = 'misconfig';
 function startHereModule() {
-  return registry.find((m) => m.difficulty === 'Beginner')
+  return registry.find((m) => m.id === ENTRY_MODULE_ID)
+    || registry.find((m) => m.difficulty === 'Beginner')
     || registry.find((m) => m.difficulty === 'Easy')
     || registry[0];
+}
+
+// Recommended module order for the home grid: track order first (the
+// curriculum's learning sequence), then module tier, then name. The orb
+// number on each card is this recommended order, so the grid reads as a
+// numbered learning path.
+const TIER_ORDER = { beginner: 0, intermediate: 1, advanced: 2 };
+function recommendedModuleOrder() {
+  return registry.slice().sort((a, b) =>
+    // The canonical entry module always comes first.
+    (a.id === ENTRY_MODULE_ID ? -1 : b.id === ENTRY_MODULE_ID ? 1 : 0)
+    || trackIndex(a.id) - trackIndex(b.id)
+    || (TIER_ORDER[String(a.difficulty || '').toLowerCase()] ?? 1)
+       - (TIER_ORDER[String(b.difficulty || '').toLowerCase()] ?? 1)
+    || a.name.localeCompare(b.name));
 }
 
 // ---- home ----
@@ -165,8 +330,9 @@ app.get('/', (req, res) => {
   const qLower = q.toLowerCase();
   const diff = presentDiffs.includes(String(req.query.difficulty)) ? String(req.query.difficulty) : 'All';
   const filtering = q !== '' || diff !== 'All';
+  const ordered = recommendedModuleOrder();
 
-  const cards = registry.map((m, i) => {
+  const cards = ordered.map((m, i) => {
     if (diff !== 'All' && m.difficulty !== diff) return '';
     if (qLower && !(m.name + ' ' + m.tagline + ' ' + m.id).toLowerCase().includes(qLower)) return '';
     const { done, total } = moduleProgress(req, m);
@@ -178,6 +344,7 @@ app.get('/', (req, res) => {
       ${featured ? '<span class="badge-new">Start here</span>' : ''}
       <div class="card-top"><span class="orb" aria-hidden="true">${num}</span>${difficultyPill(m.difficulty)}</div>
       <h3>${esc(m.name)}</h3>
+      <p class="track-line dim">${esc(trackOf(m.id))} · recommended #${num}</p>
       <p class="tagline">${esc(m.tagline)}</p>
       <div class="card-foot">${progressBar(done, total, m.name + ' progress')}</div>
     </a>`;
@@ -185,11 +352,16 @@ app.get('/', (req, res) => {
 
   const { got, total } = totals(req);
   const start = startHereModule();
-  const starter = got === 0 && start ? `
+    const starter = got === 0 && start ? `
     <section class="starter" aria-label="Where to start">
       <div class="orb-row"><span class="orb" aria-hidden="true">🧭</span><h2>New to the lab? Start here.</h2></div>
       <p>No flags captured yet. <b>${esc(start.name)}</b> is the gentlest entry point: ${esc(start.tagline)}</p>
       <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="/${start.id}">Begin with ${esc(start.name)}</a></p>
+    </section>
+    <section class="starter" aria-label="Set up Burp first">
+      <div class="orb-row"><span class="orb" aria-hidden="true">🛠</span><h2>Set up Burp first</h2></div>
+      <p>Every challenge in this lab is solved through <b>Burp Suite</b>, the standard intercepting proxy: Proxy to see traffic, Repeater to tamper, Intruder for brute force. The free Community Edition is enough for all ${total} challenges. Install Burp, point your browser at the proxy, and install the CA certificate once, then come back and start capturing flags.</p>
+      <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="/setup-guide">Open the Tool Setup Guide</a></p>
     </section>` : '';
 
   const diffOptions = ['All', ...presentDiffs].map((d) =>
@@ -250,8 +422,12 @@ app.get('/scoreboard', (req, res) => {
       const st = hit
         ? '<span class="status status-captured"><span class="dot" aria-hidden="true"></span>Captured</span>'
         : '<span class="status status-missing"><span class="dot" aria-hidden="true"></span>Not captured</span>';
+      // Rows link back to their challenge (P4-3). The name cell keeps its
+      // <td><b> shape (tests/helpers.js parses it); the link lives in its
+      // own trailing cell and deep-links to the challenge anchor.
+      const href = v.link || `/${m.id}#${v.id}`;
       return `<tr data-search="${esc((v.name + ' ' + m.name).toLowerCase())}" data-key="${hit ? 'captured' : 'missing'}">
-        <td>${st}</td><td><b>${esc(v.name)}</b></td><td>${difficultyPill(v.difficulty)}</td></tr>`;
+        <td>${st}</td><td><b>${esc(v.name)}</b></td><td>${difficultyPill(v.difficulty)}</td><td><a class="clay-btn clay-btn-secondary clay-btn-sm" href="${esc(href)}">Open</a></td></tr>`;
     }).join('');
     if (!rows) return '';
     const { done, total: modTotal } = moduleProgress(req, m);
@@ -263,7 +439,7 @@ app.get('/scoreboard', (req, res) => {
       ${progressBar(done, modTotal, m.name + ' progress')}
       <div class="tbl-scroll"><table class="tbl">
         <caption class="sr-only">${esc(m.name)}: challenge status</caption>
-        <thead><tr><th scope="col">Status</th><th scope="col">Challenge</th><th scope="col">Difficulty</th></tr></thead>
+        <thead><tr><th scope="col">Status</th><th scope="col">Challenge</th><th scope="col">Difficulty</th><th scope="col">Open</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </section>`;
@@ -281,6 +457,12 @@ app.get('/scoreboard', (req, res) => {
   const statusOptions = [['all', 'All'], ['captured', 'Captured'], ['missing', 'Not captured']].map(([v, l]) =>
     `<option value="${v}"${v === statusOk ? ' selected' : ''}>${l}</option>`
   ).join('');
+
+  // The scenarios section follows the same filter as the module sections;
+  // the "Nothing matches" state only renders when BOTH are empty, so it
+  // never claims no results while scenario rows are on screen (P4-3).
+  const scenarioHtml = scenariosSectionHtml(req, statusOk, q);
+  const anyRows = Boolean(sections) || Boolean(scenarioHtml);
 
   res.send(page('Scoreboard', `
     <h1>Scoreboard</h1>
@@ -306,9 +488,151 @@ app.get('/scoreboard', (req, res) => {
       </div>
     </form>
     <p class="dim" data-sb-empty hidden>No challenges match your filter. Try clearing the search.</p>
-    ${sections || emptyState('Nothing matches', '<p>No challenges match the current filter.</p>', '<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Clear filter</a></p>')}
-    ${scenariosSectionHtml(req)}`,
+    ${anyRows ? sections : emptyState('Nothing matches', '<p>No challenges match the current filter.</p>', '<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard">Clear filter</a></p>')}
+    ${scenarioHtml}
+    <section class="card" aria-label="About your progress">
+      <div class="card-top"><span class="orb" aria-hidden="true">💾</span><b>Progress resets on restart</b></div>
+      <p class="dim">Your scoreboard lives in your session: if the lab restarts or your session is lost, captures go back to 0. <b>Record each flag as you earn it</b>, and export your progress for your records before you close the lab.</p>
+      <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/scoreboard/export.csv" download>Export scoreboard (CSV)</a></p>
+    </section>`,
     'scoreboard', { scoreChip: scoreChipHtml(req) }));
+});
+
+// ---- scoreboard CSV export (P1-4: classroom minimum) ----
+// The student's own scoreboard as a gradebook-ready CSV: one row per
+// challenge plus the kill-chain scenarios. Instructors collect one file
+// per student because the lab has no accounts (see docs/CLASSROOM.md).
+app.get('/scoreboard/export.csv', (req, res) => {
+  const cell = (v) => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [['module_id', 'module_name', 'challenge_id', 'challenge_name', 'difficulty', 'status']];
+  for (const m of registry) {
+    for (const v of m.vulns || []) {
+      rows.push([m.id, m.name, v.id, v.name, v.difficulty, captured(req, m.id, v.id) ? 'captured' : 'not captured']);
+    }
+  }
+  for (const s of scenariosMod.scenarios) {
+    rows.push(['scenario', 'Kill-chain scenarios', s.id, s.name, s.difficulty,
+      captured(req, 'scenario', s.id) ? 'captured' : 'not captured']);
+  }
+  res
+    .type('text/csv')
+    .set('Content-Disposition', 'attachment; filename="pentrix-scoreboard.csv"')
+    .send(rows.map((r) => r.map(cell).join(',')).join('\n') + '\n');
+});
+
+// ---- tool setup guide: render docs/TOOL_SETUP_GUIDE.md as HTML ----
+// Minimal markdown renderer: fenced code blocks, headings (with GitHub-style
+// anchor ids so the guide's own TOC links keep working), tables, lists,
+// paragraphs, inline code, bold, and links. HTML is escaped first.
+function mdSlug(text) {
+  return text.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+}
+function mdInline(text) {
+  let out = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  return out;
+}
+function renderGuideMarkdown(md) {
+  const lines = md.replace(/\r\n/g, '\n').split('\n');
+  const out = [];
+  let code = null;      // null or array of code lines
+  let para = [];
+  let list = null;      // null, 'ul', or 'ol'
+  let table = null;     // null or array of row arrays
+  function flushPara() {
+    if (para.length) { out.push('<p>' + mdInline(para.join(' ')) + '</p>'); para = []; }
+  }
+  function flushList() {
+    if (!list) return;
+    out.push(list.open + list.items.join('\n') + (list.kind === 'ul' ? '\n</ul>' : '\n</ol>'));
+    list = null;
+  }
+  function flushTable() {
+    if (!table) return;
+    const rows = table.filter((r) => !r.every((c) => /^:?-+:?$/.test(c)));
+    const head = rows[0].map((c) => '<th>' + mdInline(c) + '</th>').join('');
+    const body = rows.slice(1).map((r) => '<tr>' + r.map((c) => '<td>' + mdInline(c) + '</td>').join('') + '</tr>').join('\n');
+    out.push('<div class="tbl-scroll"><table class="tbl">\n<thead><tr>' + head + '</tr></thead>\n<tbody>\n' + body + '\n</tbody></table></div>');
+    table = null;
+  }
+  const openUl = (items) => ({ kind: 'ul', open: '<ul>', items });
+  for (const raw of lines) {
+    const line = raw;
+    if (line.trim().startsWith('```')) {
+      if (code === null) { flushPara(); flushList(); flushTable(); code = []; }
+      else {
+        out.push('<pre><code>' + code.join('\n')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>');
+        code = null;
+      }
+      continue;
+    }
+    if (code !== null) { code.push(line); continue; }
+    const trimmed = line.trim();
+    const hm = trimmed.match(/^(#{1,4})\s+(.*)$/);
+    if (hm) {
+      flushPara(); flushList(); flushTable();
+      const lvl = Math.min(hm[1].length + 1, 4);
+      const text = hm[2].replace(/\s*#+$/, '').trim();
+      out.push(`<h${lvl} id="${mdSlug(text)}">${mdInline(text)}</h${lvl}>`);
+      continue;
+    }
+    if (/^-{3,}\s*$/.test(trimmed)) { // horizontal rule
+      flushPara(); flushList(); flushTable();
+      out.push('<hr />');
+      continue;
+    }
+    if (/^\|.*\|$/.test(trimmed)) {
+      flushPara(); flushList();
+      const cells = trimmed.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+      table = table || [];
+      table.push(cells);
+      continue;
+    }
+    if (table && trimmed !== '') { flushTable(); }
+    if (/^\s*[-*]\s+/.test(line)) {
+      flushPara(); flushTable();
+      if (!list || list.kind !== 'ul') { flushList(); list = openUl([]); }
+      list.items.push('<li>' + mdInline(trimmed.replace(/^\s*[-*]\s+/, '')) + '</li>');
+      continue;
+    }
+    const om = trimmed.match(/^\s*(\d+)\.\s+(.*)$/);
+    if (om) {
+      flushPara(); flushTable();
+      if (!list || list.kind !== 'ol') { flushList(); list = { kind: 'ol', open: '<ol>', items: [] }; }
+      list.items.push('<li>' + mdInline(om[2]) + '</li>');
+      continue;
+    }
+    if (trimmed === '') { flushPara(); flushList(); flushTable(); continue; }
+    if (trimmed.startsWith('>')) { // blockquote line
+      flushPara(); flushList(); flushTable();
+      out.push('<blockquote><p>' + mdInline(trimmed.replace(/^>\s?/, '')) + '</p></blockquote>');
+      continue;
+    }
+    flushList(); flushTable();
+    para.push(trimmed);
+  }
+  flushPara(); flushList(); flushTable();
+  return out.join('\n');
+}
+
+app.get('/setup-guide', (req, res) => {
+  let md;
+  try {
+    md = fs.readFileSync(path.join(__dirname, 'docs', 'TOOL_SETUP_GUIDE.md'), 'utf8');
+  } catch (e) {
+    return res.status(500).send(page('Tool Setup Guide',
+      '<h1>Tool Setup Guide</h1><p>The setup guide file could not be read. It lives at <code>docs/TOOL_SETUP_GUIDE.md</code> in the lab source.</p>',
+      null, { scoreChip: scoreChipHtml(req) }));
+  }
+  res.send(page('Tool Setup Guide', renderGuideMarkdown(md),
+    'setup-guide', { scoreChip: scoreChipHtml(req) }));
 });
 
 // ---- about / rules ----
@@ -321,6 +645,14 @@ app.get('/about', (req, res) => {
       Never deploy it to a public server or expose it to the internet.
       Run it only on your own machine or an isolated lab network.</p>
     </div>
+    <section class="block">
+      <h2>Set up Burp first</h2>
+      <div class="clay-card">
+        <div class="card-top"><span class="orb" aria-hidden="true">🛠</span><b>Tool Setup Guide</b><span class="dim">do this once, before your first flag</span></div>
+        <p>Every challenge in this lab is solved through <b>Burp Suite</b>, the standard intercepting proxy: Proxy to see traffic, Repeater to tamper, Intruder for brute force. The free Community Edition is enough for all 201 challenges. The guide walks you through installing Burp, pointing your browser at the proxy, installing the CA certificate, and the workflow you will repeat on every challenge (plus a race-condition technique and a Grep-Match walkthrough the hint ladders rely on).</p>
+        <p><a class="clay-btn clay-btn-primary" href="/setup-guide">Open the Tool Setup Guide</a></p>
+      </div>
+    </section>
     <section class="block">
       <h2>How to use</h2>
       <ol>
@@ -408,7 +740,11 @@ app.get('/fix/:module/:vuln', (req, res) => {
 });
 
 // ---- fix test ----
-app.post('/fix/:module/:vuln/test', (req, res) => {
+// Fix checks run in worker threads (lib/fixmode.js), so this handler is
+// async; the lib returns { ok, error } for student-code problems and never
+// rejects for them, but the try/catch (plus the async-handler wrapper)
+// keeps any unexpected runner failure on the friendly error path.
+app.post('/fix/:module/:vuln/test', async (req, res) => {
   const module = String(req.params.module || '');
   const vuln = String(req.params.vuln || '');
   if (!findFixChallenge(module, vuln)) return fixNotFound(req, res);
@@ -419,7 +755,7 @@ app.post('/fix/:module/:vuln/test', (req, res) => {
   let result;
   try {
     result = fixmode && typeof fixmode.testFix === 'function'
-      ? fixmode.testFix(module, vuln, code)
+      ? await fixmode.testFix(module, vuln, code)
       : { ok: false, error: 'Fix mode is not available right now. Try again later.' };
   } catch (err) {
     console.error('[err] fix test crashed:', err && err.message ? err.message : err);
@@ -460,15 +796,52 @@ app.use((req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // P5-4: an oversized body is a client error, not a lab crash. body-parser
+  // marks these with type 'entity.too.large' (status 413); answer with a
+  // clean 413 page instead of falling through to the 500 branch.
+  if (err && (err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413)) {
+    if (res.headersSent) return next(err);
+    try {
+      return res.status(413).send(page('Request too large',
+        errorPage(413, 'That request was too large',
+          '<p>The lab refused the request because its body was bigger than the limit. Trim what you sent and try again.</p>'),
+        null, { scoreChip: scoreChipHtml(req) }));
+    } catch (e) {
+      // The 413 page itself must render no matter what; never fall through
+      // to Express's default error handler, which serves a stack trace.
+      return res.status(413).type('text').send('Request too large.');
+    }
+  }
+  // Honor other 4xx statuses carried by middleware errors (e.g. malformed
+  // JSON bodies, status 400) instead of collapsing them to a 500.
+  if (err && Number.isInteger(err.status) && err.status >= 400 && err.status < 500) {
+    if (res.headersSent) return next(err);
+    try {
+      return res.status(err.status).send(page('Bad request',
+        errorPage(err.status, 'Bad request',
+          '<p>The lab could not understand that request. Check the format and try again.</p>'),
+        null, { scoreChip: scoreChipHtml(req) }));
+    } catch (e) {
+      return res.status(err.status).type('text').send('Bad request.');
+    }
+  }
   console.error('[err]', err && err.stack ? err.stack : err);
-  res.status(500).send(page('Error',
-    errorPage(500, 'Something broke',
-      '<p>The lab hit an unexpected error. Your progress is safe; try going back and continuing.</p><p class="dim">If this keeps happening, restart the lab and check the terminal for the error log.</p>'),
-    null, { scoreChip: scoreChipHtml(req) }));
+  if (res.headersSent) return next(err);
+  try {
+    res.status(500).send(page('Error',
+      errorPage(500, 'Something broke',
+        '<p>The lab hit an unexpected error. Your progress is safe; try going back and continuing.</p><p class="dim">If this keeps happening, restart the lab and check the terminal for the error log.</p>'),
+      null, { scoreChip: scoreChipHtml(req) }));
+  } catch (e) {
+    res.status(500).type('text').send('Something broke. Your progress is safe; try going back and continuing.');
+  }
 });
 
 // Exported so the test suite can boot the app on an ephemeral port.
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`[ok] PenTrix VulnLab listening on http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    bootGate.markReady();
+    console.log(`[ok] PenTrix VulnLab listening on http://localhost:${PORT}`);
+  });
 }
 module.exports = app;

@@ -3,6 +3,7 @@
 // engine evaluates {{ expression }} as live JavaScript when it renders.
 const express = require('express');
 const crypto = require('crypto');
+const { tokenScriptParts } = require('../../../lib/jstoken');
 const { page, esc, claimBox } = require('../../../lib/page');
 
 const router = express.Router();
@@ -39,6 +40,13 @@ function cstiNonce(req, v) {
   }
   return req.session.cstiNonce[v];
 }
+// Script fragment: the page token only exists once this script runs. The
+// page renders two random share arrays and computes CSTI_NONCE from them at
+// load; the raw token string never appears in the HTML.
+function cstiNonceScript(req, v) {
+  const p = tokenScriptParts(cstiNonce(req, v));
+  return p.decl + '\n      var CSTI_NONCE = ' + p.combine + ';';
+}
 
 const DEFAULT_BASIC = "Hello {{'gues'+'t'}}!";
 
@@ -62,7 +70,7 @@ router.get('/basic', (req, res) => {
     <script>
       ${RENDER_JS}
       // Page-bound token: the beacon must echo it back.
-      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'basic'))};
+      ${cstiNonceScript(req, 'basic')}
       var TPL = ${JSON.stringify(tpl)};
       var html = cstiRender(TPL);
       // VULN: rendered template output is injected as HTML.
@@ -92,7 +100,7 @@ module.exports = {
     tools: "BZ, B",
     how: 'Save a greeting containing {{7*7}} in Burp\'s embedded browser, then load the page. The preview renders 49 and the page fires its beacon with the page-bound token to claim the flag.',
     link: '/csti#basic',
-    start: 'In Burp, proxy your browser (or use the embedded browser) and open http://localhost:3000/csti/basic. Find the greeting form and the CSTI_NONCE token in the page source.',
+    start: 'In Burp, proxy your browser (or use the embedded browser) and open /csti/basic. Find the greeting form and the CSTI_NONCE token in the page source.',
   },
   router,
 };

@@ -21,7 +21,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Copy the archived admin session id from the session archive, then open the legacy admin panel in Burp Repeater with that sid as your lab_sid cookie.',
   link: '/session#never-expires',
-  start: 'Open Burp Proxy and browse to http://localhost:3000/session/neverexpires in your proxied browser. Read the session archive and note the archived admin session id shown there.',
+  start: 'Open Burp Proxy and browse to /session/neverexpires in your proxied browser. Read the session archive and note the archived admin session id shown there.',
 };
 
 const TEN_YEARS_MS = 10 * 365 * 24 * 3600 * 1000;

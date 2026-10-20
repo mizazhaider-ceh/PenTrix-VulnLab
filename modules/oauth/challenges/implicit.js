@@ -7,6 +7,8 @@
 // and the flag is awarded by the shared /oauth/idp/userinfo route when an
 // implicit-flow token belonging to someone else is presented. No award logic
 // lives in this file.
+// VULN: the implicit flow delivers the access token in the URL fragment,
+// which leaks through browser history to anyone who can read it.
 const express = require('express');
 const { page, esc, brief, hintLadder, payloadBlock } = require('../../../lib/page');
 const shared = require('../shared');
@@ -43,7 +45,7 @@ router.get('/implicit', (req, res) => {
         <li>As the attacker, open <a href="/oauth/client/history">the browser history</a>, steal the token, and call the userinfo endpoint with it.</li>
       </ol>
       ${payloadBlock('Burp Repeater (call userinfo with the stolen token)', `GET /oauth/idp/userinfo?access_token=<TOKEN> HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 
 `)}

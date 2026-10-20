@@ -6,6 +6,8 @@
 // award live in the shared POST /oauth/idp/approve handler (shared.js), kept
 // byte for byte identical to the original router: the flag is awarded when
 // the IdP issues a code to a redirect URI whose host is not app.pentrix.lab.
+// VULN: redirect_uri is validated with a naive string prefix check, so a
+// foreign host whose URI merely starts with the trusted prefix passes.
 const express = require('express');
 const { page, esc, briefPanel, payloadBlock } = require('../../../lib/page');
 

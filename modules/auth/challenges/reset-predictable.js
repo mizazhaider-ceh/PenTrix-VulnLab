@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { page, esc, brief, flagBox, fixPanel, hintLadder, payloadBlock } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { getDb } = require('../../../lib/db');
+const { setPasswordOverride } = require('../../../lib/account-state');
 const shared = require('../shared');
 
 const router = express.Router();
@@ -112,9 +113,9 @@ router.post('/sha-reset/confirm', (req, res) => {
     return res.send(failure('This token does not map to an account.'));
   }
 
-  getDb()
-    .prepare('UPDATE users SET password = ? WHERE username = ?')
-    .run(newPassword, target.username);
+  // Multi-student isolation (P1-1): the changed password lives in this
+  // session only; the shared users table keeps the seeded value.
+  setPasswordOverride(req, target.username, newPassword);
 
   // Award when admin's password was changed with a token this session never
   // legitimately received, i.e. a forged one.

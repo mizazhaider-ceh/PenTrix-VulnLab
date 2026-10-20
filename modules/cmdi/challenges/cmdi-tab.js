@@ -4,7 +4,7 @@
 const express = require('express');
 const { award } = require('../../../lib/flags');
 const { fixPanel, flagBox } = require('../../../lib/page');
-const { gadgetPage, runPing, PASSWD_EVIDENCE } = require('../shared');
+const { gadgetPage, runPing, evidenceInOutput, PASSWD_EVIDENCE } = require('../shared');
 
 const router = express.Router();
 
@@ -35,7 +35,7 @@ router.get('/ping9', (req, res) => {
   const filtered = host.replace(/ /g, '');
   runPing(filtered, (outputHtml, out) => {
     let flagHtml = '';
-    if (host.includes('\t') && PASSWD_EVIDENCE.test(out)) {
+    if (host.includes('\t') && evidenceInOutput(out, [host, filtered], PASSWD_EVIDENCE)) {
       const flag = award(req, 'cmdi', vuln.id);
       flagHtml = flagBox(flag) + fixPanel('cmdi', vuln.id);
     }

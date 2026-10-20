@@ -54,7 +54,7 @@ module.exports = {
     tools: "BZ, B",
     how: 'Read /proc/self/environ through /lfi/procinfo with Burp Repeater.',
     link: '/lfi/procinfo',
-    start: 'Point your browser through Burp Proxy at http://localhost:3000, open /lfi/procinfo, and send the request to Repeater so you can tamper with the f parameter.',
+    start: 'Point your browser through Burp Proxy at your lab address, open /lfi/procinfo, and send the request to Repeater so you can tamper with the f parameter.',
   },
   router,
 };

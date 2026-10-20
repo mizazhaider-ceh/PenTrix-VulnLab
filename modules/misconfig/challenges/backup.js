@@ -3,6 +3,7 @@
 // into the web-accessible tree and is served as plain text to anyone who asks
 // for the right filename.
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const { award } = require('../../../lib/flags');
 
@@ -21,17 +22,24 @@ const vuln = {
     "In Burp Repeater, send GET requests for common backup filenames under /misconfig/ until one returns a dump instead of a 404, then search the response body for plaintext credentials or tokens.",
   ],
   tools: 'BZ, B',
+  est: 'about 5 minutes',
   how: 'With Burp Proxy on, browse to /misconfig, then guess the backup filename in Repeater and read the returned dump for plaintext credentials and tokens.',
   link: '/misconfig#backup',
-  start: 'Proxy http://localhost:3000 in Burp, browse to /misconfig, then replay the page request in Repeater with the path changed to /misconfig/backup.sql and search the response dump.',
+  start: 'Proxy your lab address in Burp, browse to /misconfig, then replay the page request in Repeater with the path changed to /misconfig/backup.sql and search the response dump.',
 };
 
-// GET /misconfig/backup.sql -> serves the backup dump verbatim.
+// GET /misconfig/backup.sql -> serves the backup dump verbatim, prefixed with
+// a visible capture banner carrying the real flag. The award used to fire
+// silently while the dump itself ended in a flag-shaped decoy line, so
+// beginners copied the decoy as their answer (P3-9). The decoy line is gone
+// from backup.sql, and the banner makes the real award unmissable.
 router.get('/backup.sql', (req, res) => {
   // VULN: sensitive database backup stored inside the web-accessible tree and served to anyone who asks
-  award(req, 'misconfig', 'backup');
+  const flag = award(req, 'misconfig', 'backup');
+  const banner = `-- ================================================================\n-- PenTrix VulnLab: FLAG CAPTURED for challenge "Exposed Database Backup".\n-- Your flag: ${flag}\n-- (It is also on your scoreboard. The dump below is what leaked.)\n-- ================================================================\n\n`;
+  const dump = fs.readFileSync(BACKUP_PATH, 'utf8');
   res.type('text/plain');
-  res.sendFile(BACKUP_PATH);
+  res.send(banner + dump);
 });
 
 module.exports = { vuln, router };

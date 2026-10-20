@@ -34,6 +34,8 @@ router.get('/ping', (req, res) => {
       briefHtml: 'This network tool runs <code>ping</code> on a host you choose. Try to make it run <em>another</em> command too, like <code>id</code>.',
     }));
   }
+  // VULN: the host value flows into runPing, which concatenates it into a
+  // shell command with no escaping, so command separators inject extra commands.
   runPing(host, (outputHtml, out) => {
     let flagHtml = '';
     // Award only when the command output shows an injected command ran.

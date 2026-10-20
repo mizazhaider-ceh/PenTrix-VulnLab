@@ -7,7 +7,7 @@
 const express = require('express');
 const { esc, page, brief, flagBox, fixPanel, hintLadder, toolsPill, difficultyPill, payloadBlock, appShell } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { merge, config } = require('../shared');
+const { merge, protoStateFor, freshUser } = require('../shared');
 
 const router = express.Router();
 
@@ -40,7 +40,7 @@ router.get('/json', (req, res) => {
       <div id="out"></div>
       <hr />
       <p>Or in Burp Repeater:</p>
-      ${payloadBlock('Burp Repeater', 'POST /proto/json/merge HTTP/1.1\nHost: localhost:3000\nContent-Type: application/json\n\n{"__proto__": {"role": "admin"}}')}
+      ${payloadBlock('Burp Repeater', 'POST /proto/json/merge HTTP/1.1\nHost: <your-lab-address>\nContent-Type: application/json\n\n{"__proto__": {"role": "admin"}}')}
       <p>Step 2: <a class="clay-btn clay-btn-secondary" href="/proto/json/admin">Open admin check</a></p>
     `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > JSON import' })}
     ${hintLadder(vuln)}
@@ -55,7 +55,7 @@ router.post('/json/merge', (req, res) => {
     return res.status(400).send('<p>Send a JSON object.</p>');
   }
   // VULN: parsed JSON body is deep-merged with no key filtering.
-  merge(config, data);
+  merge(protoStateFor(req).config, data);
   res.send(`<p>Merged keys: <code>${esc(Object.keys(data).join(', '))}</code>.
   Now <a href="/proto/json/admin">open the admin check</a>.</p>`);
 });
@@ -63,7 +63,9 @@ router.post('/json/merge', (req, res) => {
 // GET /proto/json/admin -> the admin check. A fresh {} is created and
 // user.role is read; prototype pollution can inject that value.
 router.get('/json/admin', (req, res) => {
-  const user = {}; // fresh object: no role is assigned anywhere in this handler
+  // Per-session admin check: a fresh object inheriting this session's
+  // polluted prototype stand-in (P1-1). No role is assigned anywhere here.
+  const user = freshUser(req);
   // VULN: the authorization check reads user.role, which prototype pollution can inject.
   if (user.role === 'admin') {
     const flag = award(req, 'proto', 'proto-json');

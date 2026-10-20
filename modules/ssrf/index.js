@@ -3,7 +3,7 @@
 // fetcher. Thin aggregator: every challenge lives in ./challenges/* and the
 // module-level internal endpoints plus the index page live here.
 const express = require('express');
-const { fixCta, brief, difficultyPill, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner  } = require('../../lib/page');
+const { brief, difficultyPill, esc, hintLadder, page, toolsPill, trackBanner, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/basic'),
@@ -51,22 +51,18 @@ router.get('/', (req, res) => {
   const zeroVia = `http://0.0.0.0:${p}/ssrf/internal/secret`;
   const metaVia = `http://169.254.169.254/latest/meta-data/iam/security-credentials/`;
 
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('ssrf', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'ssrf', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('ssrf', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Server-Side Request Forgery', `
     ${brief('Server-Side Request Forgery', `
       This module exposes a small service that fetches a URL <b>on the server side</b>
@@ -164,7 +160,7 @@ router.get('/', (req, res) => {
       <li><a href="/ssrf/fetch-meta?url=${encodeURIComponent(metaVia)}">Cloud metadata credentials</a></li>
       <li><a href="/ssrf/fetch-file?url=${encodeURIComponent('file:///etc/passwd')}">file:///etc/passwd</a></li>
     </ul>
-  ${fixSectionHtml}
+  ${fixSection('ssrf', challenges)}
 `));
 });
 

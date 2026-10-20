@@ -9,9 +9,10 @@ const { fetchBody, guardedFetch, rawHostBlock } = require('../shared');
 
 const router = express.Router();
 
-// GET /ssrf/hex-ip -> blocklisted fetcher. The check is a naive substring
-// test on the raw URL string; hex-encoded loopback normalizes to 127.0.0.1
-// in the URL parser, so it passes the check and still hits loopback.
+// GET /ssrf/hex-ip -> blocklisted fetcher.
+// VULN: the check is a naive substring test on the raw URL string;
+// hex-encoded loopback normalizes to 127.0.0.1 in the URL parser, so it
+// passes the check and still hits loopback.
 router.get('/hex-ip', (req, res) => guardedFetch(req, res, {
   title: 'SSRF Hex IP', vulnId: 'ssrf-hex-ip', check: rawHostBlock, fetch: fetchBody,
 }));

@@ -4,7 +4,7 @@ const express = require('express');
 const { getDb } = require('../../../lib/db');
 const { page, esc, brief, flagBox, fixPanel, hintLadder, hintBox, toolsPill, payloadBlock } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { currentUser, emailOf, postbox, attackerSite, backLink, notLoggedInPage } = require('../shared');
+const { currentUser, emailOf, postbox, attackerSite, backLink, notLoggedInPage, crossSiteEvidence, notForgedPage } = require('../shared');
 
 const router = express.Router();
 
@@ -37,7 +37,11 @@ router.get('/json-email', (req, res) => {
         <button type="submit" class="clay-btn clay-btn-primary">Fire the forged request</button>
       </form>
       <p class="dim">The browser encodes the form as one <code>name=value</code> line.
-      Watch what the server does with it.</p>
+      Watch what the server does with it. Note: submitting this form from this
+      very page is a same-origin request and earns nothing. The attack only
+      counts when the form lives on another site, so the arriving request
+      carries a foreign <code>Referer</code> or <code>Origin</code>. In Burp
+      Repeater, set one of those headers to the attacker's site.</p>
     `)}
     ${hintLadder(module.exports.vuln)}
     ${hintBox('Simple requests (plain forms) skip CORS preflight, so the missing token is the only thing that had to fail, and it did.')}
@@ -71,6 +75,13 @@ router.post('/api/email', express.text({ type: 'text/plain' }), (req, res) => {
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/csrf/json-email">Back</a></p>
     `));
   }
+  // A text/plain simple request only proves anything when it really crossed
+  // sites. The same body replayed in your own session (no foreign Referer or
+  // Origin) is refused outright: it is indistinguishable from a self-request.
+  if (!crossSiteEvidence(req)) {
+    return res.status(403).send(notForgedPage('Email API',
+      'The request body parsed, but it carried no cross-site evidence (no foreign Referer or Origin header), so nothing was changed.'));
+  }
   // VULN: state-changing JSON API with no CSRF token, reachable by a simple form.
   getDb().prepare('UPDATE users SET email = ? WHERE id = ?').run(String(email), user.id);
   const flag = award(req, 'csrf', 'json-csrf');
@@ -89,10 +100,10 @@ module.exports = {
     id: 'json-csrf',
     name: 'JSON API CSRF via text/plain (simple request)',
     difficulty: 'Medium',
-    hint: 'The endpoint accepts text/plain bodies and extracts JSON from them. The key insight: a cross-site form can be a CORS "simple request" (no preflight, cookies attached), so shape a form whose submitted body content is the JSON the API expects.',
-    hints: ["The API wants JSON, but it also accepts text/plain. Why does that matter for CSRF?", "text/plain POSTs are CORS 'simple requests': no preflight, cookies attached. A plain HTML form can send JSON.", "Intercept the attack form in Burp Proxy, then rebuild it in Repeater: change the Content-Type to text/plain and shape the submitted body line so the server parses out the JSON the email API expects."],
+    hint: 'The endpoint accepts text/plain bodies and extracts JSON from them. The key insight: a cross-site form can be a CORS "simple request" (no preflight, cookies attached), so shape a form whose submitted body content is the JSON the API expects. The flag demands cross-site evidence (a foreign Referer or Origin): a body replayed in your own session is refused.',
+    hints: ["The API wants JSON, but it also accepts text/plain. Why does that matter for CSRF?", "text/plain POSTs are CORS 'simple requests': no preflight, cookies attached. A plain HTML form can send JSON.", "Intercept the attack form in Burp Proxy, then rebuild it in Repeater: change the Content-Type to text/plain, shape the submitted body line so the server parses out the JSON the email API expects, and set a foreign Referer or Origin header so the request reads as a real cross-site forgery. Burp will also generate the victim page for you: right-click the working request and choose Engagement tools, Generate CSRF PoC (Tool Setup Guide, section 9)."],
     tools: "BZ, B",
-    how: 'Forge a cross-site email change by sending a simple request to /csrf/api/email whose text/plain body carries the JSON the API expects.',
+    how: 'Forge a cross-site email change by sending a simple request to /csrf/api/email whose text/plain body carries the JSON the API expects, with a foreign Referer or Origin header as proof the request crossed sites.',
     link: '/csrf/json-email',
     start: 'Point your browser at Burp Proxy, sign in as alice at /csrf/login/alice, then open /csrf/json-email and capture the attack form submission in the proxy.',
   },

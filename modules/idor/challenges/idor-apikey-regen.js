@@ -103,7 +103,7 @@ module.exports = {
     tools: 'BZ, B',
     how: 'Intercept the key-regeneration POST, edit the user_id to another account\'s id, then use the fresh key at /idor/apikey/use.',
     link: '/idor#idor-apikey-regen',
-    start: 'Point your browser at Burp\'s proxy, then visit http://localhost:3000/idor/login/alice to log in and open /idor/apikey.',
+    start: 'Point your browser at Burp\'s proxy, then visit /idor/login/alice to log in and open /idor/apikey.',
   },
   router,
 };

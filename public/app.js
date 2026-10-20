@@ -40,6 +40,16 @@
     }
   });
 
+  /* Restart-volatility notice (P1-3): the server fills the banner only for
+     sessions that survived a lab restart, and only once. Dismiss just
+     hides it; the next page load no longer renders it. */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-boot-notice]'), function (el) {
+    el.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-boot-dismiss]') : null;
+      if (btn) el.hidden = true;
+    });
+  });
+
   /* Claim-status widgets (beacon challenges): poll the module's claim-status
      endpoint and flip the status pill when the server has captured the flag. */
   Array.prototype.forEach.call(document.querySelectorAll('[data-status-url]'), function (el) {
@@ -122,8 +132,12 @@
   });
 
   /* Entrance stagger: cards fade-rise with 40ms steps, capped at 8 items.
-     Content is visible by default; the observer only enhances. Never used
-     on scoreboard rows (they must paint instantly). */
+     Under .js the stylesheet hides .reveal elements until the observer
+     adds .in, so the observer is load-bearing, not just an enhancement:
+     if it never fires for an element (occluded layout, observer quirks),
+     the content would stay invisible. The 2s force-reveal below is the
+     safety net: anything still hidden after 2 seconds is shown. Never
+     used on scoreboard rows (they must paint instantly). */
   if (canObserve) {
     var els = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
     var io = new IntersectionObserver(function (entries) {
@@ -135,6 +149,11 @@
       el.style.transitionDelay = Math.min(i, 8) * 40 + 'ms';
       io.observe(el);
     });
+    setTimeout(function () {
+      els.forEach(function (el) {
+        if (!el.classList.contains('in')) { el.classList.add('in'); io.unobserve(el); }
+      });
+    }, 2000);
   }
   /* Page transition: subtle 160ms fade on same-origin navigation.
      Skipped under reduced motion; modifier clicks, new tabs, downloads,

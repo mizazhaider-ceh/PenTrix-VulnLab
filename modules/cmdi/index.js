@@ -3,9 +3,7 @@
 // network diagnostics console. Each challenge chains an extra shell command
 // through a progressively tighter (and progressively bypassable) filter.
 const express = require('express');
-const { fixCta,
-  brief, difficultyPill, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner,
- } = require('../../lib/page');
+const { brief, difficultyPill, esc, hintLadder, page, toolsPill, trackBanner, easyFirst, cardConsoles, startBlock, fixSection , capturedPill } = require('../../lib/page');
 const { APP_NAME } = require('./shared');
 
 const challenges = [
@@ -31,22 +29,17 @@ router.get('/', (req, res) => {
       <td>${difficultyPill(v.difficulty)}</td>
     </tr>`).join('');
 
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('cmdi', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3><a href="${esc(v.link)}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)}</h3>
+      <h3><a href="${esc(v.link)}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)} ${capturedPill(req, 'cmdi', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('cmdi', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Command Injection', `
     <h1>${esc(APP_NAME)}: Command Injection</h1>
     ${brief('Briefing', `
@@ -72,7 +65,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('cmdi', challenges)}
 `));
 });
 

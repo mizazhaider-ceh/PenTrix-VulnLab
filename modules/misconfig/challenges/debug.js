@@ -17,7 +17,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Send GET /misconfig/debug with the error-simulation query parameter (err=1) turned on, for example in Burp Repeater, and read the leaked config dump in the response.',
   link: '/misconfig#debug',
-  start: 'In Burp Proxy, open http://localhost:3000/misconfig/debug, click the "Simulate an error" link, then send the request to Repeater and inspect the response body.',
+  start: 'In Burp Proxy, open /misconfig/debug, click the "Simulate an error" link, then send the request to Repeater and inspect the response body.',
 };
 
 // GET /misconfig/debug -> service status page for the (fictional) NovaPay
@@ -70,7 +70,7 @@ sessionSecret: 'keyboard-cat-do-not-use-in-prod'`;
         defaults and error details are hidden from visitors.</p>
         ${hintLadder(vuln)}
         <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/misconfig/debug?err=1">Simulate an error</a></p>
-        ${payloadBlock('Try in Burp Repeater', 'GET /misconfig/debug?err=1 HTTP/1.1\nHost: localhost:3000')}
+        ${payloadBlock('Try in Burp Repeater', 'GET /misconfig/debug?err=1 HTTP/1.1\nHost: <your-lab-address>')}
       `, { nav: ['Dashboard', 'Payments', 'Support'], crumb: 'Support / System status' })
     )
   );

@@ -6,6 +6,8 @@
 // validating a state parameter, so a victim who opens the malicious link ends
 // up logged in to the client as the attacker. The flag is awarded by that
 // shared callback, not here.
+// VULN: the client callback never validates a state parameter, so any code
+// it is handed is exchanged and bound to the victim's session (login CSRF).
 const express = require('express');
 const { page, esc, brief, hintLadder, payloadBlock } = require('../../../lib/page');
 const shared = require('../shared');
@@ -60,9 +62,12 @@ router.get('/no-state/attacker', (req, res) => {
   }
   // Same call as router.js: the code is minted for the attacker's own account,
   // with no state involved anywhere, and written to the shared in-memory store.
+  // It is stamped with this challenge's flow explicitly: the code belongs to
+  // the login-CSRF flow, never to the code-replay flow.
   const code = shared.issueCode({
     clientId: 'pentrix-spa', ownerId: me.id,
     redirectUri: shared.TRUSTED_PREFIX + '/callback', scope: 'read',
+    flow: 'no-state',
   });
   const evil = '/oauth/client/callback?code=' + code;
   res.send(page('Login-CSRF link generator',

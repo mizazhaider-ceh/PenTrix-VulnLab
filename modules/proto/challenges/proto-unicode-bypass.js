@@ -9,7 +9,7 @@
 const express = require('express');
 const { appShell, esc, fixPanel, flagBox, page } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { merge, config } = require('../shared');
+const { merge, protoStateFor, freshUser } = require('../shared');
 
 const router = express.Router();
 
@@ -48,7 +48,7 @@ router.get('/unicode', (req, res) => {
       <hr />
       <p>Or in Burp Repeater:</p>
       <pre><code>POST /proto/unicode/merge HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: text/plain
 
 {"\\u005f\\u005fproto\\u005f\\u005f": {"role": "admin"}}</code></pre>
@@ -80,14 +80,16 @@ router.post('/unicode/merge', (req, res) => {
   }
   // VULN: parsed JSON body is deep-merged into the shared app config with no
   // key filtering.
-  merge(config, data);
+  merge(protoStateFor(req).config, data);
   res.send(`<p>Blacklist passed. Merged keys: <code>${esc(Object.keys(data).join(', '))}</code>.
   Now <a href="/proto/unicode/admin">open the admin check</a>.</p>`);
 });
 
 // GET /proto/unicode/admin -> creates a brand-new {} and tests user.role.
 router.get('/unicode/admin', (req, res) => {
-  const user = {}; // fresh object: no role is assigned anywhere in this handler
+  // Per-session admin check: a fresh object inheriting this session's
+  // polluted prototype stand-in (P1-1). No role is assigned anywhere here.
+  const user = freshUser(req);
   // VULN: the authorization check reads user.role, which prototype pollution can inject.
   if (user.role === 'admin') {
     const flag = award(req, 'proto', 'proto-unicode-bypass');

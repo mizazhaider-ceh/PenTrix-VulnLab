@@ -8,8 +8,9 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../../lib/db');
-const { fixCta, brief, esc, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { brief, esc, flagBox, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
+const { djb2Hex } = require('../../lib/jstoken');
 
 const challenges = [
   require('./challenges/basic'),
@@ -67,8 +68,20 @@ router.get('/beacon', (req, res) => {
   const d = String(req.query.d || '');
   const n = String(req.query.n || '');
   let ok = false;
-  if (VULN_IDS.includes(v)) {
-    ok = (v === 'constructor') ? d.length > 0 : d === '49';
+  // The stored lab is victim-bound: it never awards through this beacon.
+  // The flag belongs to the simulated victim-visit flow instead.
+  if (VULN_IDS.includes(v) && v !== 'stored') {
+    if (v === 'constructor') {
+      // Proof of execution: d must be 'ctor:' plus the djb2 hash of this
+      // session's page token, a value only code that rebuilt the token at
+      // runtime and hashed it inside the page can produce. Arbitrary
+      // non-empty data (a cookie, a guess) is rejected.
+      const m = req.session.cstiNonce;
+      const cur = m && Object.prototype.hasOwnProperty.call(m, v) ? m[v] : null;
+      ok = !!cur && d === 'ctor:' + djb2Hex(cur);
+    } else {
+      ok = d === '49';
+    }
     ok = ok && cstiConsumeNonce(req, v, n);
   }
   if (ok) {
@@ -86,8 +99,10 @@ router.get('/beacon', (req, res) => {
     <p>This endpoint only awards a flag when the template engine really evaluated
     your expression (<code>v</code> = basic, filter-bypass, constructor, attr, or stored,
     with the expected result data) <b>and</b> the beacon echoes the page-bound token
-    (<code>n</code> = <code>CSTI_NONCE</code> rendered into the lab page). Work through
-    the lab page in your browser.</p>
+    (<code>n</code> = <code>CSTI_NONCE</code>, computed at runtime by the lab page
+    script, never present in the page source). Work through
+    the lab page in your browser. The stored lab never awards here: use
+    <a href="/csti/stored/victim-visit">/csti/stored/victim-visit</a>.</p>
     <p><a href="/csti">Back to the CSTI module</a></p>
   `));
 });
@@ -96,22 +111,18 @@ for (const c of challenges) router.use(c.router);
 
 // GET /csti -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('csti', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'csti', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('csti', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Client-Side Template Injection', `
     ${brief('Module briefing', `
       <p><b>CSTI in 30 seconds:</b> some apps let the <i>browser</i> evaluate templates with a
@@ -133,7 +144,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('csti', challenges)}
 `));
 });
 

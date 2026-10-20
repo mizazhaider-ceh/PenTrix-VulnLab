@@ -79,7 +79,7 @@ module.exports = {
     tools: 'BZ, C',
     how: 'In Burp Proxy, confirm /.git/HEAD is served over HTTP. Send the request to Repeater, follow the branch ref to the commit hash, then walk the object store (first two hash chars as the directory, the rest as the filename) and read the secret from the commit diff.',
     link: '/misconfig#git',
-    start: 'With Burp Proxy running, browse to http://localhost:3000/misconfig/.git/HEAD, then send the request to Repeater.',
+    start: 'With Burp Proxy running, browse to /misconfig/.git/HEAD, then send the request to Repeater.',
   },
   router,
 };

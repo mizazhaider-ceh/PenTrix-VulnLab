@@ -3,7 +3,7 @@
 // config objects without filtering keys. Six challenges, each abusing a
 // different way to smuggle __proto__ / constructor / prototype past the merge.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/proto-query'),
@@ -38,22 +38,18 @@ then make a "fresh" <code>{}</code> fail (or pass) a check it should never pass.
 
 // GET /proto -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('proto', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'proto', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('proto', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Prototype Pollution', `
     ${brief('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -65,7 +61,7 @@ router.get('/', (req, res) => {
     ${cards}
     <p class="note">Tip: pollution is process-wide once it lands. If a check
     passes "for free", restart the lab server for a clean slate.</p>
-  ${fixSectionHtml}
+  ${fixSection('proto', challenges)}
 `));
 });
 

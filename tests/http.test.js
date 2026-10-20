@@ -54,43 +54,53 @@ test('http module', async (t) => {
     assert.ok((await capturedSet(c)).includes('http:Verb Tampering'));
   });
 
+  // P1-1 update: the edge cache is per session now. One student plays both
+  // roles in their own session: prime as the victim (alice), then come back
+  // as "someone else" in that same session (log out to guest) and fetch.
   await t.test('cache-deception: own cache earns nothing, reading the victim cache earns the flag', async () => {
-    await client(srv.base).get('/http/cache-purge');
-    const victim = client(srv.base);
-    const attacker = client(srv.base);
+    const c = client(srv.base);
+    await c.get('/http/cache-purge');
 
-    const first = await attacker.get('/http/account.css');
+    const first = await c.get('/http/account.css');
     assert.equal(first.status, 200);
     assert.equal(first.headers.get('x-cache'), 'MISS');
     assert.equal(first.headers.get('x-flag'), null, 'uncached fetch must not award');
 
-    await client(srv.base).get('/http/cache-purge');
-    await victim.get('/http/cache-login?user=alice');
-    const aliceCss = await victim.get('/http/account.css');
+    await c.get('/http/cache-purge');
+    await c.get('/http/cache-login?user=alice');
+    const aliceCss = await c.get('/http/account.css');
     assert.equal(aliceCss.status, 200);
     assert.equal(aliceCss.headers.get('x-cache'), 'MISS');
     assert.equal(aliceCss.headers.get('x-flag'), null, 'caching your own stylesheet must not award');
 
-    const own = await victim.get('/http/account.css');
+    const own = await c.get('/http/account.css');
     assert.equal(own.headers.get('x-cache'), 'HIT');
     assert.equal(own.headers.get('x-flag'), null, 'reading your own cached stylesheet must not award');
 
-    const hit = await attacker.get('/http/account.css');
+    await c.get('/http/cache-logout');
+    const hit = await c.get('/http/account.css');
     assert.equal(hit.headers.get('x-cache'), 'HIT');
     assert.equal(hit.headers.get('x-flag'), flagOf('cache-deception'));
-    assert.ok((await capturedSet(attacker)).includes('http:Cache Deception'));
+    assert.ok((await capturedSet(c)).includes('http:Cache Deception'));
+
+    // A different session never sees this session's primed cache at all.
+    const stranger = client(srv.base);
+    const miss = await stranger.get('/http/account.css');
+    assert.equal(miss.headers.get('x-cache'), 'MISS');
+    assert.equal(miss.headers.get('x-flag'), null, 'a primed cache from another session must not leak');
   });
 
   await t.test('scoreboard counts each captured challenge once', async () => {
-    await client(srv.base).get('/http/cache-purge');
     const a = client(srv.base);
-    const victim = client(srv.base);
+    await a.get('/http/cache-purge');
 
     await a.get('/http/track?ref=x%0d%0aforged by scoreboard test');
     await a.get('/http/admin/log');
     await a.get('/http/feedback?msg=scoreboard verb test');
-    await victim.get('/http/cache-login?user=alice');
-    await victim.get('/http/account.css');
+    // Per-session cache (P1-1): a primes as alice, then fetches as guest.
+    await a.get('/http/cache-login?user=alice');
+    await a.get('/http/account.css');
+    await a.get('/http/cache-logout');
     await a.get('/http/account.css');
 
     const got = (await capturedSet(a)).filter((s) => s.startsWith('http:')).sort();

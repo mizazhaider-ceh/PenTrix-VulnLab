@@ -38,7 +38,7 @@ module.exports = {
     tools: 'BZ, B',
     how: 'Proxy through /misconfig/robots.txt, note the disallowed archive, then fetch it via Repeater.',
     link: '/misconfig#robots',
-    start: 'In Burp: enable Proxy, browse to http://localhost:3000/misconfig/robots.txt, send the request to Repeater, then request the disallowed archive through the same path prefix.',
+    start: 'In Burp: enable Proxy, browse to /misconfig/robots.txt, send the request to Repeater, then request the disallowed archive through the same path prefix.',
   },
   router,
 };

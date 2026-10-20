@@ -22,7 +22,7 @@ function merge(target, source, blocked) {
       if ((typeof t === 'object' && t !== null) || typeof t === 'function') {
         merge(t, v, blocked);
       } else {
-        target[k] = {};
+        target[k] = Object.create(Object.getPrototypeOf(target));
         merge(target[k], v, blocked);
       }
     } else {
@@ -77,8 +77,11 @@ function rawQuery(req) {
   return q === -1 ? '' : u.slice(q + 1);
 }
 
-// The application's global config object that every merge writes into.
-const config = { app: 'pentrix-vulnlab' };
+// The application's config object that every merge writes into. Since the
+// P1-1 isolation pass it is one config per student session (see ../shared
+// for the wiring): the merge lesson is unchanged, but one student's
+// pollution no longer hands the admin flag to every later visitor.
+const { protoStateFor, freshUser } = require('../shared');
 
 const vuln = {
   id: 'proto-constructor',
@@ -97,7 +100,7 @@ router.get('/constructor', (req, res) => {
   const data = parseNested(rawQuery(req));
   // VULN: the blacklist only drops the literal string "__proto__", but the
   // prototype chain has another entrance: constructor.prototype.
-  merge(config, data, (k) => k.includes('__proto__'));
+  merge(protoStateFor(req).config, data, (k) => k.includes('__proto__'));
   res.send(page('Blacklist Bypass', `
     ${briefPanel('Config merge console', `
       <p>This console folds your query string into the application's global
@@ -132,7 +135,9 @@ router.get('/constructor', (req, res) => {
 
 // GET /proto/constructor/admin -> authorization check on a fresh object.
 router.get('/constructor/admin', (req, res) => {
-  const user = {}; // fresh object: no role is assigned anywhere in this handler
+  // Per-session admin check (P1-1): a fresh object inheriting this
+  // session's polluted prototype stand-in. No role is assigned here.
+  const user = freshUser(req);
   // VULN: the authorization check reads user.role, which prototype pollution can inject.
   if (user.role === 'admin') {
     const flag = award(req, 'proto', 'proto-constructor');

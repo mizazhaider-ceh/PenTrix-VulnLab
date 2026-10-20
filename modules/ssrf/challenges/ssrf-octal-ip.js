@@ -9,9 +9,10 @@ const { fetchBody, guardedFetch, rawHostBlock } = require('../shared');
 
 const router = express.Router();
 
-// GET /ssrf/octal-ip -> blocklisted fetcher. The check is a naive substring
-// test on the raw URL string; octal-encoded loopback normalizes to 127.0.0.1
-// in the URL parser, so it passes the check and still hits loopback.
+// GET /ssrf/octal-ip -> blocklisted fetcher.
+// VULN: the check is a naive substring test on the raw URL string;
+// octal-encoded loopback normalizes to 127.0.0.1 in the URL parser, so it
+// passes the check and still hits loopback.
 router.get('/octal-ip', (req, res) => guardedFetch(req, res, {
   title: 'SSRF Octal IP', vulnId: 'ssrf-octal-ip', check: rawHostBlock, fetch: fetchBody,
 }));

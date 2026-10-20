@@ -5,7 +5,8 @@
 // verify they landed.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { fixCta, brief, difficultyPill, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner } = require('../../lib/page');
+const { visibleEntries } = require('./shared');
+const { brief, difficultyPill, esc, hintLadder, page, toolsPill, trackBanner, easyFirst, cardConsoles, startBlock, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/formula-csv'),
@@ -36,26 +37,22 @@ if (db.prepare('SELECT COUNT(*) AS c FROM formula_entries').get().c === 0) {
 // GET /formula -> module index page: briefing, the shared add-contact form,
 // the CSV export link, the current contacts, and one card per challenge.
 router.get('/', (req, res) => {
-  const entries = db.prepare('SELECT name, note FROM formula_entries ORDER BY id DESC').all();
+  // Each session sees its own contacts plus the ownerless seed row (P1-1).
+  const entries = visibleEntries(req, 'id DESC');
   const rows = entries.map((e) => `
     <tr><td>${esc(e.name)}</td><td>${esc(e.note)}</td></tr>`).join('\n');
 
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('formula', ordered, { 'formula-csv': '/formula/export.csv' });
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3><a href="${esc(v.link)}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)}</h3>
+      <h3><a href="${esc(v.link)}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)} ${capturedPill(req, 'formula', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('formula', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('CSV Formula Injection', `
     ${brief('Module briefing', `
       <p><b>What is CSV formula injection?</b> Spreadsheet apps treat any cell
@@ -99,7 +96,7 @@ router.get('/', (req, res) => {
     hint ladder: level 1 nudges, level 2 teaches the technique, level 3 shows
     the payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('formula', challenges)}
 `));
 });
 

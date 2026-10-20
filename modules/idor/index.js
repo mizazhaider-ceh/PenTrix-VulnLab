@@ -2,7 +2,7 @@
 // Broken Access Control (IDOR): a small fictional store whose endpoints trust ids from the client.
 const express = require('express');
 const { getDb } = require('../../lib/db');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection , capturedPill } = require('../../lib/page');
 const { currentUser, deny } = require('./shared');
 
 const challenges = [
@@ -51,23 +51,18 @@ router.get('/', (req, res) => {
     'function-browse': '/idor/admin/users',
     'idor-comment-delete': '/idor/comments',
   };
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('idor', ordered, entry);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'idor', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="${esc(entry[v.id])}">Open the page</a></p>
       ${hintLadder(v)}
       ${toolsPill(v)}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('idor', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Broken Access Control', `
     ${brief('Broken Access Control (IDOR)', `
       PenShop is a tiny store with member profiles, invoices, account settings,
@@ -105,7 +100,7 @@ router.get('/', (req, res) => {
     <p>Seven access-control flaws hide in the pages above. Each challenge card has a hint
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the shape of the request.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('idor', challenges)}
 `));
 });
 

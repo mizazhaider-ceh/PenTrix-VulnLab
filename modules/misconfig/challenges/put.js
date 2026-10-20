@@ -55,17 +55,23 @@ function serveFile(name, req, res) {
   if (!base || !fs.existsSync(full) || !fs.statSync(full).isFile()) {
     return res.status(404).send(page('Not found', `<div class="card"><h2>404</h2><p>File <code>${esc(base)}</code> not found.</p></div>`));
   }
+  let banner = '';
   if (base === 'secret.txt') {
     // VULN (shared with the listing challenge): the listing exposed secret.txt
     // and it is served raw to anyone who requests it.
-    award(req, 'misconfig', 'listing');
+    const flag = award(req, 'misconfig', 'listing');
+    banner = `================================================================\nPenTrix VulnLab: FLAG CAPTURED for challenge "Directory Listing Leak".\nYour flag: ${flag}\n(It is also on your scoreboard. The file below is what leaked.)\n================================================================\n\n`;
   }
   if (uploadedFiles.has(base)) {
     // VULN: this file arrived via the unauthenticated PUT and is served back raw;
     // reading it back proves the arbitrary write succeeded.
-    award(req, 'misconfig', 'put');
+    const flag = award(req, 'misconfig', 'put');
+    banner = `================================================================\nPenTrix VulnLab: FLAG CAPTURED for challenge "Unauthenticated HTTP PUT".\nYour flag: ${flag}\n(It is also on your scoreboard. Your file content is below.)\n================================================================\n\n`;
   }
   res.type('text/plain');
+  if (banner) {
+    return res.send(banner + fs.readFileSync(full, 'utf8'));
+  }
   res.sendFile(full);
 }
 

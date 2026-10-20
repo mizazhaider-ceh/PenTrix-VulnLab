@@ -4,7 +4,7 @@
 // then beat a series of naive filters (words, underscores, brackets, dots,
 // single-strip braces, quotes) and finish by turning SSTI into real RCE.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/basic'),
@@ -22,30 +22,28 @@ const router = express.Router();
 
 // GET /ssti -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('ssti', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'ssti', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('ssti', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Server-Side Template Injection', `
     ${brief('Server-Side Template Injection', `
       <p>This greeting card renders your name through a <strong>homemade template engine</strong>:
       it takes the string <code>Hello &lt;your name&gt;!</code> and evaluates anything inside
       <code>{{ }}</code> as code.</p>
       <p><strong>Escalation path:</strong> first prove evaluation works with <code>{{7*7}}</code>
-      (you should see <strong>49</strong> in the greeting), then look for variables in scope and
-      try <code>{{secretFlag}}</code>. The later labs add naive filters you must bypass, and the
+      (you should see <strong>49</strong> in the greeting), then probe the template scope:
+      the expression runs with server-side variables in scope, so try reading candidate
+      variable names (what would a developer call a variable that holds a flag?) until one
+      renders a value. The later labs add naive filters you must bypass, and the
       final lab turns the template engine into a real shell.</p>`)}
     ${trackBanner(module.exports)}
 
@@ -54,7 +52,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('ssti', challenges)}
 `));
 });
 

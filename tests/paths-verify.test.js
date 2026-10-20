@@ -31,9 +31,11 @@ const PATH_URL = `/paths/${PATH_ID}`;
 const q = encodeURIComponent;
 
 // ---------------------------------------------------------------------------
-// Browser simulation for the two XSS steps (same approach as tests/xss.test.js:
-// fetch the page, run its live inline scripts and the injected payload in a vm
-// sandbox with a stubbed DOM, then deliver the beacon the script produced).
+// Browser simulation for the reflected XSS step (same approach as
+// tests/xss.test.js: fetch the page, run its live inline scripts and the
+// injected payload in a vm sandbox with a stubbed DOM, then deliver the beacon
+// the script produced). The stored XSS step uses the victim-bound flow instead
+// (plant the payload, drive GET /xss/victim-visit), as tests/xss.test.js does.
 // ---------------------------------------------------------------------------
 const TAG_RE = /<(\/?)([a-zA-Z][^\s/>]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
 
@@ -155,10 +157,11 @@ async function capturePathSteps(c) {
     assert.equal((hit.text.match(FLAG_RE) || []).length, 1, 'reading another member profile should award');
   }
 
-  // 4. csrf/email: the forged state-changing GET, no token involved.
+  // 4. csrf/email: the forged state-changing GET, no token involved. The
+  // foreign Referer is the cross-site evidence; a bare self GET earns nothing.
   {
     await c.get('/csrf/login/alice');
-    const hit = await c.get('/csrf/change-email?email=pwned%40evil.com');
+    const hit = await c.get('/csrf/change-email?email=pwned%40evil.com', { referer: 'https://evil.example/cat-pictures' });
     assert.equal(hit.status, 200);
     assert.equal((hit.text.match(FLAG_RE) || []).length, 1, 'forged email change should award');
   }
@@ -203,16 +206,18 @@ async function capturePathSteps(c) {
     assert.equal((hit.text.match(FLAG_RE) || []).length, 1, 'submitting the enumerated username should award');
   }
 
-  // 10. xss/stored: plant the script in the guestbook, visit as another page load.
+  // 10. xss/stored: plant the script in the guestbook, then drive the
+  // victim-visit flow. Stored XSS is victim-bound: a beacon fired from the
+  // attacker own session is rejected by /xss/collect, and the award flows
+  // only when the simulated victim loads the guestbook (the same flow
+  // tests/xss.test.js uses for its stored exploit).
   {
-    await c.post('/xss/guestbook', { author: 'mallory', body: `<script>${beaconJs('stored')}</script>` });
-    const page = await c.get('/xss/guestbook');
-    assert.equal(page.status, 200);
-    const b = makeBrowser(c.cookie());
-    b.runPage(page.text);
-    assert.deepEqual(b.errors, []);
-    const r = await deliver(c, b);
-    assert.ok(r && r.status === 200, 'stored XSS beacon must be accepted');
+    const post = await c.post('/xss/guestbook', { author: 'mallory', body: `<script>${beaconJs('stored')}</script>` });
+    assert.equal(post.status, 302, 'planting the stored payload must redirect back to the guestbook');
+    const visit = await c.get('/xss/victim-visit');
+    assert.equal(visit.status, 200, 'victim visit must succeed');
+    assert.ok(visit && visit.status === 200, 'stored XSS victim visit must be accepted');
+    assert.equal((visit.text.match(FLAG_RE) || []).length, 1, 'victim visit should award exactly one flag');
   }
 
   const got = await capturedSet(c);

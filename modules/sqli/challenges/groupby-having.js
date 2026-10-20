@@ -5,7 +5,7 @@ const express = require('express');
 const { getDb } = require('../../../lib/db');
 const { page, esc, brief, flagBox, fixPanel, fixCta } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { adminSecret, shopShell } = require('../shared');
+const { challengeTarget, shopShell, stripSqlNoise, withChallengeTarget } = require('../shared');
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ router.get('/stats', (req, res) => {
   let rows = [];
   let error = null;
   try {
-    rows = db.prepare(sql).all();
+    rows = withChallengeTarget('groupby-having', () => db.prepare(sql).all());
   } catch (e) {
     error = e.message;
   }
@@ -45,9 +45,15 @@ router.get('/stats', (req, res) => {
         <tbody>${table}</tbody>
       </table></div>`;
   let flagHtml = '';
-  const secret = adminSecret();
-  // The injected GROUP BY expression genuinely returned the admin secret.
-  if (!error && secret && rows.some((r) => String(r.grp).includes(secret))) {
+  // P0-8: the injected GROUP BY expression genuinely returned THIS
+  // challenge's own derived target. The noise-stripped expression must
+  // invoke sqli_target(): a quoted literal of a secret obtained elsewhere
+  // (e.g. the admin secret dumped via UNION) can never match the derived
+  // value, and smuggling the function name inside a string literal or a
+  // comment does not count as calling it.
+  const target = challengeTarget('groupby-having');
+  const probe = stripSqlNoise(by);
+  if (!error && target && /sqli_target\s*\(/i.test(probe) && rows.some((r) => String(r.grp).includes(target))) {
     flagHtml = flagBox(award(req, 'sqli', 'groupby-having'));
     flagHtml += fixPanel('sqli', 'groupby-having');
     flagHtml += fixCta('sqli', 'groupby-having');
@@ -60,10 +66,10 @@ module.exports = {
     id: 'groupby-having',
     name: 'GROUP BY Injection',
     difficulty: 'Medium',
-    hint: 'The stats page groups sales by an expression you control and prints the grouping key back. GROUP BY accepts any expression, including a subquery.',
-    hints: ["Load /sqli/stats through Burp Proxy, submit the form, and send the request to Repeater. The page groups sales and prints the grouping key. You control the GROUP BY expression. What can an expression be?", "In Repeater, change by to an expression the query was never meant to group by. GROUP BY accepts full SQL expressions, including a subquery against another table. The first column echoes the group key back, so an expression that returns data leaks it through the echo.", "Aim the GROUP BY expression at the users table so the admin secret itself becomes the group label, then read it straight from the stats output. One request is enough, no guessing loop needed."],
+    hint: 'The stats page groups sales by an expression you control and prints the grouping key back. GROUP BY accepts any expression, including a subquery. Aim one at sqli_target(), this challenge\'s own secret.',
+    hints: ["Load /sqli/stats through Burp Proxy, submit the form, and send the request to Repeater. The page groups sales and prints the grouping key. You control the GROUP BY expression. What can an expression be?", "In Repeater, change by to an expression the query was never meant to group by. GROUP BY accepts full SQL expressions, including a subquery. This challenge's secret is exposed to your SQL as sqli_target(): an expression that returns it leaks it through the echo.", "Aim the GROUP BY expression at sqli_target() so this challenge's secret itself becomes the group label, then read it straight from the stats output. One request is enough, no guessing loop needed. A quoted literal of a secret found elsewhere will not match."],
     tools: "BZ, B, C",
-    how: 'In Burp Repeater, point the GROUP BY expression at the users table so the admin secret comes back as the grouping key in the stats output.',
+    how: 'In Burp Repeater, point the GROUP BY expression at sqli_target() so this challenge\'s own secret comes back as the grouping key in the stats output.',
     link: '/sqli/stats',
     start: "Burp Proxy on: open /sqli/stats in the browser, submit the group form once, then send the GET request to Repeater and confirm by works with region and product.",
   },

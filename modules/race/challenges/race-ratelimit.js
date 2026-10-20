@@ -18,16 +18,17 @@ const vuln = {
   difficulty: 'Medium',
   path: 'ratelimit',
   hint: 'The limiter allows 5 requests, but it counts each request only after an async gap. A parallel burst all reads "0 used" at once.',
-  hints: ["Send one POST /race/ratelimit/hit to Burp Repeater and replay it: the counter goes up by exactly one each time.", "Forward that request to Intruder and set the attack to send many concurrent requests in parallel mode.", "A burst of 20 parallel requests all reads the counter before it increments. An accepted count above 5 proves the bypass."],
+  hints: ["Send one POST /race/ratelimit/hit to Burp Repeater and replay it: the counter goes up by exactly one each time.", "Now make Repeater fire many at once: duplicate the request tab 20 times, select all the tabs, and right-click to choose Send group in parallel. Community Intruder is throttled, so its spaced-out requests would just hit the limit one by one.", "A burst of 20 parallel requests all reads the counter before it increments. An accepted count above 5 proves the bypass."],
   tools: 'BZ, P, C',
-  how: 'Send a burst of 20 parallel POST requests to /race/ratelimit/hit inside one window. If more than 5 are accepted, the counter race is proven. In Burp this is one Intruder parallel-mode attack.',
+  est: 'about 10 minutes',
+  how: 'Send a burst of 20 parallel POST requests to /race/ratelimit/hit inside one window, using the Repeater Send group in parallel feature. If more than 5 are accepted, the counter race is proven.',
   link: '/race#race-ratelimit',
-  start: 'Proxy the Rate-limited API page in Burp, send one POST /race/ratelimit/hit to Intruder, and run a single parallel-mode attack of 20 concurrent requests. Watch the accepted count climb past 5.',
+  start: 'Proxy the Rate-limited API page in Burp, send one POST /race/ratelimit/hit to Repeater, duplicate the tab 20 times, then Send group in parallel. Watch the accepted count climb past 5.',
 };
 
 // GET /race/ratelimit -> the API console showing the current window count.
 router.get('/ratelimit', (req, res) => {
-  const R = raceState();
+  const R = raceState(req);
   res.send(page('Rate-limited API', `
     ${brief('The scenario', `
       <p>The <b>Metrics API</b> at this company is protected by a rate limiter:
@@ -39,7 +40,8 @@ router.get('/ratelimit', (req, res) => {
       same instant do not.</p>`)}
     <section class="clay-card">
       <h2>API endpoint (limit: 5 requests)</h2>
-      <p>Requests counted in this window: <b>${R.ratelimit.count}</b></p>
+      <p>Accepted in this window: <b>${R.ratelimit.count}</b> · Rejected in this window: <b>${R.ratelimit.rejected || 0}</b></p>
+      <p class="dim">Reload this page after a burst to check the result here: an accepted count above 5 proves the burst beat the limiter.</p>
       <form method="POST" action="/race/ratelimit/hit">
         <button class="clay-btn clay-btn-primary" type="submit">Send one request</button>
       </form>
@@ -48,9 +50,9 @@ router.get('/ratelimit', (req, res) => {
       <h3>Break it</h3>
       <p>Click once and you are counted. Send 20 at the exact same instant and
       the counter cannot keep up: Proxy this page in Burp, send
-      <code>POST /race/ratelimit/hit</code> to Intruder, and run one
-      parallel-mode attack with 20 concurrent requests. Watch the accepted
-      count climb past 5.</p>
+      <code>POST /race/ratelimit/hit</code> to Repeater, duplicate the tab 20
+      times, select the group, and choose Send group in parallel. Watch the
+      accepted count climb past 5.</p>
     </section>
     ${hintLadder(vuln)}
     ${backLink}
@@ -59,14 +61,16 @@ router.get('/ratelimit', (req, res) => {
 
 // POST /race/ratelimit/hit -> one counted request against the limiter.
 router.post('/ratelimit/hit', async (req, res) => {
-  const R = raceState();
+  const R = raceState(req);
   // VULN: the "under the limit?" check runs, then an await, and only then is
   // the counter incremented; a parallel burst all reads the old counter value.
   if (R.ratelimit.count >= 5) {
+    R.ratelimit.rejected = (R.ratelimit.rejected || 0) + 1;
     return res.status(429).send(page('Rate limited', `
       <section class="clay-card">
         <h2>429: too many requests</h2>
         <p>The limit of 5 requests was reached.</p>
+        <p>Accepted in this window: <b>${R.ratelimit.count}</b> · Rejected in this window: <b>${R.ratelimit.rejected}</b></p>
       </section>
       ${backLink}
     `));
@@ -82,6 +86,7 @@ router.post('/ratelimit/hit', async (req, res) => {
   res.send(page('API response', `
     <section class="clay-card">
       <h2>200: request allowed (#${R.ratelimit.count})</h2>
+      <p>Accepted in this window: <b>${R.ratelimit.count}</b> · Rejected in this window: <b>${R.ratelimit.rejected || 0}</b></p>
       ${R.ratelimit.count > 5 ? '<p><b>More than 5 requests were allowed in one window.</b> The burst beat the counter.</p>' : ''}
       ${flagHtml}
     </section>

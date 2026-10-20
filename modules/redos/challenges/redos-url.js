@@ -14,6 +14,8 @@ const router = express.Router();
 // VULN (verbatim from router.js): nested quantifiers in the path group
 // ([\/\w .-]*)* mean repeated segments with a final mismatch explode the
 // backtracking.
+// VULN: the URL path group nests a quantifier inside a quantifier, so a
+// crafted path makes the match take exponentially longer (ReDoS).
 const URL_RE = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
 
 const vuln = {

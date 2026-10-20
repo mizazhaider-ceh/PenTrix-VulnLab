@@ -4,6 +4,7 @@ const express = require('express');
 const { page, esc, brief, flagBox, fixPanel, hintLadder, errorPage } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { getDb } = require('../../../lib/db');
+const { setPasswordOverride } = require('../../../lib/account-state');
 const shared = require('../shared');
 
 const router = express.Router();
@@ -21,7 +22,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Read alice\'s public bio for the maiden name, then answer the security question at /auth/question-reset to reset her password. Proxy and Repeater carry the whole chain.',
   link: '/auth/question-reset',
-  start: 'With Burp Proxy on your browser, open http://localhost:3000/auth/question-reset and read alice\'s public bio at http://localhost:3000/auth/bio/alice.',
+  start: 'With Burp Proxy on your browser, open /auth/question-reset and read alice\'s public bio at /auth/bio/alice.',
 };
 
 const MAIDEN_NAMES = { alice: 'Smith', bob: 'Jones', admin: 'Blackwood' };
@@ -112,7 +113,9 @@ router.post('/question-reset', (req, res) => {
     );
   }
 
-  getDb().prepare('UPDATE users SET password = ? WHERE username = ?').run(newPassword, u.username);
+  // Multi-student isolation (P1-1): the new password lives in this session
+  // only; the shared users table keeps the seeded value.
+  setPasswordOverride(req, u.username, newPassword);
   const extra = flagBox(award(req, 'auth', 'security-question')) + fixPanel('auth', 'security-question');
   res.send(
     page(

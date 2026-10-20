@@ -113,6 +113,13 @@ test('hostheader module', async (t) => {
     const hit = await c.get('/hostheader/app');
     assert.ok(hit.text.includes('http://evil.com/hostheader/forgot'), 'the cache still serves the poisoned page');
     assert.ok(hit.text.includes(flagOf('host-cache-poison')), 'a normal host seeing the poisoned cache entry must award');
+
+    // P1-1: the poison lives in the poisoning session's cache only. A fresh
+    // session is served a clean page and earns nothing from it.
+    const stranger = client(srv.base);
+    const fresh = await stranger.get('/hostheader/app');
+    assert.ok(!fresh.text.includes('http://evil.com/hostheader/forgot'), 'another session must not be served this session\'s poison');
+    assert.ok(!fresh.text.includes(flagOf('host-cache-poison')), 'a fresh visitor must not earn the flag from someone else\'s poison');
   });
 
   await t.test('host-ssrf: pointing the server fetch at the loopback agent earns the flag', async () => {
@@ -120,12 +127,35 @@ test('hostheader module', async (t) => {
     const benign = await c.get('/hostheader/status');
     assert.equal(benign.status, 200);
     assert.ok(!benign.text.includes(flagOf('host-ssrf')), 'fetching the public metrics must not award');
-
-    const agent = spoofed(c, srv.base, '127.0.0.1:13919');
+    // The internal agent takes a per-instance loopback port; the page names it.
+    const m = benign.text.match(/127\.0\.0\.1:(\d+)<\/code> \(loopback only\)/);
+    assert.ok(m, 'the status page must name the internal agent address');
+    const agent = spoofed(c, srv.base, '127.0.0.1:' + m[1]);
     const hit = await agent.get('/hostheader/status');
     assert.ok(hit.text.includes('ak-internal-'), 'the server reached the internal agent');
     assert.ok(hit.text.includes(flagOf('host-ssrf')), 'exfiltrating the internal agent secrets must award');
     assert.ok((await capturedSet(c)).includes('hostheader:SSRF via Host Header'));
+  });
+
+  await t.test('host-ssrf: a stand-in server returning the marker text earns nothing', async () => {
+    // The cheat: point the Host at the student's own server that parrots the
+    // internal marker text. The body matches, but the response carries no
+    // internal-agent seal, so the award must not fire.
+    const { freePort } = require('./helpers');
+    const standin = http.createServer((req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ service: 'fake', admin_api_key: 'ak-internal-7f3a9c2e' }));
+    });
+    const port = await freePort();
+    await new Promise((resolve) => standin.listen(port, '127.0.0.1', resolve));
+    t.after(() => new Promise((resolve) => standin.close(resolve)));
+    const c = client(srv.base);
+    const evil = spoofed(c, srv.base, '127.0.0.1:' + port);
+    const hit = await evil.get('/hostheader/status');
+    assert.equal(hit.status, 200);
+    assert.ok(hit.text.includes('ak-internal-'), 'the stand-in body was fetched');
+    assert.ok(!hit.text.includes(flagOf('host-ssrf')), 'marker text alone must not award');
+    assert.ok(!(await capturedSet(c)).includes('hostheader:SSRF via Host Header'));
   });
 
   await t.test('host-xforwarded: poisoned X-Forwarded-Host or X-Host-Override earns the flag, unpoisoned does not', async () => {
@@ -175,7 +205,8 @@ test('hostheader module', async (t) => {
     await evil.get('/hostheader/app');
     await c.get('/hostheader/app');
 
-    await spoofed(c, srv.base, '127.0.0.1:13919').get('/hostheader/status');
+    const agentPort = (await c.get('/hostheader/status')).text.match(/127\.0\.0\.1:(\d+)<\/code> \(loopback only\)/)[1];
+    await spoofed(c, srv.base, '127.0.0.1:' + agentPort).get('/hostheader/status');
     await evil.post('/hostheader/login', { username: 'alice', password: 'alice123' });
 
     const got = (await capturedSet(c)).filter((s) => s.startsWith('hostheader:')).sort();

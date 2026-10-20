@@ -27,7 +27,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Buy the $50 hoodie, then submit the refund form with an amount larger than $50 by changing the hidden amount field before sending.',
   link: '/bizlogic#biz-refund',
-  start: 'Start Burp Proxy and open http://localhost:3000/bizlogic/refund in your proxied browser. Buy the hoodie, then send the refund POST to Repeater and replay it with a larger amount.',
+  start: 'Start Burp Proxy and open /bizlogic/refund in your proxied browser. Buy the hoodie, then send the refund POST to Repeater and replay it with a larger amount.',
 };
 
 const cardTop = (label) => `
@@ -58,7 +58,7 @@ router.get('/refund', (req, res) => {
       <div class="tbl-scroll"><table class="tbl"><tr><th>Order</th><th>Items</th><th>Paid</th><th></th></tr>${orderRows}</table></div>
       <p class="note">View the page source: the refund amount is a hidden field. Try it in Burp Repeater: click a Refund button with Proxy intercepting, send the request to Repeater with Ctrl+R, change <code>amount</code>, and send.</p>
       <div class="payload"><div class="payload-head"><span>Burp Repeater</span></div><pre class="payload-body">POST /bizlogic/refund HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 22
 

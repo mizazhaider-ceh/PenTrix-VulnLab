@@ -188,3 +188,35 @@ install at first boot on the student's own machine, no flag literal exists
 in any tracked file, and only genuine exploits earn flags. This extends FLAG
 SECRECY: even naming the storage mechanism is a spoiler, because it tells
 people to go dig in the database instead of hacking the challenges.
+
+## D19. Student-review improvement wave: evidence-gated awards, per-session state, guest-realm sandboxes (2026-10-20)
+
+Decision (2026-10-20): the findings of the 6-expert audit and the 50-student
+review wave (docs/roadmap/STUDENT_REVIEW_BACKLOG.md) were implemented in one
+wave, verified by a 12-student retest (52/52 fixed and fair) and an
+independent supervision gate (docs/audit/RETEST_REPORT.md,
+docs/audit/SUPERVISION_REPORT.md). Standing rules adopted from that wave:
+
+1. **Evidence-gated awards.** No flag may be awarded for a marker string,
+   a scraped token, a file's mere presence, or a request's mere shape.
+   Every award must verify evidence that only the genuine exploit produces
+   (entity resolution, cross-site evidence, per-challenge derived targets,
+   execution proofs against the stored artifact, per-boot seals, one-time
+   proofs). Adversarial negative tests (the old cheat, attempted verbatim)
+   are required coverage for every award change.
+2. **Per-session state by default.** Challenge state that a student can
+   mutate (race state, pollution state, roles, credentials, caches,
+   exports) is scoped to the session. One student's actions must never
+   change another student's lab. Process-global state is reserved for
+   mechanics that are intentionally shared, and must be documented as such.
+3. **Guest-realm sandboxes.** Any code that executes attacker-controlled
+   scripts or templates in a Node `vm` context (the simulated-victim
+   runners, the fix-mode runner) must build every helper inside the guest
+   context from guest-realm intrinsics, exactly like lib/fix-worker.js.
+   No host-realm object, function, or class may be reachable from guest
+   code. This is a hard security boundary: the lab itself must not be
+   exploitable through its own simulation machinery.
+4. **Honest tooling claims.** Guidance may only promise what Burp Suite
+   Community can actually do (D17); brute-force spaces must be walkable in
+   minutes with Community Intruder, and claimed timings must be measured,
+   not asserted.

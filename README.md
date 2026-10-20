@@ -41,7 +41,7 @@ I built it for students like me: people who learn by doing, late at night, with 
 
 ```bash
 docker compose up --build
-# open http://localhost:3000
+# open the URL the app prints on boot (default: localhost port 3000)
 ```
 
 The compose file binds to `127.0.0.1` only, ships a healthcheck, drops Linux capabilities, and caps CPU and memory. App data persists in `./data` (gitignored).
@@ -179,39 +179,39 @@ Lockout is per stage, so leave and come back freely: captured stages stay captur
 
 ## The lab catalog
 
-201 intentionally vulnerable challenges across 29 modules:
+201 intentionally vulnerable challenges across 29 modules. (This table is generated from the challenge `name` fields in the module code; `tests/drift.test.js` fails if it ever drifts from them.)
 
 | Module | Highlights |
 |--------|------------|
-| **xss** – Cross-Site Scripting (9) | Reflected · Stored (guestbook, profile bio, SVG upload) · DOM XSS · Attribute and JS-string breakouts · DOM clobbering · Naive Markdown links |
-| **sqli** – SQL Injection (11) | Auth bypass · UNION injection · Blind boolean · Error-based · ORDER BY · Second-order · LIKE wildcards · LIMIT/OFFSET · INSERT injection |
-| **auth** – Broken Authentication (8) | No rate limiting · JWT `alg=none` · Predictable reset tokens · Username enumeration · Remember-me tampering · OTP brute force · API key in HTML comment |
-| **idor** – Broken Access Control (7) | Profile and order IDOR · Invoice download · Cart and address IDOR · API key regeneration · Forced browsing · Comment deletion |
-| **ssrf** – Server-Side Request Forgery (9) | Basic SSRF · Blocklist bypasses (decimal, hex, octal, integer IP, userinfo) · Open-redirect chain · Cloud metadata · `file://` |
-| **upload** – File Upload (8) | Stored XSS via SVG/HTML · Extension blacklist bypasses (double ext, case, strip-once) · MIME spoofing · Path traversal · Polyglot |
-| **cmdi** – Command Injection (9) | Unfiltered ping gadget · Blacklist-bypass series (`$IFS`, `${IFS}`, newline, backticks, glob wildcards, tab, pipe) |
-| **xxe** – XXE Injection (8) | File read · SSRF via XXE · Billion laughs · External DTD exfiltration · XXE in SVG/SOAP · XInclude · Parameter-entity OOB |
-| **ssti** – Server-Side Template Injection (9) | Basic `{{7*7}}` · Filter-bypass series (words, underscores, brackets, dots, braces, quotes) · SSTI to RCE |
-| **lfi** – Path Traversal / LFI (9) | Basic traversal · Filter bypasses (nested, double-encoded) · Absolute paths · Log poisoning · `/proc/self/environ` · Config read |
-| **csrf** – CSRF & Open Redirect (5) | State-changing GETs · Login CSRF · JSON CSRF via `text/plain` · Referer/Content-Type bypasses · Method override · 2FA disable via GET |
-| **api** – API Security Flaws (5) | Mass assignment · Excessive data exposure · BOLA · Rate-limit bypass via `X-Forwarded-For` · Version bypass · ID enumeration |
-| **misconfig** – Security Misconfiguration (10) | Verbose errors · Exposed `.git`/`.env`/backup/swap files · Directory listing · HTTP TRACE · Debug param · Default creds · HTTP PUT |
-| **jwt** – JWT Attacks (8) | `alg=none` · Weak HMAC secret · `kid` SQL injection · Untrusted `jku` · RS256/HS256 confusion · Missing expiry/audience checks |
-| **session** – Session Management (6) | Fixation · Logout without destruction · Predictable IDs · Session ID in URL · Never-expiring sessions · IDs in debug logs |
-| **race** – Race Conditions (8) | Double coupon redeem · Double-spend · Double vote/registration · AV-scan TOCTOU · Rate-limit burst · Stock oversell |
-| **bizlogic** – Business Logic Flaws (8) | Negative quantity · Price tampering · Coupon stacking · Client-side OTP · Workflow skipping · Currency confusion · Refund tampering |
-| **redirect** – Open Redirect (5) | Protocol-relative `//evil.com` · `javascript:`/`data:` schemes · Backslash bypass · OAuth code theft · Parameter pollution |
-| **hostheader** – Host Header Injection (5) | Reset-link poisoning · Cache poisoning · SSRF via Host · `X-Forwarded-Host`/`X-Host-Override` trust |
-| **cors** – CORS Misconfiguration (6) | Reflected origin with credentials · `null` origin · Regex bypass · Wildcard on sensitive data · Exposed headers |
-| **proto** – Prototype Pollution (6) | Query-string pollution · JSON body pollution · `constructor` bypass · `toString` DoS · Unicode-escape bypass |
-| **crypto** – Cryptographic Failures (8) | Predictable PIN · ECB decryption oracle · CBC bit-flipping · Hash length extension · MD5 cracking · XOR crib dragging |
-| **oauth** – OAuth Flaws (8) | Redirect-URI bypass · Code leakage · Missing `state` (login CSRF) · Implicit flow · Scope tampering · Code replay · PKCE skip |
-| **postmsg** – postMessage Flaws (5) | Missing origin check · Wildcard `targetOrigin` leak · Unsanitized data to HTML · Substring origin bypass · Forged actions |
-| **csti** – Client-Side Template Injection (5) | Basic `{{7*7}}` evaluation · Delimiter filter bypass · Constructor breakout · Attribute context · Stored template |
-| **http** – HTTP Layer Flaws (3) | CRLF log injection · Method override · Verb tampering · `X-Forwarded-For` trust · Cache deception · Referer auth |
-| **jsonp** – JSONP Injection (5) | Callback XSS · JSONP data theft · Callback filter bypass · Array-constructor hijack · MIME sniffing |
-| **formula** – CSV Formula Injection (4) | Classic `=cmd` · DDE execution · `HYPERLINK` exfiltration · Pipe prefix |
-| **redos** – ReDoS (4) | Catastrophic email/URL regexes · Nested-quantifier username · Regex-injection search |
+| **xss** – Cross-Site Scripting (9) | Reflected XSS · Stored XSS · DOM-based XSS · XSS via Attribute Breakout · XSS in a JavaScript String · Stored XSS via SVG Upload · XSS via Naive Markdown Links · DOM Clobbering to Admin · XSS in a Template Literal |
+| **sqli** – SQL Injection (11) | Login Bypass · UNION-based Injection · Boolean Blind Injection · Error-based Injection · ORDER BY Injection · Second-Order SQL Injection · LIKE Wildcard Exfiltration · LIMIT/OFFSET Injection · GROUP BY Injection · UNION Filter Bypass · INSERT Injection |
+| **auth** – Broken Authentication (8) | No Rate Limiting (Brute-Force Login) · Predictable Password Reset Tokens · Username Enumeration · Brute-Forcing a 4-Digit OTP · SHA-256 Predictable Reset Token · Guessable Security Question · Password Change Without Current Password · Support Ticket Impersonation |
+| **idor** – Broken Access Control (7) | Profile IDOR · Unprotected Admin Panel · Invoice Download IDOR · Email Change IDOR · API Key Regeneration IDOR · Forced Browsing to Admin Function · Comment Deletion IDOR |
+| **ssrf** – Server-Side Request Forgery (9) | Basic SSRF · Blocklist bypass · Open-redirect SSRF · Userinfo bypass · Hex IP bypass · Octal IP bypass · 0.0.0.0 bypass · Cloud metadata SSRF · file:// scheme SSRF |
+| **upload** – Unrestricted File Upload (8) | Stored XSS via file upload · Extension blacklist bypass · Case-sensitive blacklist bypass · Content-Type header spoofing · Path traversal on write · Strip-once filter bypass · Avatar overwrite · GIF/HTML polyglot |
+| **cmdi** – Command Injection (9) | Ping Gadget (no filtering) · Ping Gadget v2 (weak blacklist) · Ping Gadget v3 (spaces stripped) · Ping Gadget v4 ($IFS blocked too) · Ping Gadget v5 (separators blocked) · Ping Gadget v6 ($() blocked) · Ping Gadget v7 (cat and / blocked) · Ping Gadget v8 (; blocked) · Ping Gadget v9 (spaces blocked, again) |
+| **xxe** – XXE Injection (8) | XXE File Read · SSRF via XXE · Billion Laughs (Entity-Expansion DoS) · External DTD Exfiltration · XXE in Uploaded SVG · XInclude File Inclusion · Parameter-Entity OOB Exfiltration · XXE in SOAP Endpoint |
+| **ssti** – Server-Side Template Injection (9) | Basic Template Injection · Scope Leak (Data Exposure, Not RCE) · Word Blacklist Bypass · Underscore Blacklist Bypass · Bracket Blacklist Bypass · Dot Blacklist Bypass · Curly-Brace Strip Bypass · Quote Blacklist Bypass · SSTI to Remote Code Execution |
+| **lfi** – Path Traversal / LFI (9) | Basic Path Traversal · Naive Filter Bypass · Absolute Path Read · Encoding Bypass · Deep Nesting Bypass · Language Parameter Traversal · Log Poisoning Chain · Process Environ Leak · Secret Config Read |
+| **csrf** – CSRF & Clickjacking (5) | Change Email with No CSRF Token (state-changing GET) · Clickjacking (missing X-Frame-Options) · JSON API CSRF via text/plain (simple request) · Weak Referer Check Bypass · HTTP Method Override Smuggling (_method=DELETE) |
+| **api** – API Security Flaws (5) | Mass Assignment · Excessive Data Exposure · Missing Rate Limiting · Rate Limit Bypass via X-Forwarded-For · API Version AuthZ Bypass |
+| **misconfig** – Security Misconfiguration (10) | Verbose Debug Errors · Exposed Database Backup · Directory Listing Leak · Exposed .git Directory · Vim Swap File Leak · HTTP TRACE Enabled (XST) · Exposed .env File · Default Credentials · Robots.txt Disclosure · Unauthenticated HTTP PUT |
+| **jwt** – JWT Attacks (8) | alg=none Accepted · Weak HMAC Secret · SQL Injection in kid Lookup · Untrusted jku Key Server · RS256 / HS256 Algorithm Confusion · Expiry Never Checked · Audience Not Validated · Default Key for Missing kid |
+| **session** – Session Management (6) | Session Fixation · Logout Does Not Destroy the Session · Predictable Session IDs · Session ID in the URL · Sessions Never Expire · Session ID in Debug Log |
+| **race** – Race Conditions (8) | Single-Use Coupon Redeemed Twice · Double-Spend the Balance · Vote Counted Twice · Referral Bonus Claimed Twice · Duplicate Username Registration · Beat the AV Scan (TOCTOU) · Burst Through the Rate Limit · Oversell the Stock |
+| **bizlogic** – Business Logic Flaws (8) | Negative Quantity Credit · Client-Side Price Tampering · Coupon Stacking Past 100% · OTP Verified by JavaScript · Checkout Step Skipped · Currency Confusion · Email Change Without Re-Authentication · Tampered Refund Amount |
+| **redirect** – Open Redirect (5) | Protocol-Relative Redirect · javascript: Scheme Honored · data: Scheme Honored · Backslash Allowlist Bypass · Parameter Pollution Picks Last |
+| **hostheader** – Host Header Injection (5) | Password Reset Poisoning · Cache Poisoning via Host · SSRF via Host Header · Forwarded-Host Header Poisoning · Absolute Continue URL |
+| **cors** – CORS Misconfiguration (6) | Reflected Origin with Credentials · Null Origin Trusted · Regex Allowlist Bypass · Wildcard on Sensitive Data · Subdomain Suffix Check · Exposed Admin Token Header |
+| **proto** – Prototype Pollution (6) | Query-String Pollution · JSON Body Pollution · Blacklist Bypass via constructor · Polluting toString · Client-Side Pollution · Unicode Escape Bypass |
+| **crypto** – Cryptographic Failures (8) | Predictable Reset PIN · ECB Decryption Oracle · CBC Bit-Flipping · Hash Length Extension · Crack the MD5 · Base64 "Encryption" · XOR Crib Dragging · Key in JavaScript |
+| **oauth** – OAuth Flaws (8) | Redirect URI Prefix Bypass · Authorization Code Leaked in Server Log · Login CSRF (Missing state Parameter) · Implicit Flow Token in URL Fragment · Scope Tampering · Client Secret in Public JavaScript · Authorization Code Replay · PKCE Downgrade |
+| **postmsg** – postMessage Flaws (5) | No Origin Check on Message Handler · Secret Leaked via Wildcard targetOrigin · Unsanitized Message Data Rendered as HTML · Substring Origin Check Bypass · Privileged Action via Forged Message |
+| **csti** – Client-Side Template Injection (5) | Basic Template Evaluation · Filter Bypass via Alternative Delimiter · Constructor Breakout to Code Execution · CSTI Inside an HTML Attribute · Stored Template in Profile Name |
+| **http** – HTTP Layer Flaws (3) | CRLF Log Injection · Verb Tampering · Cache Deception |
+| **jsonp** – JSONP Injection (5) | Callback XSS · JSONP Data Theft · Callback Filter Bypass · Array Constructor Hijack · JSONP MIME Sniffing |
+| **formula** – CSV Formula Injection (4) | Classic Formula Injection · DDE Command Execution · HYPERLINK Exfiltration · Pipe Prefix (LibreOffice) |
+| **redos** – ReDoS (4) | Catastrophic Email Regex · Nested Quantifier Username · Catastrophic URL Regex · Regex Injection Search |
 
 ## What we built
 

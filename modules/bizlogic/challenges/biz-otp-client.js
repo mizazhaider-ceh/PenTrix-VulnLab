@@ -58,7 +58,7 @@ router.get('/otp', (req, res) => {
       with Proxy intercepting, send the request to Repeater with Ctrl+R, flip
       <code>otp_ok</code> to <code>1</code>, and send.</p>
       <div class="payload"><div class="payload-head"><span>Burp Repeater</span></div><pre class="payload-body">POST /bizlogic/otp/verify HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 19
 

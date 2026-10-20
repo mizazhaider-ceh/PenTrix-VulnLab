@@ -100,17 +100,22 @@ test('cors module', async (t) => {
     assert.ok((await capturedSet(c)).includes('cors:Wildcard on Sensitive Data'));
   });
 
-  await t.test('cors-subdomain: suffix check accepts evil.trusted.pentrix.lab, plain subdomains do not award', async () => {
+  await t.test('cors-subdomain: suffix check accepts any invented subdomain label, unrelated hosts and the bare domain do not award', async () => {
     const c = client(srv.base);
     const other = await c.get('/cors/api/partner', { origin: 'https://evil.com' });
     assert.equal(other.headers.get('access-control-allow-origin'), null);
-    const neg = await c.get(prove('cors-subdomain', 'https://shop.trusted.pentrix.lab'));
-    assert.ok(!neg.text.includes(flagOf('cors-subdomain')), 'a non-evil subdomain must not award');
+    // The bare trusted domain has no subdomain label: the suffix check fails.
+    const bare = await c.get(prove('cors-subdomain', 'https://trusted.pentrix.lab'));
+    assert.ok(!bare.text.includes(flagOf('cors-subdomain')), 'the bare trusted domain must not award');
     const raw = await c.get('/cors/api/partner', { origin: 'https://evil.trusted.pentrix.lab' });
     assert.equal(raw.headers.get('access-control-allow-origin'), 'https://evil.trusted.pentrix.lab');
     assert.equal(raw.headers.get('access-control-allow-credentials'), 'true');
     const hit = await c.get(prove('cors-subdomain', 'https://evil.trusted.pentrix.lab'));
     assert.ok(hit.text.includes(flagOf('cors-subdomain')));
+    // Any invented label works, not just "evil": the check has no allowlist.
+    const c2 = client(srv.base);
+    const anyLabel = await c2.get(prove('cors-subdomain', 'https://shop.trusted.pentrix.lab'));
+    assert.ok(anyLabel.text.includes(flagOf('cors-subdomain')), 'any invented subdomain label must award');
     assert.ok((await capturedSet(c)).includes('cors:Subdomain Suffix Check'));
   });
 

@@ -90,23 +90,23 @@ describe('sqli fix blocks (M11 break-then-fix)', function () {
         assert.strictEqual(block.vulnId, vulnId, 'block.vulnId must match its filename');
       });
 
-      it('1. validateBlock(block) passes', function () {
+      it('1. validateBlock(block) passes', async function () {
         block = block || getFixBlock('sqli', vulnId);
-        const res = validateBlock(block);
+        const res = await validateBlock(block);
         assert.strictEqual(res.valid, true, 'validateBlock failed: ' + res.error);
       });
 
-      it('2. testFix with the fixed code returns ok true', function () {
+      it('2. testFix with the fixed code returns ok true', async function () {
         block = block || getFixBlock('sqli', vulnId);
-        const res = testFix('sqli', vulnId, block.fixedCode);
+        const res = await testFix('sqli', vulnId, block.fixedCode);
         assert.strictEqual(res.ok, true,
           'fixed code rejected. exploitBlocked=' + res.exploitBlocked +
           ' legitWorks=' + res.legitWorks + ' error=' + res.error);
       });
 
-      it('3. testFix with the vulnerable code returns ok false', function () {
+      it('3. testFix with the vulnerable code returns ok false', async function () {
         block = block || getFixBlock('sqli', vulnId);
-        const res = testFix('sqli', vulnId, block.vulnerableCode);
+        const res = await testFix('sqli', vulnId, block.vulnerableCode);
         assert.strictEqual(res.ok, false,
           'vulnerable code was accepted as a fix. This block cannot teach the fix.');
         assert.strictEqual(res.exploitBlocked, false,

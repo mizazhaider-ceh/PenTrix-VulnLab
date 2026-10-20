@@ -2,24 +2,28 @@
 // Missing rate limiting: POST /api/login counts attempts but never blocks them.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
+const { passwordMatches } = require('../../../lib/account-state');
 const { award } = require('../../../lib/flags');
 
 const router = express.Router();
 
 // VULN: brute-force counter lives in memory and is never enforced, so an
-// attacker can hammer POST /api/login without lockout or slowdown.
-const attempts = {};
+// Attempt counts are per session (P1-1): one student's guesses no longer
+// stack onto another student's counter toward the flag.
+const { createSessionState } = require('../../../lib/session-state');
+const attemptStates = createSessionState(() => ({}));
 
 // POST /api/login -> v3 credential stuffing target with no rate limiting.
 router.post('/login', (req, res) => {
   const { username, password } = req.body || {};
   const key = String(username || '');
+  const attempts = attemptStates.get(req);
   // VULN: attempts are counted but never limited, so unlimited password
   // guesses can be fired at this endpoint with no lockout or CAPTCHA.
   attempts[key] = (attempts[key] || 0) + 1;
 
   const user = getDb().prepare('SELECT * FROM users WHERE username = ?').get(username);
-  const ok = !!(user && user.password === password);
+  const ok = passwordMatches(req, user, password);
   let flag = null;
   if (ok && key === 'alice' && attempts[key] >= 15) {
     flag = award(req, 'api', 'rate-limit');

@@ -24,7 +24,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Log in as admin, capture the lab_sid cookie through Burp Proxy, log out, then replay the secret admin request in Burp Repeater with the same cookie.',
   link: '/session#logout',
-  start: 'Open Burp Proxy and browse to http://localhost:3000/session/logoutdemo in your proxied browser. Log in as admin, then visit the logout page and watch which Cookie header the browser keeps sending.',
+  start: 'Open Burp Proxy and browse to /session/logoutdemo in your proxied browser. Log in as admin, then visit the logout page and watch which Cookie header the browser keeps sending.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).
@@ -76,7 +76,7 @@ router.get('/logoutdemo', (req, res) => {
 
 // POST /session/logoutdemo/login -> issue a fresh server-side session.
 router.post('/logoutdemo/login', (req, res) => {
-  const user = shared.checkCreds(req.body.username, req.body.password);
+  const user = shared.checkCreds(req, req.body.username, req.body.password);
   if (!user) return res.status(403).send(deniedPage('Bad username or password.'));
   const sid = shared.genSid();
   logoutStore.set(sid, { user: user.username, role: user.role, loggedOut: false });

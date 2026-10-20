@@ -75,12 +75,27 @@ function prereqsMet(req, p) {
   });
 }
 
-// Certificate verification code, bound to this install: PTX-<8 hex>.
-// Derived from the per-deployment install_id, so a certificate minted on
-// another machine cannot verify here. Case-insensitive by convention.
-function verifyCodeFor(pathId) {
+// Certificate verification code: PTX-<8 hex>, bound to this install and,
+// when one is given, to the student's name. Derived from the
+// per-deployment install_id, so a certificate minted on another machine
+// cannot verify here. Case-insensitive by convention.
+//
+// Identity binding is OPT-IN. Without a name the derivation is the legacy
+// one (installId + ':' + pathId), so every certificate ever generated for
+// solo learners keeps verifying unchanged. With a name it becomes
+// installId + ':' + pathId + ':' + name, so two classmates on the same
+// install no longer receive identical codes. The verify page is explicit:
+// a code is identity-bound only when a name was entered at generation.
+function normalizeStudentName(name) {
+  return String(name == null ? '' : name).trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 48);
+}
+function verifyCodeFor(pathId, studentName) {
+  const name = normalizeStudentName(studentName);
+  const input = name
+    ? installId() + ':' + String(pathId) + ':' + name
+    : installId() + ':' + String(pathId);
   return 'PTX-' + crypto.createHash('sha256')
-    .update(installId() + ':' + String(pathId))
+    .update(input)
     .digest('hex')
     .slice(0, 8)
     .toUpperCase();
@@ -161,7 +176,8 @@ router.get('/', (req, res) => {
     <h1>Career paths</h1>
     <p class="lead">Guided sequences of challenges that take you from one
     skill level to the next. Work the steps in order, capture every flag,
-    and earn a verifiable certificate bound to this install. A path may
+    and earn a verifiable certificate bound to this install, and to your
+    name if you enter one when you generate it. A path may
     suggest finishing another path first: that is guidance, not a lock.</p>
     ${body}`,
     'paths', { scoreChip: scoreChipHtml(req) }));
@@ -193,13 +209,24 @@ router.get('/:id/certificate', async (req, res) => {
       'paths', { scoreChip: scoreChipHtml(req) }));
     return;
   }
+  // Student identity (P1-5): the name is entered on the path page's
+  // certificate form (?name=) and remembered on the session. It is what
+  // the certificate prints, and it is mixed into the verification code so
+  // the code identifies this student. No name anywhere -> the legacy
+  // per-install code and the generic printed name, exactly as before.
+  const entered = typeof req.query.name === 'string' ? req.query.name.trim().slice(0, 48) : '';
+  if (entered && req.session) {
+    try { req.session.studentName = entered; } catch (e) { /* display-only fallback below */ }
+  }
+  const accountName = (req.session && req.session.user && req.session.user.username) || '';
+  const boundName = entered || (req.session && req.session.studentName) || accountName || '';
   try {
     const buf = await Promise.resolve(renderCertificate({
       pathName: p.name,
-      studentName: (req.session && req.session.user && req.session.user.username) || 'PenTrix Student',
+      studentName: boundName || 'PenTrix Student',
       dateStr: new Date().toISOString().slice(0, 10),
       installFingerprint: installFingerprint(),
-      verifyCode: verifyCodeFor(p.id),
+      verifyCode: verifyCodeFor(p.id, boundName),
       pathId: p.id,
     }));
     res.type('png').send(buf);
@@ -221,27 +248,37 @@ router.get('/:id/verify', (req, res) => {
     return;
   }
   const submitted = typeof req.query.code === 'string' ? req.query.code.trim() : '';
+  const submittedName = typeof req.query.name === 'string' ? req.query.name : '';
   let resultHtml = '';
   if (submitted) {
-    const expected = verifyCodeFor(p.id);
+    const expected = verifyCodeFor(p.id, submittedName);
     const valid = submitted.toUpperCase() === expected.toUpperCase();
+    const who = normalizeStudentName(submittedName)
+      ? ` for the student name on the form (<b>${esc(normalizeStudentName(submittedName))}</b>)`
+      : ' (no student name: this is the per-install code, not bound to a person)';
     resultHtml = valid
       ? `<div class="card" role="status"><div class="card-top">${statusPill(true, 'Valid')}</div>
-        <p>This code is a genuine certificate for <b>${esc(p.name)}</b> issued by <b>this install</b> (fingerprint <code>${esc(installFingerprint())}</code>).</p></div>`
+        <p>This code is a genuine certificate for <b>${esc(p.name)}</b> issued by <b>this install</b> (fingerprint <code>${esc(installFingerprint())}</code>)${who}.</p></div>`
       : `<div class="card" role="alert"><div class="card-top">${statusPill(false, null, 'Invalid')}</div>
-        <p><b>Invalid code.</b> <code>${esc(submitted)}</code> is <b>not</b> a valid certificate code for <b>${esc(p.name)}</b> on this install. Check the code for typos, or note that certificates minted on a different machine will never validate here.</p></div>`;
+        <p><b>Invalid code.</b> <code>${esc(submitted)}</code> is <b>not</b> a valid certificate code for <b>${esc(p.name)}</b> on this install${who}. Check the code for typos, and note that certificates minted on a different machine will never validate here. If the certificate was generated with a name, enter the exact same name.</p></div>`;
   }
   res.send(page('Verify certificate', `
     <p class="eyebrow"><a href="/paths/${esc(p.id)}">${esc(p.name)}</a></p>
     <h1>Verify a certificate</h1>
     <p class="lead">Enter the verification code printed on a ${esc(p.name)}
     certificate. The code is derived from this install's secret identity, so
-    it only validates on the machine that issued it.</p>
+    it only validates on the machine that issued it. A certificate generated
+    with a student name also binds the code to that name: enter the same
+    name below. A certificate generated without one is <b>not identity
+    bound</b> and verifies with the name left empty.</p>
     <form method="get" action="/paths/${esc(p.id)}/verify" class="clay-card" style="max-width:28rem">
       <div class="card-top"><span class="orb" aria-hidden="true">✓</span></div>
       <label for="verify-code"><b>Verification code</b></label>
       <input class="clay-input" id="verify-code" name="code" type="text" autocomplete="off" spellcheck="false"
         placeholder="PTX-XXXXXXXX" value="${esc(submitted)}">
+      <label for="verify-name"><b>Student name</b> <span class="dim">(only if one was entered when the certificate was generated)</span></label>
+      <input class="clay-input" id="verify-name" name="name" type="text" autocomplete="off" spellcheck="false"
+        placeholder="Name on the certificate" value="${esc(submittedName)}">
       <div class="card-foot"><button class="clay-btn clay-btn-primary" type="submit">Verify</button></div>
     </form>
     ${resultHtml}`,
@@ -283,16 +320,23 @@ router.get('/:id', (req, res) => {
       <div class="card-top"><span class="orb" aria-hidden="true">${num}</span>${statusPill(hit)}</div>
       <h3>${esc(stepTitle(s))}</h3>
       <div class="tagline">${s.note ? esc(s.note) : ''}</div>
-      <p class="dim"><code>${esc(s.moduleId)}</code> / <code>${esc(s.vulnId)}</code></p>
+      <p class="dim"><code>${esc(stepLink(s))}</code></p>
       <div class="card-foot"><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(stepLink(s))}">Enter the challenge</a></div>
     </article>`;
   }).join('');
 
+  const savedName = (req.session && req.session.studentName) || '';
   const certHtml = complete
-    ? `<p><a class="clay-btn clay-btn-primary" href="/paths/${esc(p.id)}/certificate">Get my certificate</a>
-       <a class="clay-btn clay-btn-secondary" href="/paths/${esc(p.id)}/verify">Verify a certificate</a></p>
-       <p class="dim">Your certificate is a PNG with a verification code printed on it. Anyone can check the code on the verify page to confirm it was issued by this install.</p>`
-    : `<p class="dim">Capture all ${total} flags to earn your certificate: a PNG you can download, with a verification code printed on it. Anyone can check that code on the <a href="/paths/${esc(p.id)}/verify">verify page</a> of this install.</p>`;
+    ? `<form method="get" action="/paths/${esc(p.id)}/certificate" class="clay-card" style="max-width:28rem">
+       <div class="card-top"><span class="orb" aria-hidden="true">🎓</span></div>
+       <label for="cert-name"><b>Your name or handle</b></label>
+       <input class="clay-input" id="cert-name" name="name" type="text" maxlength="48" autocomplete="off" spellcheck="false"
+         placeholder="e.g. Ada Lovelace" value="${esc(savedName)}">
+       <p class="dim">Your certificate is a PNG with this name printed on it and a verification code derived from it, so your code differs from every classmate's on this install. Leave the name empty to use the plain per-install code instead: that code is <b>not identity bound</b> and is the same for every student here.</p>
+       <div class="card-foot"><button class="clay-btn clay-btn-primary" type="submit">Get my certificate</button>
+       <a class="clay-btn clay-btn-secondary" href="/paths/${esc(p.id)}/verify">Verify a certificate</a></div>
+       </form>`
+    : `<p class="dim">Capture all ${total} flags to earn your certificate: a PNG you can download, with a verification code printed on it. Anyone can check that code on the <a href="/paths/${esc(p.id)}/verify">verify page</a> of this install. Add your name when you generate it and the code is bound to you; without a name it is only bound to this install.</p>`;
 
   res.send(page(p.name, `
     <p class="eyebrow"><a href="/paths">Career paths</a> · ${difficultyPill(p.difficulty)}</p>
@@ -311,5 +355,5 @@ router.get('/:id', (req, res) => {
 module.exports = {
   router, paths, setPathsRegistry,
   pathProgress, pathComplete, prereqsMet,
-  verifyCodeFor, installFingerprint,
+  verifyCodeFor, installFingerprint, normalizeStudentName,
 };

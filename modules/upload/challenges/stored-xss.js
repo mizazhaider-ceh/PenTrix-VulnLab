@@ -6,8 +6,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { appShell, esc, flagBox, page } = require('../../../lib/page');
-const { award } = require('../../../lib/flags');
+const { appShell, esc, page, payloadBlock } = require('../../../lib/page');
+const { issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
 
 const router = express.Router();
 
@@ -62,16 +62,27 @@ router.post('/', (req, res) => {
       ${backBtn()}</div>`));
   }
 
+  // VULN: uploaded bytes are stored verbatim under an attacker-chosen name
+  // and later served inline, so an .html or .svg upload executes as script
+  // in the lab origin (stored XSS via file upload).
   fs.writeFileSync(path.join(UPLOADS_DIR, clean), req.body);
   const url = '/uploads/' + encodeURIComponent(clean);
 
+  // Storing the file is only step one: the flag fires only when the stored
+  // file is later served inline with an executable content type AND its
+  // script actually runs and phones home through the beacon. Nothing below
+  // awards for the upload itself.
+  const token = issueBeaconToken(req, 'stored-xss');
   let flagHtml = '';
-  // v1: .html/.svg stored as-is and served inline -> stored XSS when visited
   if (ext === '.html' || ext === '.svg') {
-    // VULN: uploaded HTML/SVG is never sanitized, and /uploads serves it inline,
-    // so visiting the stored file executes the attacker's script (stored XSS).
-    const flag = award(req, 'upload', 'stored-xss');
-    flagHtml = flagBox(flag) + `<p class="dim">Stored XSS captured: your file is served inline at <a href="${url}">${url}</a> , open it to see the payload run.</p>`;
+    recordPendingUpload(req, 'stored-xss', clean);
+    flagHtml = `<p class="dim">Stored. The flag only fires when this file is
+      served inline as HTML/SVG and its script calls the beacon below. Open
+      <a href="${url}">${url}</a> in your proxied browser with a payload that
+      contains this beacon snippet:</p>
+      ${payloadBlock('Beacon snippet for this file', beaconSnippet('stored-xss', clean, token))}`;
+  } else {
+    flagHtml = `<p class="dim">Stored, but a <code>${esc(ext) || '(no)'}</code> file is not served inline as active content, so the beacon can never fire from it. Upload an <code>.html</code> or <code>.svg</code> file instead.</p>`;
   }
 
   res.send(dropPage('Uploaded',
@@ -86,16 +97,16 @@ module.exports = {
     id: 'stored-xss',
     name: 'Stored XSS via file upload',
     difficulty: 'Easy',
-    hint: 'The server accepts .html and .svg files and serves them inline, unchanged. What happens when a browser renders a file you control?',
+    hint: 'The server accepts .html and .svg files and serves them inline, unchanged. What happens when a browser renders a file you control? Storing is not enough: the flag fires only when the served file\'s script phones home through the beacon, so bake the beacon snippet from the module page into your payload.',
     hints: [
       'Intercept the upload in Burp Proxy. The filename arrives in a ?filename= query parameter, not in the body. Try naming the file with a .html extension.',
       'Send the upload request to Burp Repeater and swap the body bytes for your own HTML page. The server stores whatever bytes you send, unchanged.',
-      'KEY INSIGHT: the stored file is served back inline (not as a download), so your browser executes the script inside it. Build an HTML page that runs script when it opens, send it through Repeater, then open its /uploads/ link in your proxied browser.',
+      'KEY INSIGHT: the stored file is served back inline (not as a download), so your browser executes the script inside it, and the payload\'s beacon call is what earns the flag. Build an HTML page that runs the beacon snippet when it opens, send it through Repeater, then open its /uploads/ link in your proxied browser.',
     ],
     tools: 'BZ, B, C',
-    how: 'In Burp Repeater, POST your own HTML or SVG bytes as the raw body of /upload?filename=evil.html, then open its /uploads/ link in your proxied browser.',
+    how: 'In Burp Repeater, POST your own HTML or SVG bytes (carrying the beacon snippet for this challenge) as the raw body of /upload?filename=evil.html, then open its /uploads/ link in your proxied browser so the script runs and beacons.',
     link: '/upload#stored-xss',
-    start: 'Start Burp Proxy, open the PixelDrop upload page in your proxied browser, and send the POST /upload?filename= request to Repeater. Replace the body with your HTML file bytes, name the file .html, and send.',
+    start: 'Start Burp Proxy, open the PixelDrop upload page in your proxied browser, and send the POST /upload?filename= request to Repeater. Replace the body with your HTML file bytes (beacon snippet included), name the file .html, and send.',
   },
   router,
 };

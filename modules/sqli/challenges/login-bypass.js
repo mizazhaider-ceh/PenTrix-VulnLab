@@ -56,6 +56,18 @@ router.post('/login', (req, res) => {
       ${fixCta('sqli', 'login-bypass')}
     `)));
   }
+  // P1-8: the advertised demo credentials must actually log in. A correct
+  // credential login (the query returned the row whose username AND password
+  // were exactly what was typed) signs in normally, just without a flag: it
+  // proves nothing about injection. Only a failed match is "Invalid".
+  if (row && u === row.username && p === row.password) {
+    return res.send(page('Login Bypass', shopShell('Signed in', `
+      <h1>Signed in</h1>
+      <p>Logged in as <strong>${esc(row.username)}</strong> (role: ${esc(row.role)}) with the real password.
+      No flag here: knowing the password is not an injection. Break the query to earn it.</p>
+      <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/sqli/login">Try again</a></p>
+    `)));
+  }
   res.send(page('Login Bypass', shopShell('Sign in', `
     <h1>Sign in</h1>
     <div class="warn"><p><strong>Invalid username or password.</strong></p></div>

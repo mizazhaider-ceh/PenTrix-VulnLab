@@ -1,24 +1,59 @@
 'use strict';
 // postmsg module: browser-side labs. The tests drive the server endpoints the
 // victim pages' scripts call (the flag beacon), proving the intended flow
-// earns the flag and the obvious shortcut earns nothing.
+// earns the flag and the obvious shortcut earns nothing. Tokens are never in
+// the raw page source: the tests run each victim page's scripts in a vm
+// sandbox (the honest browser simulation) to obtain the computed values.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
 const { client, bootLab, flagFromDb, capturedSet, FLAG_RE } = require('./helpers');
 
 const VULNS = ['no-check', 'wildcard', 'data-xss', 'substring', 'csrf-action'];
 
-// The page-bound one-time token the victim page renders in its own script.
+const TAG_RE = /<(\/?)([a-zA-Z][^\s/>]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
+
+function liveScripts(html) {
+  const src = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi, '');
+  const out = [];
+  TAG_RE.lastIndex = 0;
+  let m;
+  while ((m = TAG_RE.exec(src))) {
+    if (m[1] === '/' || m[2].toLowerCase() !== 'script') continue;
+    const i = src.slice(TAG_RE.lastIndex).search(/<\/script/i);
+    const end = i >= 0 ? TAG_RE.lastIndex + i : src.length;
+    if (!/\bsrc\s*=/.test(m[3])) out.push(src.slice(TAG_RE.lastIndex, end));
+    TAG_RE.lastIndex = end;
+  }
+  return out;
+}
+
+// Execute a victim page's scripts and read the value its script computed.
+function executePage(text, varName) {
+  const ctx = {
+    document: { getElementById: () => ({ style: {}, textContent: '', innerHTML: '' }) },
+    addEventListener: () => {},
+    fetch: () => Promise.resolve({ json: () => Promise.resolve({}) }),
+    URLSearchParams,
+    decodeURIComponent,
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  for (const code of liveScripts(text)) {
+    try { vm.runInContext(code, ctx, { timeout: 1000 }); } catch (e) { /* not every script matters here */ }
+  }
+  const value = ctx[varName];
+  assert.match(value, /^[0-9a-f]{32}$/, 'victim page did not compute ' + varName);
+  return value;
+}
+
+// The page-bound one-time token the victim page's script computes at load.
 function pageNonce(text) {
-  const m = text.match(/var PM_NONCE = "([0-9a-f]{32})"/);
-  assert.ok(m, 'victim page must render a page-bound token');
-  return m[1];
+  return executePage(text, 'PM_NONCE');
 }
 
 function secretToken(text) {
-  const m = text.match(/var SECRET_TOKEN = "([0-9a-f]{32})"/);
-  assert.ok(m, 'victim page must render the secret token');
-  return m[1];
+  return executePage(text, 'SECRET_TOKEN');
 }
 
 // Fire the token beacon for a prefix-match lab (victim page load first).
@@ -56,6 +91,9 @@ test('postmsg module', async (t) => {
     const c = client(srv.base);
     const bare = await c.get('/postmsg/beacon?v=no-check&d=' + encodeURIComponent('no-check:<img src=x>'));
     assert.equal(bare.status, 400, 'bare beacon must not award');
+    // The raw token never appears in the victim page source: only shares.
+    const vpage = await c.get('/postmsg/no-check');
+    assert.ok(!vpage.text.includes(pageNonce(vpage.text)), 'raw token must not appear in HTML');
     const hit = await fireTokenBeacon(c, 'no-check', '<img src=x>');
     assert.equal(hit.status, 200);
     assert.ok(hit.text.includes(flagOf('no-check')));
@@ -66,6 +104,11 @@ test('postmsg module', async (t) => {
     const other = client(srv.base);
     const fail = await other.get('/postmsg/beacon?v=no-check&d=' + encodeURIComponent('no-check:x') + '&n=deadbeef');
     assert.equal(fail.status, 400, 'a guessed token must not award');
+    // Scraped share arrays are not the token.
+    const shares = vpage.text.match(/__tkA=\[([0-9,]+)\]/);
+    assert.ok(shares, 'share arrays must be present');
+    const forged = await other.get('/postmsg/beacon?v=no-check&d=' + encodeURIComponent('no-check:x') + '&n=' + encodeURIComponent(shares[1]));
+    assert.equal(forged.status, 400, 'share array is not the token');
   });
 
   await t.test('wildcard: a guessed secret earns nothing, the broadcast secret earns the flag', async () => {
@@ -73,7 +116,9 @@ test('postmsg module', async (t) => {
     const guess = await c.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:guessed-secret'));
     assert.equal(guess.status, 400, 'guessed secret must not award');
     const v = await c.get('/postmsg/wildcard');
-    const hit = await c.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:' + secretToken(v.text)));
+    const secret = secretToken(v.text);
+    assert.ok(!v.text.includes(secret), 'raw secret must not appear in HTML');
+    const hit = await c.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:' + secret));
     assert.equal(hit.status, 200);
     assert.ok(hit.text.includes(flagOf('wildcard')));
     assert.ok((await capturedSet(c)).includes('postmsg:Secret Leaked via Wildcard targetOrigin'));
@@ -136,5 +181,51 @@ test('postmsg module', async (t) => {
     await fireTokenBeacon(c, 'no-check', 'x');
     got = (await capturedSet(c)).filter((s) => s.startsWith('postmsg:'));
     assert.equal(got.length, 5, 're-capture must not duplicate');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A1B adversarial negatives (appended): explicit beacon replay, cross-vuln
+// token misuse, cross-session secret and deletion-state isolation.
+// ---------------------------------------------------------------------------
+test('postmsg A1B adversarial negatives', async (t) => {
+  const { srv, dataDir } = await bootLab(t);
+  const flagOf = (id) => flagFromDb(dataDir, 'postmsg', id);
+
+  await t.test('no-check: cross-vuln token fails without consuming; replay fails after the win', async () => {
+    const c = client(srv.base);
+    const v = await c.get('/postmsg/no-check');
+    const n = pageNonce(v.text);
+    const cross = await c.get('/postmsg/beacon?v=data-xss&d=' + encodeURIComponent('data-xss:x') + '&n=' + n);
+    assert.equal(cross.status, 400, 'no-check token must not award data-xss');
+    const url = '/postmsg/beacon?v=no-check&d=' + encodeURIComponent('no-check:x') + '&n=' + n;
+    const hit = await c.get(url);
+    assert.equal(hit.status, 200, 'cross-vuln attempt must not consume the token');
+    assert.ok(hit.text.includes(flagOf('no-check')));
+    assert.equal((await c.get(url)).status, 400, 'replayed beacon must not award');
+  });
+
+  await t.test('wildcard: one session secret is useless in another session', async () => {
+    const a = client(srv.base);
+    const b = client(srv.base);
+    const secretA = secretToken((await a.get('/postmsg/wildcard')).text);
+    assert.equal((await b.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:' + secretA))).status, 400, 'a secret broadcast to another session must not award');
+    const secretB = secretToken((await b.get('/postmsg/wildcard')).text);
+    assert.notEqual(secretB, secretA, 'sessions must have distinct secrets');
+    assert.equal((await b.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:' + secretA))).status, 400, 'foreign secret must not award even after own page load');
+    const hit = await b.get('/postmsg/beacon?v=wildcard&d=' + encodeURIComponent('wildcard:' + secretB));
+    assert.equal(hit.status, 200);
+    assert.ok(hit.text.includes(flagOf('wildcard')));
+  });
+
+  await t.test('csrf-action: the beacon only works in the session where the account was deleted', async () => {
+    const a = client(srv.base);
+    const b = client(srv.base);
+    const del = await a.post('/postmsg/csrf-action/delete');
+    assert.equal(del.status, 200);
+    assert.equal((await b.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'))).status, 400, 'no deletion in this session: beacon must not award');
+    const hit = await a.get('/postmsg/beacon?v=csrf-action&d=' + encodeURIComponent('csrf-action:account-deleted'));
+    assert.equal(hit.status, 200);
+    assert.ok(hit.text.includes(flagOf('csrf-action')));
   });
 });

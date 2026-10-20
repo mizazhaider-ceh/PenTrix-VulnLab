@@ -7,7 +7,7 @@
 const express = require('express');
 const { esc, page, brief, flagBox, fixPanel, hintLadder, toolsPill, difficultyPill, payloadBlock, appShell } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { merge, parseNested, rawQuery, config } = require('../shared');
+const { merge, parseNested, rawQuery, protoStateFor, freshUser } = require('../shared');
 
 const router = express.Router();
 
@@ -27,8 +27,8 @@ const vuln = {
 // nested objects and deep-merges them into the app config.
 router.get('/query', (req, res) => {
   const data = parseNested(rawQuery(req));
-  // VULN: every query parameter is deep-merged into the global config object.
-  merge(config, data);
+  // VULN: every query parameter is deep-merged into the per-session config object.
+  merge(protoStateFor(req).config, data);
   res.send(page('Query-String Pollution', `
     ${brief('App config console', `ConfigDesk is the admin console for a small demo shop.
       The merge console below folds query parameters into the running app config,
@@ -54,7 +54,7 @@ router.get('/query', (req, res) => {
       <code>user.role === 'admin'</code>.</p>
       <p><a class="clay-btn clay-btn-secondary" href="/proto/query/admin">Open admin check</a></p>
     `, { mark: '&#9881;', nav: ['Dashboard', 'Config', 'Users'], crumb: 'Admin > Config > Merge console' })}
-    ${payloadBlock('Burp Repeater', 'GET /proto/query?__proto__[role]=admin HTTP/1.1\nHost: localhost:3000\n\nGET /proto/query/admin HTTP/1.1\nHost: localhost:3000\n')}
+    ${payloadBlock('Burp Repeater', 'GET /proto/query?__proto__[role]=admin HTTP/1.1\nHost: <your-lab-address>\n\nGET /proto/query/admin HTTP/1.1\nHost: <your-lab-address>\n')}
     ${hintLadder(vuln)}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
   `));
@@ -63,7 +63,9 @@ router.get('/query', (req, res) => {
 // GET /proto/query/admin -> the admin check. A fresh {} is created and
 // user.role is read; prototype pollution can inject that value.
 router.get('/query/admin', (req, res) => {
-  const user = {}; // fresh object: no role is assigned anywhere in this handler
+  // Per-session admin check: a fresh object inheriting this session's
+  // polluted prototype stand-in (P1-1). No role is assigned anywhere here.
+  const user = freshUser(req);
   // VULN: the authorization check reads user.role, which prototype pollution can inject.
   if (user.role === 'admin') {
     const flag = award(req, 'proto', 'proto-query');

@@ -4,6 +4,7 @@ const express = require('express');
 const { page, esc, brief, flagBox, fixPanel, hintLadder } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const shared = require('../shared');
+const { passwordMatches } = require('../../../lib/account-state');
 
 const router = express.Router();
 
@@ -58,7 +59,9 @@ router.post('/login', (req, res) => {
   const user = shared.findUser(username);
   const attempts = req.session.authAttempts || 0;
 
-  if (user && user.password === password) {
+  // Passwords changed by this session's reset labs are honored through the
+  // session's override (P1-1); the shared table still holds the seeded value.
+  if (passwordMatches(req, user, password)) {
     // VULN: no rate limiting or account lockout, and the server happily
     // reports how many failed attempts preceded a success.
     let extra = '';

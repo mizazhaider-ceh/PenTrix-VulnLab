@@ -15,7 +15,7 @@ const vuln = {
   tools: 'BZ, C',
   how: 'Fetch /misconfig/app.js.swp via Burp Repeater and read the recovered source for secrets.',
   link: '/misconfig/app.js.swp',
-  start: 'In Burp: browse to http://localhost:3000/misconfig with Proxy on, then build the Vim swap filename for app.js in Repeater and read the recovered source.',
+  start: 'In Burp: browse to /misconfig with Proxy on, then build the Vim swap filename for app.js in Repeater and read the recovered source.',
 };
 
 // GET /app.js.swp -> the leftover vim swap file, served as plain text.

@@ -4,6 +4,7 @@
 // sites. No routes and no vuln metadata live here.
 const crypto = require('crypto');
 const { esc } = require('../../lib/page');
+const { tokenScriptParts } = require('../../lib/jstoken');
 
 // ---------------------------------------------------------------------------
 // Verification model: every beacon must present a per-session, per-vuln nonce
@@ -22,9 +23,14 @@ function xssNonce(req, v) {
   return req.session.xssNonce[v];
 }
 
-// Rendered into each challenge page so an executing payload can read it.
+// Rendered into each challenge page so an executing payload can read it. The
+// raw token never appears in the HTML: two random share arrays are rendered
+// and a small script computes window.__px from them at runtime, so scraping
+// the page source finds only the shares, never the token itself.
 function xssNonceTag(req, v) {
-  return `<script>window.__px=${JSON.stringify(xssNonce(req, v))};</script>`;
+  const p = tokenScriptParts(xssNonce(req, v));
+  return `<script>${p.decl}
+window.__px=${p.combine};</script>`;
 }
 
 function xssConsumeNonce(req, v, n) {

@@ -4,7 +4,7 @@
 // ./challenges/, shared shop state in ./shared.js. Only the module index page
 // and the shop /reset helper route live here.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection, consoleMap , capturedPill } = require('../../lib/page');
 const shared = require('./shared');
 
 const challenges = [
@@ -61,23 +61,18 @@ router.get('/reset', (req, res) => {
 
 // GET /bizlogic -> module index page (the in-module shop front).
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('bizlogic', ordered, consoleMap('/bizlogic', CHALLENGE_PATH));
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'bizlogic', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
       <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="/bizlogic${CHALLENGE_PATH[v.id]}">Open challenge</a></p>
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('bizlogic', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Business Logic Flaws', `
     ${brief('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -92,7 +87,7 @@ router.get('/', (req, res) => {
     <h2>Reset</h2>
     <p><a class="btn ghost" href="/bizlogic/reset">Reset shop</a>
     <span class="dim">Restores your $100 balance, cart, orders and account.</span></p>
-  ${fixSectionHtml}
+  ${fixSection('bizlogic', challenges)}
 `));
 });
 

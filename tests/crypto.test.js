@@ -233,22 +233,25 @@ test('crypto module', async (t) => {
   await t.test('rand-pin: wrong guesses earn nothing and are never throttled; the real brute-force space is open', async () => {
     const c = client(srv.base);
     // No PIN issued yet: nothing to guess.
-    assert.equal((await c.post('/crypto/pin/verify', { pin: '000000' })).status, 401);
+    assert.equal((await c.post('/crypto/pin/verify', { pin: '0000' })).status, 401);
     await c.post('/crypto/pin/generate');
-    for (const bad of ['000000', '123456', '111111', '']) {
+    for (const bad of ['0000', '1234', '1111', '']) {
       const r = await c.post('/crypto/pin/verify', { pin: bad });
       assert.equal(r.status, 401, `PIN ${bad || '(empty)'} should fail`);
       assert.equal(flagsIn(r.text).length, 0, 'a wrong guess must not leak a flag');
     }
     assert.ok(!(await capturedSet(c)).some((s) => s === capturedName('crypto-rand-pin')));
-    // The flaw: no rate limiting, so the whole 10^6 space is scriptable.
+    // The flaw: no rate limiting, so the whole 10^4 space is enumerable.
+    // The burst range can contain the real PIN (60 of 10,000), so a lucky
+    // 200 is legitimate: what must never appear is a 429 (throttling).
     const burst = await Promise.all(
-      Array.from({ length: 60 }, (_, i) => c.post('/crypto/pin/verify', { pin: String(900000 + i) })));
-    assert.ok(burst.every((r) => r.status === 401), 'guessing must never be throttled');
+      Array.from({ length: 60 }, (_, i) => c.post('/crypto/pin/verify', { pin: String(9000 + i) })));
+    assert.ok(burst.every((r) => r.status === 401 || r.status === 200),
+      'guessing must never be throttled (no 429s, no lockouts)');
   });
 
   await t.test('rand-pin: a correct PIN (via controlled randomness) earns the flag', async () => {
-    // A full 10^6 HTTP brute-force is the documented attack but takes far too
+    // A full 10^4 HTTP brute-force is the documented attack but takes far too
     // long for a regression test. Instead: stub Math.random in-process so the
     // issued PIN is known, then drive the REAL challenge router and prove a
     // correct guess awards the flag while a wrong one does not.
@@ -257,7 +260,7 @@ test('crypto module', async (t) => {
     const http = require('http');
     const origRandom = Math.random;
     process.env.DB_PATH = path.join(dataDir, 'vulnlab.db');
-    Math.random = () => 0.654321; // floor(0.654321 * 1e6) = 654321
+    Math.random = () => 0.654321; // floor(0.654321 * 1e4) = 6543
     let pinMod;
     try {
       pinMod = require('../modules/crypto/challenges/crypto-rand-pin');
@@ -279,10 +282,10 @@ test('crypto module', async (t) => {
       const g = await post('/crypto/pin/generate', '');
       assert.equal(g.status, 302);
       Math.random = origRandom;
-      const wrong = await post('/crypto/pin/verify', 'pin=000000');
+      const wrong = await post('/crypto/pin/verify', 'pin=0000');
       assert.equal(wrong.status, 401);
       assert.equal(flagsIn(await wrong.text()).length, 0);
-      const hit = await post('/crypto/pin/verify', 'pin=654321');
+      const hit = await post('/crypto/pin/verify', 'pin=6543');
       assert.equal(hit.status, 200);
       assert.ok((await hit.text()).includes(flagOf('crypto-rand-pin')));
     } finally {

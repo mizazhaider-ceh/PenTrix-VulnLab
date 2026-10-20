@@ -73,15 +73,19 @@ test('session module', async (t) => {
     assert.ok((await capturedSet(admin)).includes('session:Logout Does Not Destroy the Session'));
   });
 
-  await t.test('predictable: guest session gives nothing, admin sid replay earns the flag', async () => {
+  await t.test('predictable: guest session gives nothing, computed admin sid replay earns the flag', async () => {
     const c = client(srv.base);
     const page1 = await c.get('/session/predictable');
     assert.equal(page1.status, 200);
     const denied = await c.get('/session/predictable/admin');
     assert.equal(denied.status, 403, 'a guest session must not reach the admin panel');
-    const m = page1.text.match(/Their session id: <code>(\d+)<\/code>/);
-    assert.ok(m, 'admin sid must be readable on the demo page');
-    c.setCookie('lab_sid=' + m[1]);
+    // The giveaway is gone (P3-7): the admin sid is never printed; only your
+    // own sid is. The taught analysis: sequential ids, admin signed in right
+    // after you, so admin sid = yours + 1.
+    assert.ok(!/Their session id: <code>\d+<\/code>/.test(page1.text), 'the admin sid must not be printed on the demo page');
+    const m = page1.text.match(/Your session id: <code>(\d+)<\/code>/);
+    assert.ok(m, 'your own sid must be readable on the demo page');
+    c.setCookie('lab_sid=' + String(Number(m[1]) + 1));
     const hit = await c.get('/session/predictable/admin');
     assert.equal(hit.status, 200);
     assert.ok(hit.text.includes(flagOf('predictable')));
@@ -140,8 +144,9 @@ test('session module', async (t) => {
     await c.get('/session/logoutdemo/secret');
     await c.get('/session/logoutdemo/secret');
     const p = await c.get('/session/predictable');
-    const pm = p.text.match(/Their session id: <code>(\d+)<\/code>/);
-    setLabSid(c, pm[1]);
+    const pm = p.text.match(/Your session id: <code>(\d+)<\/code>/);
+    assert.ok(pm, 'own sid readable');
+    setLabSid(c, String(Number(pm[1]) + 1));
     await c.get('/session/predictable/admin');
     await c.get('/session/urldemo');
     const log = await c.get('/session/urldemo/proxy-log');

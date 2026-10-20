@@ -10,8 +10,11 @@ services:
       - ./data:/app/data
     environment:
       - PORT=3000
-      # Set a private value for any graded or shared use. The app falls back
-      # to an insecure dev secret when this is unset (see app.js).
+      # No SESSION_SECRET is set here on purpose: on first boot the app
+      # generates a random one and persists it in the data volume
+      # (data/.session-secret), so sessions survive restarts without any
+      # secret ever being committed. Set one explicitly only if you need to
+      # pin it (for example behind a load balancer).
       # - SESSION_SECRET=change-me-to-something-private
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

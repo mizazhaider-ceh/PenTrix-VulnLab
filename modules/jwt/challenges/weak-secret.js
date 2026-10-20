@@ -9,7 +9,9 @@ const router = express.Router();
 // NOTE: this router expects urlencoded form parsing (express.urlencoded) to be
 // applied by the mounting index, as it was router-scoped in modules/jwt/router.js.
 
-const WEAK_SECRET = 'secret123';      // VULN lab 2: guessable HMAC secret
+// VULN: tokens are signed and verified with a weak, guessable shared secret,
+// so anyone who guesses it can forge a valid admin token offline.
+const WEAK_SECRET = 'secret123';      // the guessable HMAC secret
 
 // ------------------------------------------------------- page helpers (own pages)
 function tokenForm(action, note) {
@@ -74,7 +76,7 @@ module.exports = {
     tools: "BZ, N, W",
     how: 'Recover the weak secret with a tiny wordlist, sign an admin token with the winning secret, and submit it. Burp Intruder can replay each candidate signed token while you grep for the success response.',
     link: '/jwt#weak-secret',
-    start: 'Browse to http://localhost:3000/jwt/weak with Burp running. Intercept the token submit and send it to Intruder. Build a tiny wordlist of classic default secrets, sign admin-claims tokens per candidate offline, and sniper them through Intruder while grepping for the welcome response.',
+    start: 'Browse to /jwt/weak with Burp running. Intercept the token submit and send it to Intruder. Build a tiny wordlist of classic default secrets, sign admin-claims tokens per candidate offline, and sniper them through Intruder while grepping for the welcome response.',
   },
   router,
 };

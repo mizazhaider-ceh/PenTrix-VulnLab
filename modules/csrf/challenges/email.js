@@ -4,7 +4,7 @@ const express = require('express');
 const { getDb } = require('../../../lib/db');
 const { page, esc, brief, flagBox, fixPanel, hintLadder, hintBox, toolsPill, payloadBlock } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { currentUser, emailOf, postbox, attackerSite, backLink, notLoggedInPage } = require('../shared');
+const { currentUser, emailOf, postbox, attackerSite, backLink, notLoggedInPage, crossSiteEvidence } = require('../shared');
 
 const router = express.Router();
 
@@ -43,9 +43,15 @@ router.get('/change-email', (req, res) => {
       ${attackerSite('evil.example', `
         <h3>Totally harmless cat pictures</h3>
         <p>The victim only has to load this page while signed in to Postbox.
-        Somewhere in its HTML sits a tag like the one below.</p>
+        Somewhere in its HTML sits a tag like the one below. Replaying the
+        request from your own browser proves nothing: only a request that
+        really crosses sites, carrying the victim's cookie plus a foreign
+        <code>Referer</code> or <code>Origin</code>, counts as the forgery.</p>
         ${payloadBlock('Hidden tag on the attacker page', `<img src="${FORGED_URL}" width="1" height="1">`)}
-        <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="${esc(FORGED_URL)}">Load the forged request</a></p>
+        <p class="dim">Tip: Burp's "Generate CSRF PoC" builds this page for you.
+        In Repeater, set the <code>Referer</code> or <code>Origin</code> header
+        to the attacker's site before re-sending, since a request with no
+        cross-site evidence is treated as your own settings form submit.</p>
       `)}
       ${hintLadder(module.exports.vuln)}
       ${backLink()}
@@ -66,13 +72,21 @@ router.get('/change-email', (req, res) => {
   // VULN: state change performed over GET with no CSRF token, so a forged
   // cross-site request from any third-party page succeeds silently.
   getDb().prepare('UPDATE users SET email = ? WHERE id = ?').run(email, user.id);
-  const flag = award(req, 'csrf', 'email');
+  // The email change itself is the app's own feature, so it always happens.
+  // The FLAG, though, demands cross-site evidence (a foreign Referer or
+  // Origin): replaying the URL in your own session is not an attack.
+  const forged = crossSiteEvidence(req);
+  const flag = forged ? award(req, 'csrf', 'email') : null;
   res.send(page('Email settings', `
     <h1>Email changed</h1>
-    ${flagBox(flag)}
-    ${fixPanel('csrf', 'email')}
+    ${flag ? flagBox(flag) : ''}
+    ${flag ? fixPanel('csrf', 'email') : ''}
     ${postbox('Settings', `
       <p>Your account email is now: <code>${esc(email)}</code></p>
+      ${forged ? '' : `<p class="dim">No flag: this request carried no cross-site
+        evidence (no foreign Referer or Origin), so it reads as your own
+        settings form submit. Forge it from another site, or set a foreign
+        <code>Referer</code> or <code>Origin</code> header in Burp Repeater.</p>`}
     `)}
     ${hintBox('That request carried no token and did not even need a form submit. This is exactly what an attacker\'s forged link or image tag would have done from another site.')}
     ${toolsPill(module.exports.vuln)}
@@ -85,12 +99,12 @@ module.exports = {
     id: 'email',
     name: 'Change Email with No CSRF Token (state-changing GET)',
     difficulty: 'Easy',
-    hint: 'The email change is a plain GET request with no anti-CSRF token. Any page the victim visits can trigger it: a link, an image tag, anything. The key insight: with no token required, any request carrying the logged-in cookie performs the change, so you never need the real form.',
-    hints: ["The email change is a GET request with no token. In Burp Proxy, watch what the settings form actually sends.", "Any request that carries your session cookie performs the change. Send that request to Repeater and try changing the query value.", "Repeater can forge the whole attack: the browser is not needed. Or use Burp's Generate CSRF PoC tool on the captured request to build the attacker's page."],
+    hint: 'The email change is a plain GET request with no anti-CSRF token. Any page the victim visits can trigger it: a link, an image tag, anything. The key insight: with no token required, any request carrying the logged-in cookie performs the change. But the flag demands proof the request crossed sites: a foreign Referer or Origin header, not a replay inside your own session.',
+    hints: ["The email change is a GET request with no token. In Burp Proxy, watch what the settings form actually sends.", "Any request that carries your session cookie performs the change, but the flag only fires for a request that arrives from another site. In Repeater, add a Referer or Origin header naming the attacker's site.", "Use Burp's Generate CSRF PoC tool on the captured request to build the attacker's page, or forge the headers in Repeater: the browser is not needed, the cross-site evidence is."],
     tools: "BZ, B",
-    how: 'In Repeater, send GET /csrf/change-email with an email query parameter while carrying the logged-in session cookie. No token or confirmation is required, so the email changes immediately.',
+    how: 'In Repeater, send GET /csrf/change-email with an email query parameter while carrying the logged-in session cookie, and add a Referer or Origin header pointing at a foreign site so the request reads as a genuine cross-site forgery. No token or confirmation is required, so the email changes immediately.',
     link: '/csrf/change-email',
-    start: 'Route your browser through Burp Proxy, log in as alice, and open the Email settings page. Find the change-email GET in Proxy HTTP history, then send it to Repeater.',
+    start: 'Route your browser through Burp Proxy, log in as alice, and open the Email settings page. Find the change-email GET in Proxy HTTP history, then send it to Repeater and add cross-site evidence.',
   },
   router,
 };

@@ -16,10 +16,11 @@ const vuln = {
   tools: 'BZ, C',
   how: 'Send a TRACE request to /misconfig/trace from Burp Repeater and read the reflected request.',
   link: '/misconfig/trace',
-  start: 'In Burp: send a request to http://localhost:3000/misconfig/trace in Repeater, change the method verb to TRACE, add a Cookie header, and read the reflection.',
+  start: 'In Burp: send a request to /misconfig/trace in Repeater, change the method verb to TRACE, add a Cookie header, and read the reflection.',
 };
 
-// GET /trace -> explainer page: browsers cannot send TRACE, curl can.
+// GET /trace -> explainer page: browsers cannot send TRACE, but Burp Repeater
+// can: change the method verb to TRACE there.
 router.get('/trace', (req, res) => {
   res.send(
     page(

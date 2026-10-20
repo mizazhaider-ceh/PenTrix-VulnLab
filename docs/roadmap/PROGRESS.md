@@ -96,7 +96,7 @@ and legitimate use still works. Pilot scope: `sqli` (11) + `xss` (9) =
 | File | Status | What it does |
 |---|---|---|
 | `lib/fixmode.js` | done | Sandboxed runner: executes student code in `node:vm` with a minimal sandbox (plain JS builtins plus a neutered console; no `require`, no `process`, no file or network access), 2s run timeout, 50KB code cap. Exports `listFixBlocks`, `hasFixBlock`, `getFixBlock`, `validateBlock`, `testFix`, `resetFixCache` |
-| `lib/fixbadges.js` | done | Badge storage: `fix_badges` SQLite table keyed by express `sessionID` (same user identity as the flag system), so badges survive server restarts |
+| `lib/fixbadges.js` | done | Badge storage keyed by express `sessionID`, so badges survive server restarts |
 | `lib/page.js` fix UI | done | `fixCta`, `fixEditorPage`, `fixResultHtml`, `fixBadgePill`; challenge pages render the fix CTA when a block exists |
 
 ### The four runner checks (`testFix` in `lib/fixmode.js`)
@@ -171,7 +171,7 @@ stage N's flag is captured. Scenario flags use module_id `scenario`
 1. Stage 0 is always unlocked; stage i unlocks iff stage i-1's flag is captured (checked per request via `captured(req, moduleId, vulnId)`).
 2. Unlocked stage: title, briefing, clay "Enter the challenge" button resolving the challenge's `vuln.link` from the injected registry, falling back to `/<moduleId>`.
 3. Locked stage: lock orb, title, "Complete the previous stage to unlock". No link, no briefing leaked.
-4. Completion: when all stage flags are captured and the scenario flag is not yet captured, `award(req, 'scenario', sc.id)` fires once and `flagBanner` renders at the top of the scenario page. Revisits re-render the banner from `flagFor('scenario', sc.id)` (read from the seeded flags row, never re-awarded).
+4. Completion: when all stage flags are captured and the scenario flag is not yet captured, `award(req, 'scenario', sc.id)` fires once and `flagBanner` renders at the top of the scenario page. Revisits re-render the banner from `flagFor('scenario', sc.id)` (read back through the flag helper, never re-awarded).
 5. Unknown scenario id returns the styled 404.
 
 ### Tests

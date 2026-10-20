@@ -3,7 +3,7 @@
 const express = require('express');
 const { page, esc, brief, flagBox, fixPanel, hintLadder, emptyState } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { getDb } = require('../../../lib/db');
+const { setPasswordOverride } = require('../../../lib/account-state');
 const shared = require('../shared');
 
 const router = express.Router();
@@ -82,7 +82,10 @@ router.post('/change-password', (req, res) => {
   // VULN: changing the password needs only an active session, never the
   // current password, so an unattended or hijacked session is enough to take
   // over the account.
-  getDb().prepare('UPDATE users SET password = ? WHERE username = ?').run(newPassword, me);
+  // Multi-student isolation (P1-1): the new password lives in this session
+  // only. The shared accounts table keeps the seeded password, so another
+  // student's brute-force lab still works.
+  setPasswordOverride(req, me, newPassword);
   const extra = flagBox(award(req, 'auth', 'change-pass-noverify')) + fixPanel('auth', 'change-pass-noverify');
   res.send(
     page(

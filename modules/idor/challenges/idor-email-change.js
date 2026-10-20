@@ -5,6 +5,7 @@ const { getDb } = require('../../../lib/db');
 const { esc, flagBox, fixPanel, hintLadder } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { deny, requireUser, shopPage, kvTable } = require('../shared');
+const { setEmailOverride, effectiveEmail } = require('../../../lib/account-state');
 
 const router = express.Router();
 
@@ -12,6 +13,9 @@ router.get('/account', (req, res) => {
   const u = requireUser(req, res);
   if (!u) return;
   const row = getDb().prepare('SELECT id, username, email FROM users WHERE id = ?').get(u.id);
+  // A change this session made through the IDOR shows here for this session
+  // only (P1-1); everyone else sees the account's real email.
+  if (row) row.email = effectiveEmail(req, row.id, row.email);
   res.send(shopPage(u, 'Account settings', `
     ${kvTable('Account details', [
       ['Username', esc(row.username)],
@@ -42,7 +46,9 @@ router.post('/account/email', (req, res) => {
   }
   // VULN: the target account comes from a client-supplied user_id parameter
   // with no check that it matches the logged-in user.
-  getDb().prepare('UPDATE users SET email = ? WHERE id = ?').run(email, target.id);
+  // Multi-student isolation (P1-1): the change is kept in this session, so
+  // one student's IDOR cannot rewrite another student's view of the account.
+  setEmailOverride(req, target.id, email);
   let flagHtml = '';
   // Award: a non-admin member changing another user's email address.
   if (target.id !== u.id && u.role !== 'admin') {

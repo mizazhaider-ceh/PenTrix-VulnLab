@@ -2,9 +2,7 @@
 // Cross-Site Scripting: nine challenges that end in a beacon to /xss/collect
 // (or, for DOM clobbering, an admin page that checks the stored markup).
 const express = require('express');
-const { fixCta,
-  briefPanel, difficultyPill, errorPage, esc, fixPanel, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner,
- } = require('../../lib/page');
+const { briefPanel, difficultyPill, errorPage, esc, fixPanel, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner, easyFirst, cardConsoles, startBlock, fixSection } = require('../../lib/page');
 const { award, captured } = require('../../lib/flags');
 const { EXFIL_PAYLOAD, xssConsumeNonce } = require('./shared');
 
@@ -42,7 +40,9 @@ payload shape for that page and a live status widget.</p>`;
 
 // Module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => {
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('xss', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => {
     const done = captured(req, 'xss', v.id);
     return `
       <article class="vuln-card" id="${esc(v.id)}">
@@ -51,7 +51,7 @@ router.get('/', (req, res) => {
           ${done ? '<span class="captured">Flag captured</span>' : ''}
         </h3>
         <p>${esc(v.how)}</p>
-        ${v.start ? payloadBlock('Starting point', v.start) : ''}
+        ${startBlock(v, consoles[i])}
         ${hintLadder(v)}
         ${toolsPill(v)}
         <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(v.link)}">Open challenge</a></p>
@@ -60,17 +60,6 @@ router.get('/', (req, res) => {
 
   const anyCaptured = challenges.some((c) => captured(req, 'xss', c.vuln.id));
 
-  // M11 break-then-fix: per-challenge fix CTAs (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">You broke it. Now repair it. Fix mode hands you the vulnerable code, you write the patch, and the runner checks that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => `
-        <article class="vuln-card fix-card">
-          <h3>${esc(c.vuln.name)}</h3>
-          ${fixCta('xss', c.vuln.id)}
-        </article>`).join('')}
-    </section>`;
   res.send(page('Cross-Site Scripting', `
     ${briefPanel('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -84,7 +73,7 @@ router.get('/', (req, res) => {
     one-time token as <code>window.__px</code>; the beacon must echo it back. The flag is
     awarded only when the beacon arrives with data and a valid token for that challenge,
     so a forged beacon with no page load earns nothing.</p>
-  ${fixSectionHtml}
+  ${fixSection('xss', challenges)}
 `));
 });
 
@@ -109,6 +98,16 @@ router.get('/collect', (req, res) => {
   // challenge page loads and rendered into the page as window.__px, so the
   // beacon proves the payload executed in the page (or at least that the
   // challenge page was loaded in this session). Nonces are single-use.
+  // Stored XSS is victim-bound: the flag is awarded only by the simulated
+  // victim-visit flow (/xss/victim-visit), never by a beacon fired from the
+  // attacker's own session.
+  if (v === 'stored') {
+    return res.status(400).send(page('Cookie collector', errorPage(400, 'Victim visit required', `
+      <p>The stored-XSS flag is awarded only when a <b>victim</b> session loads
+      the guestbook and your stored payload fires there. Plant your payload as
+      a guestbook comment, then load <a href="/xss/victim-visit">/xss/victim-visit</a>.
+      A beacon fired from your own session wins nothing.</p>`)));
+  }
   if (c.length > 0 && VULN_IDS.includes(v) && xssConsumeNonce(req, v, n)) {
     const flag = award(req, 'xss', v);
     return res.send(page('Cookie collector', `

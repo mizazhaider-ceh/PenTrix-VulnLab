@@ -111,7 +111,7 @@ const vuln = {
   tools: "BZ, B",
   how: 'Add the hoodie to the cart, then POST /bizlogic/workflow/confirm directly, skipping the pay step entirely.',
   link: '/bizlogic#biz-workflow-skip',
-  start: 'Start Burp Proxy and open http://localhost:3000/bizlogic/workflow in your proxied browser. Add the hoodie to the cart, then send the confirm POST to Repeater and replay it before paying.',
+  start: 'Start Burp Proxy and open /bizlogic/workflow in your proxied browser. Add the hoodie to the cart, then send the confirm POST to Repeater and replay it before paying.',
 };
 
 module.exports = { vuln, router };

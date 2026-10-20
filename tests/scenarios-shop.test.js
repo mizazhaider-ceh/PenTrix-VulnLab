@@ -2,9 +2,9 @@
 // Shop Takeover scenario: four real exploits chained in order, each one
 // unlocking the next stage, with the scenario flag awarded only after the
 // last. Tests share one booted server; the exploit chain runs on a single
-// client because scenario progress is per session. No browser is available,
-// so the xss/stored beacon is played end to end in a vm sandbox like the
-// xss module tests do.
+// client because scenario progress is per session. The xss/stored stage uses
+// the victim-bound flow from tests/xss.test.js: plant the payload in the
+// guestbook, then drive GET /xss/victim-visit.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -156,19 +156,18 @@ test('shop-takeover scenario', async (t) => {
     assert.ok(links[3].includes('xss'), 'stage 4 leads into the xss challenge');
   });
 
-  await t.test('stage 4: real xss/stored beacon exploit completes the scenario and awards the scenario flag', async () => {
+  await t.test('stage 4: real xss/stored victim-visit exploit completes the scenario and awards the scenario flag', async () => {
+    // Stored XSS is victim-bound: the award flows only through the
+    // simulated-victim route. Plant the payload in the guestbook, then drive
+    // GET /xss/victim-visit exactly as tests/xss.test.js does. A beacon
+    // fired at /xss/collect from the attacker own session is rejected.
     const post = await chain.post('/xss/guestbook', { author: 'mallory', body: `<script>${beaconJs('stored')}</script>` });
-    assert.equal(post.status, 302);
-    const page = await chain.get('/xss/guestbook');
-    assert.equal(page.status, 200);
-    const b = makeBrowser(chain.cookie());
-    b.runPage(page.text);
-    assert.deepEqual(b.errors, [], 'the payload and page scripts must run cleanly');
-    assert.ok(b.beacons().length > 0, 'the stored payload must fire a collector beacon');
-    const collect = await deliver(chain, b);
-    assert.ok(collect, 'no beacon was accepted by the collector');
-    assert.equal(collect.status, 200);
-    assert.ok(collect.text.includes(challengeFlag('xss', 'stored')), 'the beacon must capture the xss flag');
+    assert.equal(post.status, 302, 'planting the stored payload must redirect back to the guestbook');
+    const selfRejected = await chain.get('/xss/collect?c=' + encodeURIComponent(chain.cookie()) + '&v=stored&n=anything');
+    assert.equal(selfRejected.status, 400, 'a self-fired stored beacon must be rejected');
+    const collect = await chain.get('/xss/victim-visit');
+    assert.equal(collect.status, 200, 'victim visit must succeed');
+    assert.ok(collect.text.includes(challengeFlag('xss', 'stored')), 'the victim visit must capture the xss flag');
     assert.ok((await capturedSet(chain)).includes('xss:Stored XSS'), 'xss:Stored XSS must be on the scoreboard');
     const text = await scenarioPage(chain);
     const flags = text.match(FLAG_RE) || [];

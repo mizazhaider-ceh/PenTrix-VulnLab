@@ -16,11 +16,12 @@ const vuln = {
   name: 'RS256 / HS256 Algorithm Confusion',
   difficulty: 'Hard',
   hint: 'The server verifies RS256 but also accepts HS256. For HS256 it needs a shared secret. Which "secret" does it use, and who else can read it?',
-  hints: ["Proxy the challenge pages through Burp and open the RSA public key page. Copy the PEM text; that is the raw material.", "Send the POST /jwt/confusion request to Repeater. The token field is yours to rewrite: decode a token in Burp Decoder and try switching the header alg.", "The server uses its own RSA public key bytes as the HMAC secret for HS256. Mint an HS256 token with role admin using those bytes as the signing secret (the node/jwt CLI does this), then drop the token into the Repeater request and send."],
+  hints: ["Proxy the challenge pages through Burp and open the RSA public key page. Copy the PEM text exactly, newlines included: the secret is the key bytes, and a single collapsed newline changes every signature (the PEM newline trap).", "Send the POST /jwt/confusion request to Repeater. The token field is yours to rewrite: decode a token in Burp Decoder and try switching the header alg.", "The server uses its own RSA public key bytes as the HMAC secret for HS256. Mint an HS256 token with role admin using those bytes as the signing secret: node -e with the jsonwebtoken package is one way, or stay in Burp with the JWT Editor extension (Tool Setup Guide, section 11) and drop the token into the Repeater request and send."],
   tools: 'BZ, N',
+  est: 'about 15 minutes',
   how: 'Fetch the published RSA public key, use its bytes as the HMAC secret to mint an HS256 token with role admin, and submit the token through the challenge form or a Burp Repeater POST to /jwt/confusion.',
   link: '/jwt#alg-confusion',
-  start: 'Set your browser to proxy through Burp (127.0.0.1:8080) and open http://localhost:3000/jwt/confusion\nOpen the RSA public key link in the same browser and copy the PEM text\nMint an HS256 token with role admin signed with those PEM bytes (the node/jwt CLI is the quickest way), then paste it into the token form or replay the POST in Repeater',
+  start: 'Set your browser to proxy through Burp and open /jwt/confusion. Open the RSA public key link in the same browser and copy the PEM text. Mint an HS256 token with role admin signed with those PEM bytes (node -e with jsonwebtoken, or the Burp JWT Editor extension, Tool Setup Guide section 11), then paste it into the token form or replay the POST in Repeater',
 };
 
 // GET /jwt/confusion -> admin panel. Tokens are verified with RS256, and for

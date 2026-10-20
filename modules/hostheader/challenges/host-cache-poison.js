@@ -9,11 +9,16 @@ const { isLocalHost } = require('../shared');
 
 const router = express.Router();
 
-// Naive cache: keyed by path only, never by host. Private to this challenge.
-const pageCache = {};
+// Naive cache: keyed by path only, never by host. Private to this challenge,
+// and per session (P1-1): one student's poisoned page is served to nobody
+// else. The poisoner's own follow-up request with the normal host still sees
+// their planted page, which is the demonstrated attack.
+const { createSessionState } = require('../../../lib/session-state');
+const pageCaches = createSessionState(() => ({}));
 
 // GET /app -> password reset portal (cached).
 router.get('/app', (req, res) => {
+  const pageCache = pageCaches.get(req);
   const key = req.path;
   const curHost = req.headers.host || '';
   const entry = pageCache[key];
@@ -38,7 +43,7 @@ router.get('/app', (req, res) => {
       <p>Start a reset here:<br />
       <a href="http://${esc(host)}/hostheader/forgot">http://${esc(host)}/hostheader/forgot</a></p>
       <p class="note dim">This page is cached for performance. The cache key is the path
-      only: the Host header is not part of it.</p>
+      only: the Host header is not part of it. (Each browser session has its own cache, so a planted page only ever comes back to you.)</p>
       <p>
         <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/hostheader/app/clear">Clear the cache</a>
         <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/hostheader">Back to the module</a>
@@ -48,9 +53,9 @@ router.get('/app', (req, res) => {
   res.send(page('Reset portal', html));
 });
 
-// GET /app/clear -> empty this challenge's cache.
+// GET /app/clear -> empty this session's cache.
 router.get('/app/clear', (req, res) => {
-  delete pageCache['/app'];
+  delete pageCaches.get(req)['/app'];
   res.send(page('Cache cleared', `
     <div class="clay-card">
       <p>Cache cleared.</p>

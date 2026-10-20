@@ -49,33 +49,33 @@ if (!READY) {
       assert.equal(fixmode.getFixBlock('ssrf', 'basic'), null, 'missing block is null');
     });
 
-    await t.test('validateBlock passes for every pilot block', () => {
+    await t.test('validateBlock passes for every pilot block', async () => {
       for (const b of blocks) {
         const block = fixmode.getFixBlock(b.module, b.vulnId);
-        const res = fixmode.validateBlock(block);
+        const res = await fixmode.validateBlock(block);
         assert.equal(res.valid, true, b.module + '/' + b.vulnId + ': ' + (res.error || ''));
         assert.equal(res.error, null);
       }
     });
 
-    await t.test('validateBlock rejects a deliberately broken block', () => {
+    await t.test('validateBlock rejects a deliberately broken block', async () => {
       const good = fixmode.getFixBlock('sqli', 'login-bypass');
       const broken = Object.assign({}, good, { testExploit: '1 === 2' });
-      const res = fixmode.validateBlock(broken);
+      const res = await fixmode.validateBlock(broken);
       assert.equal(res.valid, false, 'broken block must fail validation');
       assert.ok(typeof res.error === 'string' && res.error.length > 0, 'error message present');
-      const empty = fixmode.validateBlock(null);
+      const empty = await fixmode.validateBlock(null);
       assert.equal(empty.valid, false);
       const missingField = Object.assign({}, good, { vulnerableCode: '' });
-      assert.equal(fixmode.validateBlock(missingField).valid, false);
+      assert.equal((await fixmode.validateBlock(missingField)).valid, false);
     });
 
-    await t.test('testFix with the reference fixedCode accepts 3 sample blocks', () => {
+    await t.test('testFix with the reference fixedCode accepts 3 sample blocks', async () => {
       const sample = blocks.slice(0, 3);
       assert.equal(sample.length, 3);
       for (const b of sample) {
         const block = fixmode.getFixBlock(b.module, b.vulnId);
-        const res = fixmode.testFix(b.module, b.vulnId, block.fixedCode);
+        const res = await fixmode.testFix(b.module, b.vulnId, block.fixedCode);
         assert.equal(res.ok, true, b.module + '/' + b.vulnId + ': ' + (res.error || ''));
         assert.equal(res.exploitBlocked, true);
         assert.equal(res.legitWorks, true);
@@ -83,51 +83,51 @@ if (!READY) {
       }
     });
 
-    await t.test('testFix with the vulnerable code rejects (exploit still works)', () => {
+    await t.test('testFix with the vulnerable code rejects (exploit still works)', async () => {
       const b = blocks[0];
       const block = fixmode.getFixBlock(b.module, b.vulnId);
-      const res = fixmode.testFix(b.module, b.vulnId, block.vulnerableCode);
+      const res = await fixmode.testFix(b.module, b.vulnId, block.vulnerableCode);
       assert.equal(res.ok, false);
       assert.equal(res.exploitBlocked, false, 'exploit must still be reported as working');
       assert.ok(typeof res.error === 'string' && res.error.length > 0, 'error message present');
     });
 
-    await t.test('testFix with code that breaks legit use rejects with legitWorks false', () => {
+    await t.test('testFix with code that breaks legit use rejects with legitWorks false', async () => {
       const b = blocks[0];
       const throwing = 'function vulnFn() { throw new Error("broken on purpose"); }';
-      const res = fixmode.testFix(b.module, b.vulnId, throwing);
+      const res = await fixmode.testFix(b.module, b.vulnId, throwing);
       assert.equal(res.ok, false);
       assert.equal(res.legitWorks, false, 'legit use must be reported as broken');
       assert.ok(typeof res.error === 'string' && res.error.length > 0, 'error message present');
     });
 
-    await t.test('testFix with syntactically invalid JS fails cleanly, no crash', () => {
+    await t.test('testFix with syntactically invalid JS fails cleanly, no crash', async () => {
       const b = blocks[0];
-      const res = fixmode.testFix(b.module, b.vulnId, 'function vulnFn( { this is not valid javascript');
+      const res = await fixmode.testFix(b.module, b.vulnId, 'function vulnFn( { this is not valid javascript');
       assert.equal(res.ok, false);
       assert.ok(typeof res.error === 'string' && res.error.length > 0, 'syntax error message present');
     });
 
-    await t.test('testFix with an infinite loop fails fast (sandbox timeout), no hang', () => {
+    await t.test('testFix with an infinite loop fails fast (sandbox timeout), no hang', async () => {
       const b = blocks[0];
       const looping = 'function vulnFn() { return 1; }\nwhile (true) {}';
       const started = Date.now();
-      const res = fixmode.testFix(b.module, b.vulnId, looping);
+      const res = await fixmode.testFix(b.module, b.vulnId, looping);
       const elapsed = Date.now() - started;
       assert.equal(res.ok, false);
       assert.ok(typeof res.error === 'string' && res.error.length > 0, 'timeout error message present');
       assert.ok(elapsed < 15000, 'must return within a bounded time, took ' + elapsed + 'ms');
     });
 
-    await t.test('testFix on a block that does not exist fails with a clear message', () => {
-      const res = fixmode.testFix('ssrf', 'basic', 'function vulnFn() { return 1; }');
+    await t.test('testFix on a block that does not exist fails with a clear message', async () => {
+      const res = await fixmode.testFix('ssrf', 'basic', 'function vulnFn() { return 1; }');
       assert.equal(res.ok, false);
       assert.ok(/No fix exercise found/.test(res.error), 'clear not-found message');
     });
 
-    await t.test('testFix with empty student code asks for code', () => {
+    await t.test('testFix with empty student code asks for code', async () => {
       const b = blocks[0];
-      const res = fixmode.testFix(b.module, b.vulnId, '   ');
+      const res = await fixmode.testFix(b.module, b.vulnId, '   ');
       assert.equal(res.ok, false);
       assert.ok(typeof res.error === 'string' && res.error.length > 0);
     });

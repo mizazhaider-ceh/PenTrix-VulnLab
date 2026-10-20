@@ -5,7 +5,7 @@
 // challenge files hold each flaw; this file is only the module wiring:
 // module-level helper routes, the index page, and the registry metadata.
 const express = require('express');
-const { fixCta, brief, esc, flagBox, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, flagBox, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection, consoleMap , capturedPill } = require('../../lib/page');
 const { award } = require('../../lib/flags');
 const { tokenDb, isLocalHost } = require('./shared');
 
@@ -46,22 +46,17 @@ code path.</p>`;
 
 // GET /hostheader -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('hostheader', ordered, consoleMap('/hostheader/', PAGE_FOR));
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3><a href="/hostheader/${PAGE_FOR[v.id]}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)}</h3>
+      <h3><a href="/hostheader/${PAGE_FOR[v.id]}">${esc(v.name)}</a> ${difficultyPill(v.difficulty)} ${capturedPill(req, 'hostheader', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('hostheader', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Host Header Injection', `
     ${brief('Host Header Injection', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -72,7 +67,7 @@ router.get('/', (req, res) => {
     level 1 nudges, level 2 teaches the technique, level 3 shows the payload
     shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('hostheader', challenges)}
 `));
 });
 

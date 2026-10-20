@@ -15,11 +15,12 @@ const vuln = {
   name: 'Double-Spend the Balance',
   difficulty: 'Medium',
   hint: 'The balance check and the debit are two separate steps with a gap between them. Two transfers of the full balance, at the same time...',
-  hints: ["The balance check and the debit happen in two separate steps. Confirm in Burp Repeater that one transfer of $100 works and shows the new balance.", "Repeater sends one request at a time, and a race needs many at once. Send the request to Intruder and raise the concurrent request count.", "The await between the check and the debit is the window, roughly 150 to 250 ms. Fire a burst of parallel transfers of $100 so every one passes the check against the same balance before any debit lands."],
+  hints: ["The balance check and the debit happen in two separate steps. Confirm in Burp Repeater that one transfer of $100 works and shows the new balance.", "A race needs many requests at the same instant, and Repeater has exactly the tool: duplicate the Repeater tab 20 times (right-click the tab, Duplicate tab), select all 20 tabs, then right-click and choose Send group in parallel. Honest note: Community Intruder is throttled and cannot reliably land 20 requests inside a short window, so use the Repeater group, not Intruder, for races in this module.", "The await between the check and the debit is the window, roughly 150 to 250 ms. Send group in parallel fires every tab near-simultaneously (the single-packet attack), so all 20 transfers of $100 pass the check against the same balance before any debit lands."],
   tools: 'BZ, C',
+  est: 'about 10 minutes',
   how: 'Fire a burst of parallel transfers that together exceed the $100 balance so every one passes the check before any debit lands, driving the balance negative.',
   link: '/race#race-balance',
-  start: 'Capture one POST /race/transfer in Burp, then send it to Intruder and run the attack with concurrent requests enabled.',
+  start: 'Capture one POST /race/transfer in Burp, send it to Repeater (Ctrl+R), duplicate the tab 20 times, select the group, then right-click and choose Send group in parallel.',
 };
 
 // Challenge-local presentation: a clay card hero for this wallet screen.
@@ -29,12 +30,12 @@ function wallet(crumb, body) {
 
 function backLinks() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race">Back to module</a>
-  <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a></p>`;
+  <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form></p>`;
 }
 
 router.get('/transfer', (req, res) => {
-  const balance = shared.state().balance;
-  const ledger = shared.state().ledger
+  const balance = shared.state(req).balance;
+  const ledger = shared.state(req).ledger
     .map((t) => `<li>$${t.amount.toFixed(2)} to ${esc(t.to)}</li>`).join('')
     || '<li><i>none yet</i></li>';
   res.send(page('Balance transfer', wallet('Send money', `
@@ -42,6 +43,7 @@ router.get('/transfer', (req, res) => {
       <div class="card-top"><span class="orb" aria-hidden="true">◈</span><b>Wallet</b><span class="dim">Send money</span></div>
       <h2>Wallet transfer</h2>
       <p>Current balance: <b>$${balance.toFixed(2)}</b></p>
+      <p class="dim">Every session starts funded with $100.00. One test transfer of $100.00 spends it all and leaves $0.00, so press <b>Reset lab state</b> below to fund the wallet again before a burst.</p>
       <form method="POST" action="/race/transfer">
         <div class="clay-field">
           <label for="to">Recipient</label>
@@ -58,7 +60,7 @@ router.get('/transfer', (req, res) => {
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
     <p>The balance is $100. Send 20 parallel transfers of $100 and watch the balance go negative:</p>
-    ${payloadBlock('Burp Intruder', 'Send the transfer POST to Intruder (Ctrl+I), set payloads/threads for 20 parallel requests, start the attack and watch the responses.')}
+    ${payloadBlock('Burp Repeater: Send group in parallel', '1. Do one transfer in the browser with Burp proxying.\n2. In Proxy history, send the POST /race/transfer request to Repeater (Ctrl+R).\n3. Right-click the Repeater tab, choose Duplicate tab, and repeat until you have 20 tabs of the same request.\n4. Select all 20 tabs, right-click, and choose Send group in parallel.\n5. Watch the responses: every transfer passes the check against the same $100 balance before any debit lands.')}
     ${backLinks()}
   `)));
 });
@@ -76,17 +78,18 @@ router.post('/transfer', async (req, res) => {
   }
   // VULN: balance is checked, then an await happens, then the debit is applied;
   // parallel transfers each pass the check against the same starting balance.
-  if (shared.state().balance < amount) {
+  if (shared.state(req).balance < amount) {
     return res.status(200).send(page('Transfer', wallet('Send money', `
       <section class="clay-card">
         <h2>Insufficient funds</h2>
-        <p>Balance $${shared.state().balance.toFixed(2)} cannot cover $${amount.toFixed(2)}.</p>
+        <p>Balance $${shared.state(req).balance.toFixed(2)} cannot cover $${amount.toFixed(2)}.</p>
+        <p class="dim">The wallet only holds what is left of its $100.00 starting balance. If a test transfer already spent it, press <b>Reset lab state</b> to fund a fresh $100.00 wallet, then try again.</p>
         ${backLinks()}
       </section>
     `)));
   }
   await shared.sleep(shared.WINDOW());
-  const s = shared.state();
+  const s = shared.state(req);
   s.balance -= amount;
   s.ledger.push({ to, amount });
 

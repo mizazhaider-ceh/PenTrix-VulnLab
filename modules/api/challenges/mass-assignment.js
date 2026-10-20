@@ -3,6 +3,7 @@
 const express = require('express');
 const { getDb } = require('../../../lib/db');
 const { award } = require('../../../lib/flags');
+const { setRoleOverride, effectiveRole } = require('../../../lib/account-state');
 
 const router = express.Router();
 
@@ -11,6 +12,10 @@ router.get('/me', (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(401).json({ ok: false, error: 'Not logged in. Use GET /api/login/alice first.' });
   const me = getDb().prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(user.id);
+  // A role this session granted itself through mass assignment applies to
+  // this session only (see the PATCH handler); everyone else sees the
+  // account's real role.
+  if (me) me.role = effectiveRole(req, me.id, me.role);
   res.json({ ok: true, user: me });
 });
 
@@ -25,18 +30,37 @@ router.patch('/me', (req, res) => {
   if (keys.length === 0) return res.status(400).json({ ok: false, error: 'Empty JSON body.' });
 
   const db = getDb();
+  const before = db.prepare('SELECT id, role FROM users WHERE id = ?').get(user.id);
   // VULN: mass assignment, no allowlist. Client-controlled keys (even "role"
   // or "id") become columns in the UPDATE, so privilege escalation is trivial.
   const setClause = keys.map((k) => `"${k}" = ?`).join(', ');
   const values = keys.map((k) => body[k]);
   db.prepare(`UPDATE users SET ${setClause} WHERE id = ?`).run(...values, user.id);
 
+  // Multi-student isolation (P1-1): the privilege change the exploit earned
+  // must not leak into the shared users table, or alice would silently stay
+  // admin for every other student and nullify the six IDOR challenges that
+  // gate on role. The escalation above runs for real (it is the lesson),
+  // then the shared row is restored and the new role is kept as a
+  // per-session override, visible only to the session that earned it.
   const updated = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(user.id);
   let flag = null;
-  if (updated && updated.role === 'admin') {
+  const wantsPromotion = keys.some((k) => String(k).toLowerCase() === 'role');
+  if (wantsPromotion && before && updated && updated.role !== before.role) {
+    // NOTE: SQLite returns the INTEGER PRIMARY KEY alias ("id") for a
+    // rowid select, so before.id is the row locator here.
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run(before.role, before.id);
+    setRoleOverride(req, user.id, updated.role);
+    updated.role = before.role;
+  }
+  const shown = updated
+    ? { id: updated.id, username: updated.username, email: updated.email,
+        role: effectiveRole(req, updated.id, updated.role) }
+    : null;
+  if (shown && shown.role === 'admin') {
     flag = award(req, 'api', 'mass-assignment');
   }
-  res.json({ ok: true, user: updated, flag });
+  res.json({ ok: true, user: shown, flag });
 });
 
 module.exports = {
@@ -53,7 +77,7 @@ module.exports = {
     tools: 'BZ, C',
     how: 'Log in as alice, send a GET /api/me to Repeater to read your columns, then replay the PATCH /api/me in Repeater with one extra JSON key that raises your privilege and collect the flag.',
     link: '/api#mass-assignment',
-    start: 'Route your browser through Burp Proxy, visit http://localhost:3000/api/login/alice to log in, then browse to http://localhost:3000/api/me and send that request to Repeater (Ctrl+R) to see your profile columns.',
+    start: 'Route your browser through Burp Proxy, visit /api/login/alice to log in, then browse to /api/me and send that request to Repeater (Ctrl+R) to see your profile columns.',
   },
   router,
 };

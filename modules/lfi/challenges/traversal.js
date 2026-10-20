@@ -29,6 +29,8 @@ router.get('/view', (req, res) => {
   `;
 
   if (file) {
+    // VULN: the file parameter reaches the reader with no path normalization,
+    // so ../ sequences escape the library directory (path traversal).
     const r = readTarget(file);
     if (r.ok) {
       body += `<h2>Contents of <code>${esc(file)}</code></h2><pre>${esc(r.data)}</pre>`;

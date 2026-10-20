@@ -3,7 +3,7 @@
 const express = require('express');
 const { page, esc, brief, flagBox, fixPanel, hintLadder } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
-const { getDb } = require('../../../lib/db');
+const { setPasswordOverride } = require('../../../lib/account-state');
 const shared = require('../shared');
 
 const router = express.Router();
@@ -21,7 +21,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Forge a reset token for admin (base64 of "admin") and submit it at /auth/reset/confirm to change admin\'s password. The whole chain runs through Burp Decoder and Repeater.',
   link: '/auth/reset',
-  start: 'With Burp Proxy on your browser, open http://localhost:3000/auth/reset, request a reset for alice, follow the confirm link, and send its POST to Repeater.',
+  start: 'With Burp Proxy on your browser, open /auth/reset, request a reset for alice, follow the confirm link, and send its POST to Repeater.',
 };
 
 // VULN: the reset token is just base64(username), fully predictable and
@@ -30,13 +30,13 @@ function resetTokenFor(username) {
   return Buffer.from(username, 'utf8').toString('base64');
 }
 
-// Usernames the reset flow has ever issued a token for, across all sessions.
-// The token is deterministic (base64(username)), so a token shown on screen
-// in session A is byte-identical to a forged one. Without this record, that
-// token could be replayed from a fresh session B for the flag without any
-// forging. The intended solve still works: forging a token for a user that
-// was never issued one still awards.
-const issuedUsernames = new Set();
+// Usernames the reset flow has shown a token for in THIS session. The token
+// is deterministic (base64(username)), so a token shown on screen is
+// byte-identical to a forged one. Without a per-session record, that token
+// could be replayed for the flag with no forging. The intended solve still
+// works: forging a token for a user that was never issued one to this
+// session still awards. (P1-1: this used to be process-global, so one
+// student's issued reset blocked everyone else's forged-token solve.)
 
 function failure(message) {
   return page(
@@ -59,7 +59,10 @@ router.get('/reset', (req, res) => {
       if (!req.session.issuedResets.includes(token)) {
         req.session.issuedResets.push(token);
       }
-      issuedUsernames.add(u.username);
+      req.session.issuedResetUsers = req.session.issuedResetUsers || [];
+      if (!req.session.issuedResetUsers.includes(u.username)) {
+        req.session.issuedResetUsers.push(u.username);
+      }
       // VULN: the "email" with the reset link is rendered right here on the
       // page for anyone to read, and the token is trivially predictable.
       const link = `/auth/reset/confirm?token=${encodeURIComponent(token)}`;
@@ -134,10 +137,13 @@ router.post('/reset/confirm', (req, res) => {
   }
 
   const issued = req.session.issuedResets || [];
-  const wasLegit = issued.includes(token) || issuedUsernames.has(user.username);
-  getDb()
-    .prepare('UPDATE users SET password = ? WHERE username = ?')
-    .run(newPassword, user.username);
+  // Multi-student isolation (P1-1): a token the reset flow showed to another
+  // student's session must not block this session's forged token. The
+  // "issued" record is per session; within one session the anti-replay
+  // protection still holds (a token shown to you does not earn you the flag).
+  const issuedUsers = req.session.issuedResetUsers || [];
+  const wasLegit = issued.includes(token) || issuedUsers.includes(user.username);
+  setPasswordOverride(req, user.username, newPassword);
 
   // Award when a password was changed with a token that was neither issued to
   // this session nor ever issued for that user (i.e. a forged / guessed

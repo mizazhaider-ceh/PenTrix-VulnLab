@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { appShell, esc, fixPanel, flagBox, page } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
+const crypto = require('crypto');
 
 const router = express.Router();
 
@@ -46,9 +47,18 @@ router.post('/traverse', (req, res) => {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, req.body);
   const outside = !target.startsWith(UPLOADS_DIR + path.sep);
+  // Writing outside arms the proof only; the flag fires when the escaped
+  // file is read back through GET /upload/traverse-prove, proving the write
+  // really landed outside the dropbox folder.
   let flagHtml = '';
   if (outside && fs.existsSync(target)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-traversal')) + fixPanel('upload', 'upload-traversal') + `<p class="dim">That name resolved outside the dropbox folder. Read it back at <a href="/upload/traversed?f=${encodeURIComponent(raw)}"><code>/upload/traversed?f=${esc(raw)}</code></a>.</p>`;
+    req.session = req.session || {};
+    req.session.uploadTravPending = {
+      name: raw,
+      sha: crypto.createHash('sha256').update(req.body).digest('hex'),
+      at: Date.now(),
+    };
+    flagHtml = `<p class="dim">That name resolved outside the dropbox folder. Prove it by reading the file back through <a href="/upload/traverse-prove?f=${encodeURIComponent(raw)}"><code>/upload/traverse-prove?f=${esc(raw)}</code></a>: the flag fires when the escaped file is actually served back.</p>`;
   } else {
     flagHtml = `<p class="dim">Stored inside the dropbox folder. To land somewhere else, the filename must resolve outside of it.</p>`;
   }
@@ -56,6 +66,39 @@ router.post('/traverse', (req, res) => {
     <h2>File stored</h2>
     <p>Saved as <code>${esc(raw)}</code>.</p>
     ${flagHtml}
+    ${backToModule}`));
+});
+
+// GET /traverse-prove -> awards only when the escaped file recorded at
+// upload time is read back, byte-identical, through the same vulnerable
+// resolution logic. A bare ../ in a name is not enough: the proof is the
+// round trip.
+router.get('/traverse-prove', (req, res) => {
+  const f = String(req.query.f || '');
+  const pending = (req.session && req.session.uploadTravPending) || {};
+  let ok = false;
+  let target = '';
+  if (f && pending.name === f) {
+    // VULN: same missing containment check on read, so escaped files are retrievable.
+    target = path.normalize(path.join(UPLOADS_DIR, f));
+    const outside = !target.startsWith(UPLOADS_DIR + path.sep);
+    try {
+      const buf = fs.readFileSync(target);
+      ok = outside && crypto.createHash('sha256').update(buf).digest('hex') === pending.sha;
+    } catch (e) { ok = false; }
+  }
+  if (!ok) {
+    return res.status(403).send(dropbox('Not proven', `
+      <h2>No proof</h2>
+      <p class="dim">The traversal was not proven: either nothing was stored outside the dropbox in this session, or the read-back did not match.</p>
+      ${backToModule}`));
+  }
+  delete req.session.uploadTravPending;
+  const flag = award(req, 'upload', 'upload-traversal');
+  res.send(dropbox('Proven', `
+    <h2>Traversal proven</h2>
+    <p>The file <code>${esc(f)}</code> was written outside the dropbox folder and read back byte-identical.</p>
+    ${flagBox(flag)}${fixPanel('upload', 'upload-traversal')}
     ${backToModule}`));
 });
 
@@ -90,9 +133,9 @@ module.exports = {
       'KEY INSIGHT: the filename is joined to the uploads directory with no basename or containment check. In Repeater, upload with a filename that climbs out of the uploads dir, then fetch it back through the /upload/traversed read endpoint.',
     ],
     tools: 'BZ, C',
-    how: 'In Burp Repeater, POST to /upload/traverse with a filename containing ../ segments so the file lands outside the uploads dir. Then GET /upload/traversed?f= with the same name to read it back. The flag is in the upload response.',
+    how: 'In Burp Repeater, POST to /upload/traverse with a filename containing ../ segments so the file lands outside the uploads dir. Then GET /upload/traverse-prove?f= with the same name: the flag fires only when the escaped file is read back byte-identical, proving the write really escaped.',
     link: '/upload#upload-traversal',
-    start: 'In Burp Repeater, POST to /upload/traverse?filename=../pwn.txt with the file bytes as the raw body, then send a GET to /upload/traversed?f=../pwn.txt and read the result.',
+    start: 'In Burp Repeater, POST to /upload/traverse?filename=../pwn.txt with the file bytes as the raw body, then send a GET to /upload/traverse-prove?f=../pwn.txt and read the result.',
   },
   router,
 };

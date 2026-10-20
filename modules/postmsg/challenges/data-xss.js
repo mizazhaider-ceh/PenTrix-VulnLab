@@ -6,7 +6,7 @@
 // The award itself lives in the module-level /postmsg/beacon route.
 const express = require('express');
 const { page, appShell, payloadBlock } = require('../../../lib/page');
-const { pmNonce } = require('../shared');
+const { pmNonceScript } = require('../shared');
 
 const router = express.Router();
 
@@ -20,9 +20,10 @@ router.get('/data-xss', (req, res) => {
       <div class="card" id="preview"><p class="dim">(no preview received yet)</p></div>
       <script>
         // Page-bound token: only a handler running in this loaded page can know it.
-        var PM_NONCE = ${JSON.stringify(pmNonce(req, 'data-xss'))};
+        ${pmNonceScript(req, 'data-xss')}
         window.addEventListener('message', function (e) {
           var html = (e.data && e.data.html) ? e.data.html : String(e.data);
+          // VULN: message data from any origin flows into innerHTML unsanitized.
           document.getElementById('preview').innerHTML = html;
           fetch('/postmsg/beacon?v=data-xss&d=' + encodeURIComponent('data-xss:' + String(html).slice(0, 200)) + '&n=' + encodeURIComponent(PM_NONCE));
         });

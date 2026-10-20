@@ -128,7 +128,7 @@ test('csrf module', async (t) => {
     checkUi(bad.text, '403 referer page');
   });
 
-  await t.test('email: only the forged state-changing GET earns the flag', async () => {
+  await t.test('email: a self GET changes the email but earns nothing; only a cross-site request earns the flag', async () => {
     const flag = flagOf('email');
     const nobody = client(srv.base);
     const anon = await nobody.get('/csrf/change-email?email=x@evil.com');
@@ -137,17 +137,30 @@ test('csrf module', async (t) => {
     const c = await login();
     const form = await c.get('/csrf/change-email');
     assert.equal(flagsIn(form.text).length, 0, 'viewing the form is not the exploit');
+    assert.ok(!form.text.includes('Load the forged request'), 'the click shortcut must be gone');
     const empty = await c.get('/csrf/change-email?email=%20%20');
     assert.equal(flagsIn(empty.text).length, 0, 'empty email changes nothing');
     assert.deepEqual((await capturedSet(c)).filter((s) => s.startsWith('csrf:')), []);
 
-    const hit = await c.get('/csrf/change-email?email=pwned%40evil.com');
+    // Self request (the old cheat): the email still changes, because changing
+    // it is the app's own feature, but no flag fires without cross-site
+    // evidence.
+    const self = await c.get('/csrf/change-email?email=self%40pentrix.lab');
+    checkUi(self.text, 'email self change');
+    assert.equal(flagsIn(self.text).length, 0, 'a self request is not a forgery');
+    assert.ok((await c.get('/csrf/change-email')).text.includes('self@pentrix.lab'), 'email really changed');
+    const sameOrigin = await c.get('/csrf/change-email?email=self2%40pentrix.lab', { referer: `${srv.base}/csrf/change-email` });
+    assert.equal(flagsIn(sameOrigin.text).length, 0, 'a same-origin Referer is not cross-site evidence');
+    assert.deepEqual((await capturedSet(c)).filter((s) => s.startsWith('csrf:')), []);
+
+    // A foreign Referer is the cross-site evidence the forgery needs.
+    const hit = await c.get('/csrf/change-email?email=pwned%40evil.com', { referer: 'https://evil.example/cat-pictures' });
     checkUi(hit.text, 'email success');
     assert.deepEqual(flagsIn(hit.text), [flag]);
     assert.ok(hit.text.includes('pwned@evil.com'));
     assert.ok((await c.get('/csrf/change-email')).text.includes('pwned@evil.com'), 'email really changed');
     assert.ok((await capturedSet(c)).includes(key('email')));
-    await c.get('/csrf/change-email?email=again%40evil.com');
+    await c.get('/csrf/change-email?email=again%40evil.com', { referer: 'https://evil.example/' });
     assert.equal((await capturedSet(c)).filter((s) => s === key('email')).length, 1, 'no double count');
   });
 
@@ -216,14 +229,31 @@ test('csrf module', async (t) => {
     assert.equal(missing.status, 400);
     assert.deepEqual((await capturedSet(c)).filter((s) => s.startsWith('csrf:')), []);
 
-    // Exactly what the auto-submitting enctype="text/plain" form sends.
-    const hit = await raw(c, 'POST', '/csrf/api/email', '{"email":"attacker@evil.com"}=ignored', { 'content-type': 'text/plain' });
+    // The old cheat: exactly what the auto-submitting form sends, replayed in
+    // your own session with no cross-site evidence. Refused, nothing changes.
+    const selfHit = await raw(c, 'POST', '/csrf/api/email', '{"email":"attacker@evil.com"}=ignored', { 'content-type': 'text/plain' });
+    assert.equal(selfHit.status, 403, 'a self replay carries no cross-site evidence');
+    checkUi(selfHit.text, 'json-csrf refused');
+    assert.equal(flagsIn(selfHit.text).length, 0);
+    const currentEmail = (await c.get('/csrf/json-email')).text.match(/Current email:\s*<code>([^<]*)<\/code>/);
+    assert.equal(currentEmail && currentEmail[1], 'legit@pentrix.lab', 'email must not change on a self replay');
+    // A same-origin Origin header is not evidence either.
+    const sameOrigin = await raw(c, 'POST', '/csrf/api/email', '{"email":"attacker@evil.com"}=ignored', {
+      'content-type': 'text/plain', origin: srv.base,
+    });
+    assert.equal(sameOrigin.status, 403, 'a same-origin Origin is not cross-site evidence');
+
+    // The same body arriving with a foreign Origin: the real forgery.
+    const hit = await raw(c, 'POST', '/csrf/api/email', '{"email":"attacker@evil.com"}=ignored', {
+      'content-type': 'text/plain', origin: 'https://evil.example',
+    });
     assert.equal(hit.status, 200);
     checkUi(hit.text, 'json-csrf success');
     assert.deepEqual(flagsIn(hit.text), [flag]);
-    assert.ok((await c.get('/csrf/json-email')).text.includes('attacker@evil.com'), 'email really changed');
+    const afterHit = (await c.get('/csrf/json-email')).text.match(/Current email:\s*<code>([^<]*)<\/code>/);
+    assert.equal(afterHit && afterHit[1], 'attacker@evil.com', 'email really changed');
     assert.ok((await capturedSet(c)).includes(key('json-csrf')));
-    await raw(c, 'POST', '/csrf/api/email', '{"email":"x@evil.com"}=1', { 'content-type': 'text/plain' });
+    await raw(c, 'POST', '/csrf/api/email', '{"email":"x@evil.com"}=1', { 'content-type': 'text/plain', origin: 'https://evil.example' });
     assert.equal((await capturedSet(c)).filter((s) => s === key('json-csrf')).length, 1);
   });
 
@@ -269,6 +299,13 @@ test('csrf module', async (t) => {
     assert.equal(flagsIn((await plain.post('/csrf/account', {})).text).length, 0, 'plain POST does nothing');
     assert.equal(flagsIn((await plain.post('/csrf/account', { _method: 'PUT' })).text).length, 0, 'other overrides do nothing');
     assert.ok((await plain.get('/csrf/account')).text.includes('active'));
+    // The old cheat: the _method smuggle replayed in your own session. The
+    // account must survive it, and no flag may fire.
+    const self = await plain.post('/csrf/account', { _method: 'DELETE' });
+    assert.equal(self.status, 403, 'a self smuggle carries no cross-site evidence');
+    checkUi(self.text, 'method-override refused');
+    assert.equal(flagsIn(self.text).length, 0);
+    assert.ok((await plain.get('/csrf/account')).text.includes('active'), 'the account must survive a self smuggle');
 
     // The proper DELETE deletes but is not the challenge.
     const del = await login();
@@ -279,21 +316,21 @@ test('csrf module', async (t) => {
     assert.deepEqual((await capturedSet(del)).filter((s) => s.startsWith('csrf:')), []);
 
     const c = await login();
-    const hit = await c.post('/csrf/account', { _method: 'DELETE' });
+    const hit = await c.post('/csrf/account', { _method: 'DELETE' }, { origin: 'https://evil.example' });
     checkUi(hit.text, 'method-override success');
     assert.deepEqual(flagsIn(hit.text), [flag]);
     assert.ok((await c.get('/csrf/account')).text.includes('DELETED'));
     assert.ok((await capturedSet(c)).includes(key('method-override-csrf')));
-    await c.post('/csrf/account', { _method: 'delete' });
+    await c.post('/csrf/account', { _method: 'delete' }, { origin: 'https://evil.example' });
     assert.equal((await capturedSet(c)).filter((s) => s === key('method-override-csrf')).length, 1);
   });
 
   await t.test('scoreboard counts each captured csrf challenge exactly once', async () => {
     const c = await login();
-    await c.get('/csrf/change-email?email=sb%40evil.com');
-    await c.get('/csrf/change-email?email=sb2%40evil.com');
-    await c.post('/csrf/account', { _method: 'DELETE' });
-    await c.post('/csrf/account', { _method: 'DELETE' });
+    await c.get('/csrf/change-email?email=sb%40evil.com', { referer: 'https://evil.example/' });
+    await c.get('/csrf/change-email?email=sb2%40evil.com', { referer: 'https://evil.example/' });
+    await c.post('/csrf/account', { _method: 'DELETE' }, { origin: 'https://evil.example' });
+    await c.post('/csrf/account', { _method: 'DELETE' }, { origin: 'https://evil.example' });
     const demo = await c.get('/csrf/framedemo');
     const nonce = demo.text.match(/frame=([0-9a-f]+)"/)[1];
     await c.get(`/csrf/vip-action?frame=${nonce}`);

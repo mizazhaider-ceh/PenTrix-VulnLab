@@ -2,7 +2,7 @@
 // Cryptographic Failures: eight intentionally vulnerable crypto-misuse labs
 // built only on Node's built-in crypto module.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 
 const challenges = [
   require('./challenges/crypto-rand-pin'),
@@ -35,22 +35,18 @@ cookie to forge, the hash to extend, the ciphertext to decrypt.</p>
 
 // GET /crypto -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('crypto', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'crypto', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('crypto', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Cryptographic Failures', `
     ${brief('Module briefing', BRIEF_HTML)}
     ${trackBanner(module.exports)}
@@ -62,7 +58,7 @@ router.get('/', (req, res) => {
     so restart the lab for a fresh game.</p>
     ${cards}
     <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/">Back to all modules</a></p>
-  ${fixSectionHtml}
+  ${fixSection('crypto', challenges)}
 `));
 });
 

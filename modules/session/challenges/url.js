@@ -29,7 +29,7 @@ const vuln = {
   tools: 'BZ, B, DT',
   how: 'Find the admin\'s sid in the proxy log and replay their home URL with it in Burp Repeater.',
   link: '/session#url',
-  start: 'Point your browser at Burp, visit http://localhost:3000/session/urldemo, then open the proxy log link shown on that page.',
+  start: 'Point your browser at Burp, visit /session/urldemo, then open the proxy log link shown on that page.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).
@@ -93,7 +93,7 @@ router.get('/urldemo', (req, res) => {
 
 // POST /session/urldemo/login -> session id issued and placed in the URL.
 router.post('/urldemo/login', (req, res) => {
-  const user = shared.checkCreds(req.body.username, req.body.password);
+  const user = shared.checkCreds(req, req.body.username, req.body.password);
   if (!user) return res.status(403).send(deniedPage('Bad username or password.'));
   const sid = shared.genSid();
   urlStore.set(sid, { user: user.username, role: user.role, bot: false });

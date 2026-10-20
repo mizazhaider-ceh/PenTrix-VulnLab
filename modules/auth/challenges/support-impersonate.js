@@ -17,7 +17,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Walk the sequential ticket numbers at /auth/support/login in Burp Repeater or Intruder until a response lands an admin session.',
   link: '/auth/support',
-  start: 'Open http://localhost:3000/auth/support through the Burp proxy browser, submit a ticket number once, then send that request to Repeater.',
+  start: 'Open /auth/support through the Burp proxy browser, submit a ticket number once, then send that request to Repeater.',
 };
 
 function ensureSupportTickets() {

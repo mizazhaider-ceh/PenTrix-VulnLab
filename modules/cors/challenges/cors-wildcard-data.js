@@ -54,7 +54,7 @@ router.get('/wildcard', (req, res) => {
     <div class="clay-card">
       <h2>API and origin checker</h2>
       <p>Raw endpoint: <a href="/cors/api/users"><code>/cors/api/users</code></a></p>
-      ${payloadBlock('Burp Repeater', 'GET /cors/api/users HTTP/1.1\nHost: localhost:3000\n\n')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/users HTTP/1.1\nHost: <your-lab-address>\n\n')}
       <p>The checker sends a real request to the endpoint with the Origin you
       type and shows the exact response headers, the same check a browser
       performs before allowing a cross-origin read.</p>

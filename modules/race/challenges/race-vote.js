@@ -16,11 +16,12 @@ const vuln = {
   name: 'Vote Counted Twice',
   difficulty: 'Easy',
   hint: 'One vote per name is enforced by checking first, then recording. Send two votes for the same name in parallel.',
-  hints: ["Votes check for duplicate names, but the check and the insert are not atomic. Capture the vote POST in Burp Proxy and send it to Intruder.", "Burp Intruder fires requests in parallel: load the vote POST into Intruder, set concurrent threads, and submit the same name at the same instant.", "Watch the results table: more than one vote for one name proves the duplicate check lost the race."],
+  hints: ["Votes check for duplicate names, but the check and the insert are not atomic. Capture the vote POST in Burp Proxy and send it to Repeater.", "Repeater can fire a whole group at once: duplicate the vote tab, select both tabs, and choose Send group in parallel so both votes for the same name land at the same instant. Community Intruder is throttled and would serialize the votes, so it cannot win this race.", "Watch the results table: more than one vote for one name proves the duplicate check lost the race."],
   tools: 'BZ, C',
-  how: 'Send two or more votes for the same name at the same instant through Burp Intruder in parallel mode so both pass the duplicate check.',
+  est: 'about 10 minutes',
+  how: 'Send two votes for the same name at the same instant through Repeater (duplicate the tab, then Send group in parallel) so both pass the duplicate check.',
   link: '/race#race-vote',
-  start: 'Burp Proxy: capture a vote POST for name=voter1, send it to Burp Intruder, and fire a burst of concurrent identical votes.',
+  start: 'Burp Proxy: capture a vote POST for name=voter1, send it to Repeater (Ctrl+R), duplicate the tab, then Send group in parallel.',
 };
 
 // Challenge-local presentation: a clay card hero for the poll screen.
@@ -30,11 +31,11 @@ function poll(body) {
 
 function backLinks() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race">Back to module</a>
-  <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a></p>`;
+  <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form></p>`;
 }
 
 router.get('/vote', (req, res) => {
-  const votes = shared.state().votes;
+  const votes = shared.state(req).votes;
   const rows = Object.entries(votes)
     .map(([name, n]) => `<tr><td>${esc(name)}</td><td>${n}</td></tr>`).join('')
     || '<tr><td colspan="2"><i>no votes yet</i></td></tr>';
@@ -55,7 +56,7 @@ router.get('/vote', (req, res) => {
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
     <p>The duplicate check races the insert. Two parallel votes for the same name both get recorded:</p>
-    ${payloadBlock('Burp Intruder', 'Send the vote POST to Intruder (Ctrl+I), set payloads/threads for 2 parallel requests, start the attack and watch the responses.')}
+    ${payloadBlock('Burp Repeater: Send group in parallel', 'Send the vote POST to Repeater (Ctrl+R), duplicate the tab so you have two identical votes for the same name, select both tabs, right-click and choose Send group in parallel. Check the results table.')}
     ${backLinks()}
   `)));
 });
@@ -71,7 +72,7 @@ router.post('/vote', async (req, res) => {
       </section>
     `)));
   }
-  const s = shared.state();
+  const s = shared.state(req);
   // VULN: "has this name voted?" is checked, then an await, then the vote is
   // recorded; parallel votes for the same name both pass the check.
   if (s.votes[name]) {

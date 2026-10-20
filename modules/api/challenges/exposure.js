@@ -14,7 +14,9 @@ function maskedRows() {
   return userTable().map((row) => ({ ...row, secret: '[REDACTED]' }));
 }
 
-// GET /api/users -> v2 excessive data exposure. Full user rows leak out.
+// GET /api/users -> v2 excessive data exposure.
+// VULN: the API returns full user rows; every field except the secret leaks,
+// including the password, because the response is the raw row, not a DTO.
 router.get('/users', (req, res) => {
   const rows = maskedRows();
   const json = JSON.stringify(rows);

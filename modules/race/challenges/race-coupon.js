@@ -14,11 +14,12 @@ const vuln = {
   name: 'Single-Use Coupon Redeemed Twice',
   difficulty: 'Medium',
   hint: 'The coupon is marked "used" only after an async gap. What happens when 20 requests check "is it used?" at the same moment?',
-  hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. Parallel redeems double-spend.", "Send the redeem request to Burp Intruder and run a parallel attack with concurrent requests, then count how many succeeded. More than one success means the coupon was double-spent."],
+  hints: ["The coupon can be redeemed once. But what if two redeems happen at the same time?", "Check-then-act: both requests see 'unused' before either marks it used. The race tool in Burp Repeater is Send group in parallel: duplicate the request tab and fire the whole group at once. Community Intruder is throttled and cannot reliably land the burst inside the gap, so do not reach for it here.", "Send the redeem request to Repeater (Ctrl+R), duplicate the tab 20 times, select all the tabs and choose Send group in parallel. Count how many responses say redeemed: more than one success means the coupon was double-spent."],
   tools: 'BZ, P, C',
-  how: 'Send POST /race/coupon/redeem to Burp Intruder and run a concurrent-request attack so the one-use coupon is redeemed more than once.',
+  est: 'about 10 minutes',
+  how: 'Send POST /race/coupon/redeem to Repeater, duplicate the tab, and fire the group in parallel (Send group in parallel) so the one-use coupon is redeemed more than once.',
   link: '/race#race-coupon',
-  start: 'Redeem the coupon once in the browser with Burp proxying, send POST /race/coupon/redeem to Intruder, and run a parallel attack with concurrent requests.',
+  start: 'Redeem the coupon once in the browser with Burp proxying, send POST /race/coupon/redeem to Repeater (Ctrl+R), duplicate the tab 20 times, then Send group in parallel.',
 };
 
 // Challenge-local presentation: a clay card hero for this shop screen.
@@ -28,11 +29,11 @@ function shop(crumb, body) {
 
 function backLinks() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race">Back to module</a>
-  <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a></p>`;
+  <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form></p>`;
 }
 
 router.get('/coupon', (req, res) => {
-  const c = shared.state().coupon;
+  const c = shared.state(req).coupon;
   res.send(page('Single-use coupon', shop('Rewards', `
     <section class="clay-card">
       <div class="card-top"><span class="orb" aria-hidden="true">◈</span><b>Rewards</b><span class="dim">Coupon RACE10</span></div>
@@ -44,8 +45,8 @@ router.get('/coupon', (req, res) => {
     </section>
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
-    <p>One click redeems it once. A burst of parallel Intruder requests redeems it more than once:</p>
-    ${payloadBlock('Parallel redeems in Burp', '1. Redeem once in the browser with Burp proxying.\n2. In Proxy history, send the POST /race/coupon/redeem request to Intruder.\n3. Positions: clear all, or keep the request as-is with Null payloads.\n4. Payloads: Null payloads, generate 20 payloads.\n5. Resource pool: create a pool with concurrent requests set to 20.\n6. Start the attack and count the "Coupon redeemed" responses: more than one means double-spend.')}
+    <p>One click redeems it once. A burst of parallel Repeater requests redeems it more than once:</p>
+    ${payloadBlock('Parallel redeems in Burp', '1. Redeem once in the browser with Burp proxying.\n2. In Proxy history, send the POST /race/coupon/redeem request to Repeater (Ctrl+R).\n3. Right-click the Repeater tab, choose Duplicate tab, and repeat until you have 20 tabs of the same request.\n4. Select all 20 tabs, right-click, and choose Send group in parallel.\n5. Count the "Coupon redeemed" responses: more than one means double-spend.')}
     ${backLinks()}
   `)));
 });
@@ -53,7 +54,7 @@ router.get('/coupon', (req, res) => {
 router.post('/coupon/redeem', async (req, res) => {
   // VULN: the "already used?" check and the "mark used" write are separated by
   // an await, so parallel requests all see used=false before any write lands.
-  if (shared.state().coupon.used) {
+  if (shared.state(req).coupon.used) {
     return res.send(page('Coupon', shop('Rewards', `
       <section class="clay-card">
         <h2>Already redeemed</h2>
@@ -63,7 +64,7 @@ router.post('/coupon/redeem', async (req, res) => {
     `)));
   }
   await shared.sleep(shared.WINDOW());
-  const c = shared.state().coupon;
+  const c = shared.state(req).coupon;
   c.used = true;
   c.redeems += 1;
   c.credit += 10;

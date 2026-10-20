@@ -46,7 +46,7 @@ module.exports = {
     tools: 'BZ, C',
     how: 'Log in as alice, send a request for user 3 to Repeater, confirm v1 answers 403, then flip the path version to v2 and resend to read the record and collect the flag.',
     link: '/api#api-version-bypass',
-    start: 'Route your browser through Burp Proxy, visit http://localhost:3000/api/login/alice to log in, then browse to http://localhost:3000/api/v1/users/3 and send that request to Repeater (Ctrl+R).',
+    start: 'Route your browser through Burp Proxy, visit /api/login/alice to log in, then browse to /api/v1/users/3 and send that request to Repeater (Ctrl+R).',
   },
   router,
 };

@@ -57,7 +57,7 @@ module.exports = {
     tools: "BZ, B",
     how: "In Burp Repeater, request the product detail page and tweak the id parameter until the response reflects a SQLite error. A stray quote causes a syntax error; a bad function call or malformed JSON causes a runtime error. Either error path proves error-based injection and earns the flag.",
     link: '/sqli/detail',
-    start: "Browse to http://localhost:3000/sqli/detail through Burp's proxy, send the detail request to Repeater, and start tweaking the id parameter.",
+    start: "Browse to /sqli/detail through Burp's proxy, send the detail request to Repeater, and start tweaking the id parameter.",
   },
   router,
 };

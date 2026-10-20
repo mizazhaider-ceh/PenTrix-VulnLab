@@ -18,7 +18,7 @@ const vuln = {
   tools: 'BZ, B',
   how: 'Copy the expired admin token from the challenge page and submit it unchanged through the browser or Repeater.',
   link: '/jwt#no-expiry',
-  start: 'Open http://localhost:3000/jwt/noexpiry in the Burp browser with Proxy on and copy the leaked token from the page.',
+  start: 'Open /jwt/noexpiry in the Burp browser with Proxy on and copy the leaked token from the page.',
 };
 
 // GET /jwt/noexpiry -> admin panel. Tokens carry an exp claim; the one shown

@@ -15,7 +15,9 @@ function merge(target, source, blocked) {
       if ((typeof t === 'object' && t !== null) || typeof t === 'function') {
         merge(t, v, blocked);
       } else {
-        target[k] = {};
+        // Sub-objects inherit the target's prototype, so a nested magic key
+        // climbs to the same (per-session) prototype an unnested one would.
+        target[k] = Object.create(Object.getPrototypeOf(target));
         merge(target[k], v, blocked);
       }
     } else {
@@ -71,7 +73,50 @@ function rawQuery(req) {
   return q === -1 ? '' : u.slice(q + 1);
 }
 
-// The application's global config object that every merge writes into.
-const config = { app: 'pentrix-vulnlab' };
+// ---------------------------------------------------------------------------
+// Per-session pollution scope (P1-1).
+//
+// The lesson these challenges teach is unchanged: a naive recursive merge
+// walks __proto__ (or constructor.prototype) into the shared prototype, and
+// a fresh object then inherits the attacker's values. What changed is WHICH
+// prototype is shared: one per student session instead of the process-wide
+// Object.prototype. With the old process-global config, a single student's
+// pollution handed every later visitor the admin flags for free and could
+// corrupt unrelated pages; now the pollution persists for the polluting
+// student (identical solo experience) and is invisible to everyone else.
+//
+// The wiring reproduces the real semantics exactly:
+//   state.config's prototype IS state.proto, so merging
+//     {"__proto__": {...}} recurses into state.proto and plants keys on it.
+//   state.proto.constructor is a function whose .prototype is state.proto,
+//     so constructor[prototype][...] lands on state.proto as well.
+//   Admin checks build their "fresh object" with Object.create(state.proto),
+//     so it inherits whatever the merge planted, just like a real {} would
+//     inherit a polluted Object.prototype.
+const { createSessionState } = require('../../lib/session-state');
 
-module.exports = { merge, parseNested, rawQuery, config };
+function freshProtoState() {
+  const proto = {};
+  function SessionCtor() {}
+  SessionCtor.prototype = proto;
+  Object.defineProperty(proto, 'constructor', {
+    value: SessionCtor, writable: true, configurable: true, enumerable: false,
+  });
+  const config = Object.create(proto);
+  config.app = 'pentrix-vulnlab';
+  return { proto, config };
+}
+
+const protoStates = createSessionState(freshProtoState);
+
+function protoStateFor(req) {
+  return protoStates.get(req);
+}
+
+// A brand-new object for an admin check: inherits this session's polluted
+// prototype stand-in, exactly as a real {} inherits Object.prototype.
+function freshUser(req) {
+  return Object.create(protoStateFor(req).proto);
+}
+
+module.exports = { merge, parseNested, rawQuery, protoStateFor, freshUser, freshProtoState };

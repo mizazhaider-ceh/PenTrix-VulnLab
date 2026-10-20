@@ -85,7 +85,7 @@ const vuln = {
   tools: "BZ, N",
   how: 'Catch the token form in Burp Proxy, move it to Repeater, guess the hardcoded default key, sign a kid-less admin token with it, and resubmit.',
   link: '/jwt#kid-default',
-  start: 'Open http://localhost:3000/jwt/kiddefault in your browser with Burp Proxy on, submit the token form once, then send that request to Repeater and work from there.',
+  start: 'Open /jwt/kiddefault in your browser with Burp Proxy on, submit the token form once, then send that request to Repeater and work from there.',
 };
 
 // --------------------------------------------------------------- challenge

@@ -7,7 +7,7 @@
 // The award itself lives in the module-level /postmsg/beacon route.
 const express = require('express');
 const { page, esc, appShell, payloadBlock } = require('../../../lib/page');
-const { pmNonce } = require('../shared');
+const { pmNonceScript } = require('../shared');
 
 const router = express.Router();
 
@@ -26,10 +26,12 @@ router.get('/substring', (req, res) => {
       <script>
         var SIMULATED_ORIGIN = ${JSON.stringify(sim)};
         // Page-bound token: only a handler running in this loaded page can know it.
-        var PM_NONCE = ${JSON.stringify(pmNonce(req, 'substring'))};
+        ${pmNonceScript(req, 'substring')}
         window.addEventListener('message', function (e) {
           var originToTest = SIMULATED_ORIGIN || e.origin;
           if (originToTest.includes('pentrix.lab')) {
+            // VULN: the origin check is a substring match, so evilpentrix.lab
+            // passes it; the message body then lands in innerHTML unsanitized.
             document.getElementById('out').innerHTML = String(e.data);
             fetch('/postmsg/beacon?v=substring&d=' + encodeURIComponent('substring:' + String(e.data).slice(0, 200)) + '&n=' + encodeURIComponent(PM_NONCE));
           } else {

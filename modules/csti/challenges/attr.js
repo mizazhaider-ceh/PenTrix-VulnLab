@@ -7,6 +7,7 @@
 // same flag condition.
 const express = require('express');
 const crypto = require('crypto');
+const { tokenScriptParts } = require('../../../lib/jstoken');
 const { page, esc, appShell } = require('../../../lib/page');
 
 const router = express.Router();
@@ -25,7 +26,7 @@ const vuln = {
   tools: 'BZ, B, DT',
   how: 'Save {{7*7}} as the badge text through Burp Proxy or Repeater; on page reload the browser decodes the attribute value and the client-side engine renders 49, firing the beacon with the page token.',
   link: '/csti#attr',
-  start: 'Start Burp Proxy with your browser pointed at http://localhost:3000/csti/attr. Intercept the Save badge text POST, experiment with the tpl value in Repeater, save it, then reload the page in the browser and watch the beacon fire in Proxy history.',
+  start: 'Start Burp Proxy with your browser pointed at /csti/attr. Intercept the Save badge text POST, experiment with the tpl value in Repeater, save it, then reload the page in the browser and watch the beacon fire in Proxy history.',
 };
 
 // The naive client-side template engine, served to the lab page.
@@ -59,6 +60,13 @@ function cstiNonce(req, v) {
     req.session.cstiNonce[v] = crypto.randomBytes(16).toString('hex');
   }
   return req.session.cstiNonce[v];
+}
+// Script fragment: the page token only exists once this script runs. The
+// page renders two random share arrays and computes CSTI_NONCE from them at
+// load; the raw token string never appears in the HTML.
+function cstiNonceScript(req, v) {
+  const p = tokenScriptParts(cstiNonce(req, v));
+  return p.decl + '\n      var CSTI_NONCE = ' + p.combine + ';';
 }
 
 const DEFAULT_ATTR = '{{1+1}}';
@@ -95,7 +103,7 @@ router.get('/attr', (req, res) => {
       <script>
         ${RENDER_JS}
         // Page-bound token: the beacon must echo it back.
-        var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'attr'))};
+        ${cstiNonceScript(req, 'attr')}
         // VULN: getAttribute() decodes the entities back, and then the raw
         // template is evaluated client-side. Server-side encoding cannot stop
         // client-side evaluation.

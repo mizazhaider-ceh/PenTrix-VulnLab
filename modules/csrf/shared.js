@@ -47,4 +47,41 @@ function notLoggedInPage(title) {
   `);
 }
 
-module.exports = { currentUser, emailOf, postbox, attackerSite, backLink, notLoggedInPage };
+// Cross-site evidence: true when the request carries an Origin or Referer
+// header whose host differs from the Host the request was sent to. That is
+// what a genuine cross-site browser request looks like (an <img> tag or a
+// form on the attacker's page). A same-origin header, or no header at all,
+// proves nothing: it is exactly what a student replaying the request inside
+// their own session (Burp Repeater with no header tweaks, a same-origin
+// form) produces, and it must never count as a forgery.
+function crossSiteEvidence(req) {
+  const host = String(req.get('host') || '').toLowerCase();
+  if (!host) return false;
+  const origin = req.get('origin');
+  if (origin) {
+    try { return new URL(origin).host.toLowerCase() !== host; } catch (e) { return false; }
+  }
+  const referer = req.get('referer');
+  if (referer) {
+    try { return new URL(referer).host.toLowerCase() !== host; } catch (e) { return false; }
+  }
+  return false;
+}
+
+// Shown when a request reached a forgery-only endpoint but carried no
+// cross-site evidence, so the state change was refused or earned no flag.
+function notForgedPage(challengeName, whatHappened) {
+  return page(challengeName || 'No forgery detected', `
+    <h1>No forgery detected</h1>
+    ${postbox('Security check', `
+      <p>${whatHappened}</p>
+      <p class="dim">The flag only fires when the request really arrives from
+      another site: forge the request with a foreign <code>Referer</code> or
+      <code>Origin</code> header (in Burp Repeater, edit the header before
+      re-sending), or host the attack page off this site.</p>
+    `)}
+    ${backLink()}
+  `);
+}
+
+module.exports = { currentUser, emailOf, postbox, attackerSite, backLink, notLoggedInPage, crossSiteEvidence, notForgedPage };

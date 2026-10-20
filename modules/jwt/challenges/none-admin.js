@@ -82,7 +82,7 @@ module.exports = {
     tools: "BZ, N",
     how: 'Craft an unsigned token (header, payload, empty signature) with role "admin" and replay the submit from Burp Repeater.',
     link: '/jwt#none-admin',
-    start: 'Browse to http://localhost:3000/jwt/none with Burp running. Intercept the token submit, send it to Repeater, and hand-craft the unsigned token by hand. Replay the POST from Repeater until the page welcomes you as admin.',
+    start: 'Browse to /jwt/none with Burp running. Intercept the token submit, send it to Repeater, and hand-craft the unsigned token by hand. Replay the POST from Repeater until the page welcomes you as admin.',
   },
   router,
 };

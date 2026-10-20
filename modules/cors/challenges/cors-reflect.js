@@ -13,8 +13,9 @@ const vuln = {
   name: 'Reflected Origin with Credentials',
   difficulty: 'Medium',
   hint: 'The endpoint echoes any Origin back and adds Access-Control-Allow-Credentials: true. There is no allowlist at all.',
-  hints: ["The API reflects any Origin with credentials. In Burp Repeater, request /cors/api/profile with an Origin header and watch the response headers.", "The response comes back with Access-Control-Allow-Origin set to your origin plus Access-Control-Allow-Credentials: true. What does that let an attacker's page do in a victim's browser?", "Through Burp Proxy, let the attacker page (127.0.0.1 origin) fetch the victim API with credentials. The secret comes back in the response."],
+  hints: ["The API reflects any Origin with credentials. In Burp Repeater, request /cors/api/profile with an Origin header and watch the response headers.", "The response comes back with Access-Control-Allow-Origin set to your origin plus Access-Control-Allow-Credentials: true. What does that let an attacker's page do in a victim's browser?", "Stay in Repeater: the response headers are the whole proof. With Origin: https://evil.com set, Access-Control-Allow-Origin echoes evil.com AND Access-Control-Allow-Credentials is true, which is exactly what would let any attacker page read this data in a victim browser. You do not need to build an attacker page or route anything through the proxy browser for this one."],
   tools: 'BZ, B',
+  est: 'about 10 minutes',
   how: 'Burp Repeater: GET /cors/api/profile with header Origin: https://evil.com. The reflected ACAO plus Allow-Credentials: true earns the flag; or prove via /cors/prove?vuln=cors-reflect&origin=https://evil.com',
   link: '/cors#cors-reflect',
   start: 'Burp: browse to /cors/api/profile through the Proxy, send the request to Repeater, add an Origin header, and send it.',
@@ -48,7 +49,7 @@ router.get('/reflect', (req, res) => {
     <div class="vuln-card">
       <h3>Live endpoint</h3>
       <p><a href="/cors/api/profile"><code>/cors/api/profile</code></a></p>
-      ${payloadBlock('Burp Repeater', 'GET /cors/api/profile HTTP/1.1\nHost: localhost:3000\nOrigin: https://evil.com\n\n')}
+      ${payloadBlock('Burp Repeater', 'GET /cors/api/profile HTTP/1.1\nHost: <your-lab-address>\nOrigin: https://evil.com\n\n')}
     </div>
     <p>The endpoint reflects <b>any</b> Origin and adds
     <code>Access-Control-Allow-Credentials: true</code>. Prove the combination

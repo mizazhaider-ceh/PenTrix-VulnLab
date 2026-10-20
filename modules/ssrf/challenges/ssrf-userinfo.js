@@ -23,7 +23,7 @@ const vuln = {
   tools: "BZ, C",
   how: 'In Burp Repeater, GET /ssrf/userinfo with the url parameter set to a URL whose userinfo carries the trusted domain while the real host is the loopback internal secret path.',
   link: '/ssrf#ssrf-userinfo',
-  start: 'Browse to http://localhost:3000/ssrf/userinfo through Burp Proxy, submit any partner URL in the form, and send the intercepted request to Repeater. Watch the 403 for URLs without the trusted string, then experiment with the url parameter in Repeater; the flag appears on the page when the check is bypassed.',
+  start: 'Browse to /ssrf/userinfo through Burp Proxy, submit any partner URL in the form, and send the intercepted request to Repeater. Watch the 403 for URLs without the trusted string, then experiment with the url parameter in Repeater; the flag appears on the page when the check is bypassed.',
 };
 
 const APP_NAME = 'VendorPulse';

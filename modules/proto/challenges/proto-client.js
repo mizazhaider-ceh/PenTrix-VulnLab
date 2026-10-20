@@ -7,6 +7,7 @@
 // This challenge needs no module-level helpers: no merge(), no config, no
 // body parsing. Everything happens in the served HTML and its script.
 const express = require('express');
+const crypto = require('crypto');
 const { appShell, esc, fixPanel, flagBox, page } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 
@@ -21,7 +22,7 @@ const vuln = {
   tools: "BZ, B, DT",
   how: 'Send a request to /proto/client carrying a nested query parameter that lands the theme key on the browser\u2019s shared prototype, then load the crafted URL in a real browser (Burp\u2019s built-in browser works) so the page\u2019s script merges the parameter, renders the polluted value from a fresh {}, and the page reports it to the claim endpoint for the flag.',
   link: '/proto#proto-client',
-  start: 'Start Burp and open its built-in browser (Proxy tab, Open browser).\nNavigate to http://localhost:3000/proto/client and confirm the theme picker loads; check Proxy HTTP history for the request.\nSend the request to Repeater and add a nested query parameter that sets the theme key on the shared prototype to a non-default value.\nLoad the crafted URL in Burp\u2019s browser, watch the theme box render the polluted value, and find the flag in the claim response in Proxy history.',
+  start: 'Start Burp and open its built-in browser (Proxy tab, Open browser).\nNavigate to /proto/client and confirm the theme picker loads; check Proxy HTTP history for the request.\nSend the request to Repeater and add a nested query parameter that sets the theme key on the shared prototype to a non-default value.\nLoad the crafted URL in Burp\u2019s browser, watch the theme box render the polluted value, and find the flag in the claim response in Proxy history.',
 };
 
 // GET /proto/client -> the theme picker. Parses the browser's query string
@@ -29,7 +30,15 @@ const vuln = {
 // client-side JavaScript, then reads the theme from a fresh object.
 // VULN: the parser preserves the magic __proto__ key and the merge walks it
 // straight into Object.prototype, in the victim's browser.
+// The page is issued a one-time render token per load. The polluted page's
+// script echoes it back to the claim endpoint: a claim only counts when the
+// page was really loaded and its script ran.
 router.get('/client', (req, res) => {
+  req.session = req.session || {};
+  req.session.protoClientProofs = req.session.protoClientProofs || [];
+  const proof = crypto.randomBytes(16).toString('hex');
+  req.session.protoClientProofs.push(proof);
+  while (req.session.protoClientProofs.length > 8) req.session.protoClientProofs.shift();
   res.send(page('Theme picker · Palette', `
     ${appShell('Palette', `
       <h2>Theme picker</h2>
@@ -55,6 +64,11 @@ router.get('/client', (req, res) => {
         <b>Active theme (read from a fresh <code>{}</code>):</b>
         <span id="themeOut">(default: light)</span>
       </div>
+      <script>
+        // One-time render proof issued by the server for this page load. The
+        // polluted page's script echoes it back to the claim endpoint.
+        const RENDER_PROOF = ${JSON.stringify(proof)};
+      </script>
       <script>
         // VULN: hand-rolled nested query parser + naive recursive merge running
         // in the browser. __proto__ in the query string pollutes Object.prototype
@@ -109,7 +123,10 @@ router.get('/client', (req, res) => {
           document.getElementById('themeOut').textContent = theme;
           document.getElementById('themeBox').style.background = theme;
           // The page itself reports the demonstrated pollution to claim the flag.
-          location.href = '/proto/client/claim?theme=' + encodeURIComponent(theme);
+          // RENDER_PROOF is a one-time token this server issued when the page
+          // loaded: echoing it proves the polluted page really rendered.
+          location.href = '/proto/client/claim?theme=' + encodeURIComponent(theme) +
+            '&proof=' + encodeURIComponent(RENDER_PROOF);
         }
       </script>
     `, { crumb: 'Theme picker', nav: ['Home', 'Themes', 'Share'] })}
@@ -118,30 +135,37 @@ router.get('/client', (req, res) => {
 
 // GET /proto/client/claim -> the page redirects here after demonstrating the
 // pollution in the browser. The claim only counts when a real polluted value
-// arrives from the page.
+// arrives from the page, echoed with the one-time render token the page load
+// issued: a bare GET /proto/client/claim?theme=dark with no page load (and no
+// token) cannot award.
 router.get('/client/claim', (req, res) => {
   const theme = (req.query.theme || '').toString().slice(0, 40);
-  if (theme && theme !== 'light') {
-    const flag = award(req, 'proto', 'proto-client');
-    return res.send(page('Theme claimed · Palette', `
-      ${appShell('Palette', `
-        <h2>Pollution demonstrated</h2>
-        <p>The page rendered theme <code>${esc(theme)}</code> read from a fresh
-        <code>{}</code> in the browser: client-side <code>Object.prototype</code>
-        pollution confirmed.</p>
-        ${flagBox(flag)}
-        ${fixPanel('proto', 'proto-client')}
-        <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
-      `, { crumb: 'Theme claimed', nav: ['Home', 'Themes', 'Share'] })}
-    `));
-  }
-  res.status(400).send(page('No pollution · Palette', `
+  const proof = (req.query.proof || '').toString();
+  const proofs = (req.session && req.session.protoClientProofs) || [];
+  const idx = proofs.indexOf(proof);
+  const noAward = () => res.status(400).send(page('No pollution · Palette', `
     ${appShell('Palette', `
       <h2>No flag</h2>
       <p>This endpoint only awards a flag when the client page reports a genuinely
       polluted theme value. Load <code>/proto/client?__proto__[theme]=dark</code>
-      in a browser so the page can demonstrate the pollution.</p>
+      in a browser so the page can demonstrate the pollution, then let the page
+      report back with the render token it was issued.</p>
     `, { crumb: 'No pollution', nav: ['Home', 'Themes', 'Share'] })}
+  `));
+  if (idx === -1) return noAward();
+  if (!theme || theme === 'light') return noAward();
+  proofs.splice(idx, 1); // one-time: the token cannot be replayed
+  const flag = award(req, 'proto', 'proto-client');
+  return res.send(page('Theme claimed · Palette', `
+    ${appShell('Palette', `
+      <h2>Pollution demonstrated</h2>
+      <p>The page rendered theme <code>${esc(theme)}</code> read from a fresh
+      <code>{}</code> in the browser: client-side <code>Object.prototype</code>
+      pollution confirmed.</p>
+      ${flagBox(flag)}
+      ${fixPanel('proto', 'proto-client')}
+      <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/proto">Back to the module</a></p>
+    `, { crumb: 'Theme claimed', nav: ['Home', 'Themes', 'Share'] })}
   `));
 });
 

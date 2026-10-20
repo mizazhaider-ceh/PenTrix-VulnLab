@@ -2,7 +2,7 @@
 // JSONP Injection: intentionally vulnerable JSONP endpoints for training.
 const express = require('express');
 const { award } = require('../../lib/flags');
-const { fixCta, brief, esc, flagBox, page, payloadBlock, hintLadder, toolsPill, trackBanner, difficultyPill } = require('../../lib/page');
+const { brief, esc, flagBox, page, hintLadder, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 const { jsonpConsumeNonce } = require('./shared');
 
 const challenges = [
@@ -51,22 +51,18 @@ router.get('/beacon-xss', (req, res) => {
 
 // GET /jsonp -> module index page.
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('jsonp', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'jsonp', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('jsonp', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('JSONP Injection', `
     ${brief('JSONP Injection', `
       Before CORS, sites shared data cross-origin with "JSON with padding":
@@ -89,7 +85,7 @@ router.get('/', (req, res) => {
     ladder: level 1 nudges, level 2 teaches the technique, level 3 shows the
     payload shape.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('jsonp', challenges)}
 `));
 });
 

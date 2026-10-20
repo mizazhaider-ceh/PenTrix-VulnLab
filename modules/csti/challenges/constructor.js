@@ -7,6 +7,8 @@
 // session storage, same routes, same flag condition.
 const express = require('express');
 const crypto = require('crypto');
+const { tokenScriptParts } = require('../../../lib/jstoken');
+const { DJB2_JS } = require('../../../lib/jstoken');
 const { page, esc, appShell } = require('../../../lib/page');
 
 const router = express.Router();
@@ -60,6 +62,13 @@ function cstiNonce(req, v) {
   }
   return req.session.cstiNonce[v];
 }
+// Script fragment: the page token only exists once this script runs. The
+// page renders two random share arrays and computes CSTI_NONCE from them at
+// load; the raw token string never appears in the HTML.
+function cstiNonceScript(req, v) {
+  const p = tokenScriptParts(cstiNonce(req, v));
+  return p.decl + '\n      var CSTI_NONCE = ' + p.combine + ';';
+}
 
 const DEFAULT_CTOR = '2 + 2 = {{2+2}}';
 
@@ -83,7 +92,8 @@ router.get('/constructor', (req, res) => {
       <script>
         ${RENDER_JS}
         // Page-bound token: your manual beacon must echo it back.
-        var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'constructor'))};
+        ${cstiNonceScript(req, 'constructor')}
+        ${DJB2_JS}
         var TPL = ${JSON.stringify(tpl)};
         document.getElementById('out').innerHTML = cstiRender(TPL);
       </script>
@@ -92,7 +102,9 @@ router.get('/constructor', (req, res) => {
       <code>Object.constructor</code> is <code>Function</code>. From there you can compile
       and run any string as code, then beacon the flag yourself - your beacon must echo the
       page-bound token, e.g.
-      <code>{{constructor.constructor("fetch('/csti/beacon?v=constructor&amp;d='+document.cookie+'&amp;n='+CSTI_NONCE)")()}}</code>.</p>
+      <code>{{constructor.constructor("fetch('/csti/beacon?v=constructor&amp;d=ctor:'+cstiDjb2(CSTI_NONCE)+'&amp;n='+CSTI_NONCE)")()}}</code>.
+        The <code>d</code> value is a proof of execution: it must be <code>ctor:</code> followed by this page's
+        <code>cstiDjb2()</code> hash of the token, so an arbitrary non-empty value earns nothing.</p>
       <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/csti">Back to the CSTI module</a></p>
     `, { crumb: 'Dashboard · Math cards', mark: '&#8721;' })}
   `));

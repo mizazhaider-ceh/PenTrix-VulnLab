@@ -1,7 +1,7 @@
 'use strict';
 // CSRF & Clickjacking: forged cross-site requests against the fictional Postbox webmail app.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, fixSection , capturedPill } = require('../../lib/page');
 const { currentUser, emailOf } = require('./shared');
 
 const challenges = [
@@ -37,23 +37,18 @@ router.get('/', (req, res) => {
     ? `<p>Logged in as <b>${esc(user.username)}</b> (id ${esc(String(user.id))}). Current email: <code>${esc(emailOf(user))}</code></p>`
     : '<p>You are <b>not logged in</b>. Log in as alice to try the challenges.</p>';
 
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('csrf', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'csrf', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
       <p><a class="clay-btn clay-btn-primary clay-btn-sm" href="${esc(v.link)}">Open challenge</a></p>
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('csrf', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('CSRF & Clickjacking', `
     <h1>CSRF &amp; Clickjacking</h1>
     ${brief('Briefing', `
@@ -98,7 +93,7 @@ router.get('/', (req, res) => {
     nudges, level 2 teaches the technique, level 3 shows the shape of the
     request.</p>
     ${cards}
-  ${fixSectionHtml}
+  ${fixSection('csrf', challenges)}
 `));
 });
 

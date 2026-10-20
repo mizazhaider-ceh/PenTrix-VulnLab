@@ -55,16 +55,22 @@ function serveFile(name, req, res) {
   if (!base || !fs.existsSync(full) || !fs.statSync(full).isFile()) {
     return res.status(404).send(page('Not found', `<h2>404</h2><p>File <code>${esc(base)}</code> not found.</p>`));
   }
+  let banner = '';
   if (base === 'secret.txt') {
     // VULN: the listing exposed secret.txt and it is served raw to anyone who requests it
-    award(req, 'misconfig', 'listing');
+    const flag = award(req, 'misconfig', 'listing');
+    banner = `================================================================\nPenTrix VulnLab: FLAG CAPTURED for challenge "Directory Listing Leak".\nYour flag: ${flag}\n(It is also on your scoreboard. The file below is what leaked.)\n================================================================\n\n`;
   }
   if (uploadedFiles.has(base)) {
     // VULN: this file arrived via the unauthenticated PUT and is served back raw,
     // so reading it back proves the arbitrary write succeeded
-    award(req, 'misconfig', 'put');
+    const flag = award(req, 'misconfig', 'put');
+    banner = `================================================================\nPenTrix VulnLab: FLAG CAPTURED for challenge "Unauthenticated HTTP PUT".\nYour flag: ${flag}\n(It is also on your scoreboard. Your file content is below.)\n================================================================\n\n`;
   }
   res.type('text/plain');
+  if (banner) {
+    return res.send(banner + fs.readFileSync(full, 'utf8'));
+  }
   res.sendFile(full);
 }
 
@@ -88,7 +94,7 @@ module.exports = {
     tools: 'BZ, B',
     how: 'Proxy the Shared files page in Burp, spot secret.txt in the listing, and request it in Repeater.',
     link: '/misconfig#listing',
-    start: 'With Burp Proxy running, browse to http://localhost:3000/misconfig/files/, then send the listing request to Repeater and read which files are exposed.',
+    start: 'With Burp Proxy running, browse to /misconfig/files/, then send the listing request to Repeater and read which files are exposed.',
   },
   router,
 };

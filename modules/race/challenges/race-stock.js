@@ -18,16 +18,17 @@ const vuln = {
   difficulty: 'Easy',
   path: 'stock',
   hint: 'Only 5 items in stock. The stock check and the decrement are separated by a gap. Two orders of 5 at the same time...',
-  hints: ["Only 5 items in stock. But buys aren't serialized. Confirm in Burp Repeater that one order of 5 works and shows the items sold count.", "Repeater sends one request at a time, and a race needs many at once. Send the buy request to Intruder and raise the concurrent request count.", "The await between the stock check and the decrement is the window. Fire a burst of parallel orders of 5 so every one passes the check against the same stock level, pushing total sold above 5."],
+  hints: ["Only 5 items in stock. But buys aren't serialized. Confirm in Burp Repeater that one order of 5 works and shows the items sold count.", "Repeater sends one request at a time, and a race needs many at once. Duplicate the buy Repeater tab, select both tabs, and use Send group in parallel. Community Intruder is throttled and cannot reliably hit the gap, so the Repeater group is the race tool here.", "The await between the stock check and the decrement is the window. Fire both orders of 5 in parallel so every one passes the check against the same stock level, pushing total sold above 5."],
   tools: 'BZ, C',
-  how: 'Fire a burst of parallel orders at /race/stock/buy whose quantities total more than the 5 items in stock, so every order passes the stock check before any decrement lands and the shop oversells.',
+  est: 'about 10 minutes',
+  how: 'Fire a burst of parallel orders at /race/stock/buy (Repeater: duplicate the tab, then Send group in parallel) whose quantities total more than the 5 items in stock, so every order passes the stock check before any decrement lands and the shop oversells.',
   link: '/race#race-stock',
-  start: 'Capture one POST /race/stock/buy in Burp, then send it to Intruder and run the attack with concurrent requests enabled.',
+  start: 'Capture one POST /race/stock/buy in Burp, send it to Repeater (Ctrl+R), duplicate the tab, then Send group in parallel.',
 };
 
 // GET /race/stock -> the gadget shop page.
 router.get('/stock', (req, res) => {
-  const R = raceState();
+  const R = raceState(req);
   res.send(page('Limited stock shop', `
     ${brief('The scenario', `
       <p>This shop sells a gadget with <b>only 5 units in stock</b>. When you
@@ -51,7 +52,7 @@ router.get('/stock', (req, res) => {
       <h3>Break it</h3>
       <p>Two parallel orders of 5 when only 5 exist. The stock check races the
       decrement and the shop oversells:</p>
-      ${payloadBlock('Burp Intruder', 'Send the buy POST to Intruder (Ctrl+I), set payloads/threads for 2 parallel requests, start the attack and watch the responses.')}
+      ${payloadBlock('Burp Repeater: Send group in parallel', 'Send the buy POST to Repeater (Ctrl+R), duplicate the tab so you have two identical orders of 5, select both tabs, right-click and choose Send group in parallel. Watch total sold climb past 5.')}
     </section>
     ${hintLadder(vuln)}
     ${backLink}
@@ -60,7 +61,7 @@ router.get('/stock', (req, res) => {
 
 // POST /race/stock/buy -> place an order for qty gadgets.
 router.post('/stock/buy', async (req, res) => {
-  const R = raceState();
+  const R = raceState(req);
   const qty = parseInt(req.body.qty, 10);
   if (!Number.isInteger(qty) || qty <= 0) {
     return res.status(400).send(page('Buy', `

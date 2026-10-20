@@ -4,7 +4,12 @@
 // same code can be exchanged for fresh tokens again and again.
 // Note: the vulnerable exchange lives in the shared token endpoint
 // (doTokenExchange in the module shared code), not in this file; the award
-// condition is rec.uses >= 1 on a direct exchange of an owned code.
+// condition is rec.uses >= 1 on a direct exchange of an owned code that was
+// issued inside this challenge's own flow (rec.flow === 'code-replay', a
+// plain pentrix-spa read code for the trusted callback, not PKCE-bound).
+// Codes issued by other challenges' flows never earn this flag.
+// VULN: the IdP never invalidates an authorization code after use, so the
+// same code can be exchanged for fresh tokens again and again.
 const express = require('express');
 const { page, esc, hintLadder, payloadBlock, appShell } = require('../../../lib/page');
 
@@ -47,7 +52,7 @@ router.get('/code-replay', (req, res) => {
         </ol>
       </div>
       ${payloadBlock('Burp Repeater (send it twice)', `POST /oauth/idp/token HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 

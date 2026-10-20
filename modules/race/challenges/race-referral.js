@@ -16,11 +16,12 @@ const vuln = {
   name: 'Referral Bonus Claimed Twice',
   difficulty: 'Medium',
   hint: 'The referral code REF2026 pays 50 points once. The "already claimed" check has a gap before the claim is recorded.',
-  hints: ["Claim REF2026 once in the browser with Burp Proxy on, then send that claim POST to Intruder.", "In Intruder, put the code parameter in the payload position and run the attack with concurrent requests enabled.", "Every request must land inside the check gap, so each one still sees 'not claimed' when it arrives."],
+  hints: ["Claim REF2026 once in the browser with Burp Proxy on, then send that claim POST to Repeater.", "In Repeater, duplicate the claim tab 10 times, select all the tabs, and choose Send group in parallel so the claims land together. Community Intruder is throttled and would spread the claims out past the check gap.", "Every request must land inside the check gap, so each one still sees 'not claimed' when it arrives."],
   tools: 'BZ, C, P',
-  how: 'Claim the referral code with parallel POSTs at /race/referral (Burp Intruder, concurrent requests) so the bonus lands twice.',
+  est: 'about 10 minutes',
+  how: 'Claim the referral code with parallel POSTs at /race/referral (Repeater: duplicate the tab, then Send group in parallel) so the bonus lands twice.',
   link: '/race#race-referral',
-  start: 'Browse to /race/referral with Burp Proxy on and claim REF2026 once, then send that POST to Intruder and launch it with concurrent requests enabled so the parallel claims all land before the first claim is recorded.',
+  start: 'Browse to /race/referral with Burp Proxy on and claim REF2026 once, then send that POST to Repeater, duplicate the tab 10 times, and Send group in parallel so the claims all land before the first claim is recorded.',
 };
 
 // Challenge-local presentation: a clay card hero for the rewards screen.
@@ -30,11 +31,11 @@ function rewards(body) {
 
 function backLinks() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race">Back to module</a>
-  <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a></p>`;
+  <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form></p>`;
 }
 
 router.get('/referral', (req, res) => {
-  const r = shared.state().referral;
+  const r = shared.state(req).referral;
   res.send(page('Referral bonus', rewards(`
     <section class="clay-card">
       <div class="card-top"><span class="orb" aria-hidden="true">◈</span><b>Rewards</b><span class="dim">Referral program</span></div>
@@ -52,7 +53,7 @@ router.get('/referral', (req, res) => {
     ${hintLadder(vuln)}
     <h2>Test it yourself</h2>
     <p>Claim it with parallel requests before the first claim is recorded:</p>
-    ${payloadBlock('Burp Intruder', 'Send the claim POST to Intruder (Ctrl+I), set payloads/threads for 10 parallel requests, start the attack and watch the responses.')}
+    ${payloadBlock('Burp Repeater: Send group in parallel', 'Send the claim POST to Repeater (Ctrl+R), duplicate the tab until you have 10 tabs of the same request, select them all, then right-click and choose Send group in parallel. Watch the responses.')}
     ${backLinks()}
   `)));
 });
@@ -68,7 +69,7 @@ router.post('/referral', async (req, res) => {
       </section>
     `)));
   }
-  const s = shared.state();
+  const s = shared.state(req);
   // VULN: "already claimed?" check, await, then record the claim; concurrent
   // claims all pass the check and the bonus is paid out multiple times.
   if (s.referral.claimed[code]) {

@@ -217,10 +217,18 @@ test('idor module', async (t) => {
 
     const hit = await c.post('/idor/account/email', { user_id: '1', email: 'pwned@evil.lab' });
     assert.ok(hit.text.includes(flagOf('idor-email-change')));
-    const dir = await admin.get('/idor/admin/users');
+    // P1-1 update: the email change is visible to the session that performed
+    // it only, so the directory check runs with the same client (c), not
+    // the admin session, which still sees the pristine address.
+    const dir = await c.get('/idor/admin/users');
     assert.ok(dir.text.includes('pwned@evil.lab'), 'the admin email was really changed');
+    const adminView = await admin.get('/idor/admin/users');
+    assert.ok(!adminView.text.includes('pwned@evil.lab'), 'another session must not see this session\'s email change');
     await c.post('/idor/account/email', { user_id: '1', email: 'pwned2@evil.lab' });
-    assert.deepEqual(await idorCaptured(c), ['idor:Email Change IDOR']);
+    // Visiting the admin directory as a plain member also earns the
+    // function-browse flag for c, so the final capture list carries both
+    // challenge names, exactly once each.
+    assert.deepEqual(await idorCaptured(c), ['idor:Email Change IDOR', 'idor:Forced Browsing to Admin Function']);
   });
 
   await t.test('idor-apikey-regen: reusing shown or seeded keys earns nothing, regenerating another key and using it does', async () => {

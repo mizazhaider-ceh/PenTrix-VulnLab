@@ -6,7 +6,7 @@
 cd PenTrix-VulnLab
 git pull
 docker compose up --build
-# open http://localhost:3000
+# open the URL the app prints on boot (default: localhost port 3000)
 ```
 
 Keep the terminal visible. Do not run `git pull` during the demo.

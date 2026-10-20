@@ -113,22 +113,39 @@ test('proto module', async (t) => {
     assert.ok((await capturedSet(c)).includes('proto:Polluting toString'));
   });
 
-  await t.test('proto-client: no claim without a polluted theme, claim with one earns the flag', async () => {
+  await t.test('proto-client: a claim with no page load earns nothing; the issued render token is required', async () => {
     const { srv, dataDir } = await bootLab(t);
     const c = client(srv.base);
     const flag = flagFromDb(dataDir, 'proto', 'proto-client');
-    const page = await c.get('/proto/client');
-    assert.equal(page.status, 200);
+    // The old cheat: a bare claim with no page load and no pollution at all.
+    const bare = await c.get('/proto/client/claim?theme=dark');
+    assert.equal(bare.status, 400);
+    assert.ok(!bare.text.includes(flag), 'claim with no page load must not award');
     const noTheme = await c.get('/proto/client/claim');
     assert.equal(noTheme.status, 400);
     assert.ok(!noTheme.text.includes(flag), 'claim with no theme must not award');
     const light = await c.get('/proto/client/claim?theme=light');
     assert.equal(light.status, 400);
     assert.ok(!light.text.includes(flag), 'claim with the default theme must not award');
-    const hit = await c.get('/proto/client/claim?theme=dark');
+    // Load the page the way a browser would: it issues a one-time render token.
+    const page = await c.get('/proto/client?__proto__[theme]=dark');
+    assert.equal(page.status, 200);
+    const m = page.text.match(/RENDER_PROOF = "([0-9a-f]{32})"/);
+    assert.ok(m, 'the page must carry its issued render token');
+    const proof = m[1];
+    // A forged token with a polluted theme still earns nothing.
+    const forged = await c.get('/proto/client/claim?theme=dark&proof=deadbeefdeadbeefdeadbeefdeadbeef');
+    assert.equal(forged.status, 400);
+    assert.ok(!forged.text.includes(flag), 'a forged render token must not award');
+    // The honest claim: the page's own script echoes its token back.
+    const hit = await c.get(`/proto/client/claim?theme=dark&proof=${proof}`);
     assert.equal(hit.status, 200);
-    assert.ok(hit.text.includes(flag), 'claim with a polluted theme must award the flag');
+    assert.ok(hit.text.includes(flag), 'the render-token claim must award the flag');
     assert.ok((await capturedSet(c)).includes('proto:Client-Side Pollution'));
+    // The token is one-time: replaying it earns nothing new.
+    const replay = await c.get(`/proto/client/claim?theme=dark&proof=${proof}`);
+    assert.equal(replay.status, 400);
+    assert.ok(!replay.text.includes(flag), 'the render token cannot be replayed');
   });
 
   await t.test('proto-unicode-bypass: raw __proto__ is blocked, \\u005f escapes slip past and earn the flag', async () => {
@@ -169,7 +186,10 @@ test('proto module', async (t) => {
 
     assert.ok((await c.get('/proto/dos?__proto__[toString]=boom')).text.includes(flag('proto-dos')));
 
-    assert.ok((await c.get('/proto/client/claim?theme=dark')).text.includes(flag('proto-client')));
+    // proto-client: the claim must carry the one-time token issued at page load.
+    const protoPage = await c.get('/proto/client');
+    const proof = protoPage.text.match(/RENDER_PROOF = "([0-9a-f]{32})"/)[1];
+    assert.ok((await c.get(`/proto/client/claim?theme=dark&proof=${proof}`)).text.includes(flag('proto-client')));
 
     const uni = await tc.postText('/proto/unicode/merge', '{"\\u005f\\u005fproto\\u005f\\u005f": {"role": "admin"}}');
     assert.equal(uni.status, 200);

@@ -55,7 +55,7 @@ module.exports = {
     tools: 'BZ, B',
     how: 'Replay the manager request in Burp Repeater with HTTP Basic auth set to the vendor default admin:admin (or answer the browser login prompt with the same pair).',
     link: '/misconfig#manager',
-    start: 'In Burp Proxy, browse to http://localhost:3000/misconfig/manager. The panel answers 401 and asks for HTTP Basic credentials. Send that request to Repeater.',
+    start: 'In Burp Proxy, browse to /misconfig/manager. The panel answers 401 and asks for HTTP Basic credentials. Send that request to Repeater.',
   },
   router,
 };

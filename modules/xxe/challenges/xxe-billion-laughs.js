@@ -31,7 +31,7 @@ router.get('/billion', (req, res) => {
       </div>
       <button class="clay-btn clay-btn-primary" type="submit">Parse XML</button>
     </form>
-    ${hintBox('Classic shape: <code>&lt;!ENTITY lol "xxxxxxxxxx"&gt;</code>, then <code>&lt;!ENTITY lol2 "&amp;lol;&amp;lol;... (x10)"&gt;</code>, up to <code>lol7</code>, and reference <code>&amp;lol7;</code> in the body. Each level multiplies the work by ten.')}
+    ${hintBox('The classic attack here is recursive definition: entities that reference other entities. One level is harmless; what happens when every level multiplies the previous one? The hint ladder walks the cascade up step by step.')}
   `));
 });
 
@@ -80,7 +80,7 @@ module.exports = {
     hint: 'The billion endpoint expands internal entities recursively with no depth limit. Define entities that reference each other and watch the parse time.',
     hints: ["Start in Burp Proxy: capture a normal POST /xxe/billion request from the form so you have a baseline you can replay before changing anything.", "Send that request to Repeater. Entities can reference other entities; in Repeater, build a small cascade where each level repeats the previous one many times, then reference the top level once in your document body.", "Send the request and read the response: the result page reports how long the parser was busy and how large the expansion got. Tune the payload until the parse crosses the time or size threshold and the flag box appears."],
     tools: "BZ",
-    how: 'In Burp Repeater, send nested <!ENTITY> definitions (lol, lol2 ... lol7) in the xml field so expansion explodes exponentially and parse time exceeds 1.5s.',
+    how: 'Entities can define entities that define entities. Make the parser do exponentially more work than your payload size suggests, until the clock notices.',
     link: '/xxe#xxe-billion-laughs',
     start: 'Proxy your browser through Burp and open GET /xxe/billion. Submit the form once with plain XML, find the POST /xxe/billion request in Proxy HTTP history, send it to Repeater, then replace the xml field with your nested entity payload and send.',
   },

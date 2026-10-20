@@ -6,6 +6,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { page } = require('../../../lib/page');
+const { tokenScriptParts } = require('../../../lib/jstoken');
 
 const router = express.Router();
 
@@ -27,6 +28,7 @@ function claimCard(vulnId, steps) {
 router.get('/wildcard', (req, res) => {
   if (!req.session.pm_secret) req.session.pm_secret = crypto.randomBytes(16).toString('hex');
   const secret = req.session.pm_secret;
+  const sp = tokenScriptParts(secret);
   res.send(page('Widget (wildcard postMessage)', `
     <h2>Trusted widget</h2>
     <p>This widget shares a secret token with the page that embeds it.</p>
@@ -35,7 +37,8 @@ router.get('/wildcard', (req, res) => {
       <div id="out" class="dim">(waiting for page load...)</div>
     </div>
     <script>
-      var SECRET_TOKEN = ${JSON.stringify(secret)};
+      ${sp.decl}
+      var SECRET_TOKEN = ${sp.combine};
       window.addEventListener('load', function () {
         // VULN: sensitive data posted with targetOrigin '*', so ANY embedding
         // page - including an attacker's - receives the secret.

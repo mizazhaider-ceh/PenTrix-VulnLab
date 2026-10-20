@@ -52,7 +52,7 @@ const vuln = {
   tools: "BZ, N",
   how: 'Submit the partner token (aud "billing-service", admin role) at this service\'s own login form, where the aud claim is never validated.',
   link: '/jwt#aud-bypass',
-  start: 'In Burp Proxy, browse to http://localhost:3000/jwt/aud and copy the partner admin token from the page. Submit the login form once, send the POST to Repeater (Ctrl+R), then replace the token field with the partner token and send. (Node is handy if you want to forge your own tokens with jsonwebtoken instead of copying the page\'s.)',
+  start: 'In Burp Proxy, browse to /jwt/aud and copy the partner admin token from the page. Submit the login form once, send the POST to Repeater (Ctrl+R), then replace the token field with the partner token and send. (Node is handy if you want to forge your own tokens with jsonwebtoken instead of copying the page\'s.)',
 };
 
 // --------------------------------------------------------------- challenge

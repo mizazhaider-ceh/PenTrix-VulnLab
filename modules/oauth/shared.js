@@ -34,7 +34,7 @@ const CLIENTS = {
 };
 
 // In-memory IdP state (per boot; fine for a lab).
-const codes = new Map();  // code -> { code, clientId, ownerId, redirectUri, scope, challenge, uses }
+const codes = new Map();  // code -> { code, clientId, ownerId, redirectUri, scope, challenge, flow, uses }
 const tokens = new Map(); // token -> { token, ownerId, scope, clientId, grant }
 const REQ_LOG = [];       // server request log (world-readable; leaks codes)
 const HISTORY = [];       // simulated in-lab browser history (records full URLs)
@@ -67,7 +67,11 @@ function issueCode(o) {
   const code = rid(16);
   codes.set(code, {
     code, clientId: o.clientId, ownerId: o.ownerId, redirectUri: o.redirectUri,
-    scope: o.scope || 'read', challenge: o.challenge || null, uses: 0,
+    scope: o.scope || 'read', challenge: o.challenge || null,
+    // Which challenge flow issued this code (the session's current lab, or an
+    // explicit stamp from a challenge endpoint). The token endpoint uses it
+    // to scope awards to the flow a code belongs to.
+    flow: o.flow || null, uses: 0,
   });
   // VULN: every issued authorization code is written to the readable server
   // log, full redirect target included.
@@ -99,7 +103,16 @@ function doTokenExchange(p, sessUserId, viaCallback) {
   if (!viaCallback) {
     if (rec.challenge && !p.code_verifier) awardId = 'pkce-skip';   // VULN: PKCE verifier never required
     else if (rec.ownerId !== sessUserId) awardId = 'code-leak';     // VULN: a stolen code is accepted
-    else if (rec.uses >= 1) awardId = 'code-replay';                // VULN: codes are never single-use
+    // VULN: codes are never single-use, so a replay mints another token.
+    // The award is scoped to the code-replay challenge's own flow: the code
+    // must have been issued while the student was working that lab, and it
+    // must be that lab's plain code (public SPA client, read scope, the
+    // trusted callback, no PKCE binding). Codes issued by other flows
+    // (a PKCE-bound code mid-PKCE-lab, an admin-scoped code, a confidential
+    // client's code) never pop this flag outside the lab they belong to.
+    else if (rec.uses >= 1 && rec.flow === 'code-replay' && !rec.challenge &&
+      rec.clientId === 'pentrix-spa' && rec.scope === 'read' &&
+      rec.redirectUri === TRUSTED_PREFIX + '/callback') awardId = 'code-replay';
     else if (client.secret && p.client_secret === client.secret) awardId = 'secret-in-js';
   }
   // VULN: the code is counted but never invalidated, so it stays reusable.
@@ -109,10 +122,12 @@ function doTokenExchange(p, sessUserId, viaCallback) {
 }
 
 // Seed one recent victim login so the log-leak lab works on a fresh boot.
+// The seeded code belongs to the code-leak flow, so it is stamped with that
+// flow: replaying it can never pop the code-replay flag.
 (function seedVictimLogin() {
   const alice = getDb().prepare('SELECT id FROM users WHERE username = ?').get('alice');
   if (!alice) return;
-  issueCode({ clientId: 'pentrix-spa', ownerId: alice.id, redirectUri: TRUSTED_PREFIX + '/callback', scope: 'read' });
+  issueCode({ clientId: 'pentrix-spa', ownerId: alice.id, redirectUri: TRUSTED_PREFIX + '/callback', scope: 'read', flow: 'code-leak' });
 })();
 
 module.exports = {

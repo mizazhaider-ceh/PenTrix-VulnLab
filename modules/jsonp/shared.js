@@ -2,6 +2,7 @@
 // Shared JSONP module helpers: per-session tokens that bind each beacon to a
 // real feed load, so a forged beacon with no feed load earns nothing.
 const crypto = require('crypto');
+const { tokenShareParams } = require('../../lib/jstoken');
 
 // Per-session, per-vuln nonce embedded in the JSONP response data of the
 // three reflection labs (callback-xss, filter-bypass, mimetype). The injected
@@ -41,4 +42,21 @@ function jsonpArrayToken(req) {
   return req.session.jsonpArrayToken;
 }
 
-module.exports = { jsonpNonce, jsonpConsumeNonce, jsonpSecret, jsonpArrayToken };
+// The reflection labs' token as two hex share fields: the feed body carries
+// only the shares, and only executed payload code can combine them back into
+// the token at runtime.
+function jsonpNonceShares(req, v) {
+  return tokenShareParams(jsonpNonce(req, v));
+}
+
+// The csrf-data secret as two hex share fields (carried as sA and sK).
+function jsonpSecretShares(req) {
+  return tokenShareParams(jsonpSecret(req));
+}
+
+// The Array-hijack feed token as two hex share fields.
+function jsonpArrayTokenShares(req) {
+  return tokenShareParams(jsonpArrayToken(req));
+}
+
+module.exports = { jsonpNonce, jsonpConsumeNonce, jsonpSecret, jsonpArrayToken, jsonpNonceShares, jsonpSecretShares, jsonpArrayTokenShares };

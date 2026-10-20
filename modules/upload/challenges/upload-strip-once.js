@@ -6,8 +6,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { appShell, esc, fixPanel, flagBox, page } = require('../../../lib/page');
-const { award } = require('../../../lib/flags');
+const { appShell, esc, page, payloadBlock } = require('../../../lib/page');
+const { issueBeaconToken, recordPendingUpload, beaconSnippet } = require('../shared');
 
 const router = express.Router();
 
@@ -59,7 +59,11 @@ router.post('/filter', (req, res) => {
   const viewUrl = '/upload/view/' + encodeURIComponent(clean);
   let flagHtml = '';
   if (['.svg', '.html', '.htm'].includes(ext)) {
-    flagHtml = flagBox(award(req, 'upload', 'upload-strip-once')) + fixPanel('upload', 'upload-strip-once') + `<p class="dim">One filter pass was not enough: the stored name <code>${esc(clean)}</code> still has an active extension. View it at <a href="${viewUrl}">${viewUrl}</a>.</p>`;
+    // Storing arms the beacon only; the flag fires when the stored file is
+    // served as active content and its script phones home.
+    recordPendingUpload(req, 'upload-strip-once', clean);
+    const token = issueBeaconToken(req, 'upload-strip-once');
+    flagHtml = `<p class="dim">One filter pass was not enough: the stored name <code>${esc(clean)}</code> still has an active extension. Open <a href="${viewUrl}">${viewUrl}</a> in your proxied browser with this file carrying the beacon snippet, and the flag fires when its script phones home.</p>${payloadBlock('Beacon snippet (upload-strip-once)', beaconSnippet('upload-strip-once', clean, token))}`;
   } else {
     flagHtml = `<p class="dim">Stored as <code>${esc(clean)}</code>. The filter removed the dangerous extension, so the file was saved harmlessly.</p>`;
   }
@@ -75,16 +79,16 @@ module.exports = {
     id: 'upload-strip-once',
     name: 'Strip-once filter bypass',
     difficulty: 'Medium',
-    hint: 'v6 removes each dangerous extension exactly once with a non-global replace. Nest the extension inside itself so one removal rebuilds it.',
+    hint: 'v6 removes each dangerous extension exactly once with a non-global replace. Nest the extension inside itself so one removal rebuilds it. Storing is not enough: the flag fires only when the stored file is served as active content and its script phones home through the beacon snippet.',
     hints: [
       "Proxy your browsing of /upload in Burp, then send a plain '.svg' upload to Repeater and watch the filter strip the extension once.",
       "In Repeater, try nesting the blocked extension inside itself in the filename query parameter. What does one removal leave behind?",
       'KEY INSIGHT: the filter strips the dangerous substring exactly once and never re-scans. Nest the blocked extension inside itself in Repeater so that one removal rebuilds it, then send to the filter endpoint and check the stored name in the response.',
     ],
     tools: 'BZ, C',
-    how: 'POST to /upload/filter in Burp Repeater with a filename that nests the blocked extension inside itself. The single strip rebuilds the live extension, so the stored file stays active and the flag appears in the response.',
+    how: 'POST to /upload/filter in Burp Repeater with a filename that nests the blocked extension inside itself and a body carrying the beacon snippet. The single strip rebuilds the live extension, so the stored file stays active, and the flag fires when the served script phones home.',
     link: '/upload#upload-strip-once',
-    start: 'In Burp Repeater, build a POST to /upload/filter?filename=evil.s.svgvg with the SVG file bytes as the raw body, then send it and read the stored name in the response.',
+    start: 'In Burp Repeater, build a POST to /upload/filter?filename=evil.s.svgvg with the SVG file bytes (beacon snippet included) as the raw body, then send it and open the stored name\'s /upload/view/ link in your browser.',
   },
   router,
 };

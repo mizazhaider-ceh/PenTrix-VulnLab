@@ -69,7 +69,7 @@ module.exports = {
     tools: 'BZ, B',
     how: 'Delete another user\'s comment by submitting its id to the delete endpoint from Repeater.',
     link: '/idor#idor-comment-delete',
-    start: 'Point your browser at Burp\'s proxy, then visit http://localhost:3000/idor/login/bob to log in and open /idor/comments.',
+    start: 'Point your browser at Burp\'s proxy, then visit /idor/login/bob to log in and open /idor/comments.',
   },
   router,
 };

@@ -2,6 +2,7 @@
 // Forced Browsing to Admin Function: an admin-only page checks login but not role.
 const express = require('express');
 const { getDb } = require('../../../lib/db');
+const { effectiveEmail } = require('../../../lib/account-state');
 const { esc, flagBox, fixPanel } = require('../../../lib/page');
 const { award } = require('../../../lib/flags');
 const { requireUser, shopPage } = require('../shared');
@@ -20,7 +21,7 @@ router.get('/admin/users', (req, res) => {
     flagHtml = flagBox(award(req, 'idor', 'function-browse')) + fixPanel('idor', 'function-browse');
   }
   const rows = users.map((x) =>
-    `<tr><td>${Number(x.id)}</td><td>${esc(x.username)}</td><td>${esc(x.role)}</td><td>${esc(x.email)}</td></tr>`).join('');
+    `<tr><td>${Number(x.id)}</td><td>${esc(x.username)}</td><td>${esc(x.role)}</td><td>${esc(effectiveEmail(req, x.id, x.email))}</td></tr>`).join('');
   res.send(shopPage(u, 'Member directory', `
     ${flagHtml}
     <div class="tbl-scroll"><table class="tbl">

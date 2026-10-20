@@ -3,6 +3,7 @@
 // engine also evaluates a second delimiter, [[ ]], that the filter never heard of.
 const express = require('express');
 const crypto = require('crypto');
+const { tokenScriptParts } = require('../../../lib/jstoken');
 const { page, esc, claimBox } = require('../../../lib/page');
 
 const router = express.Router();
@@ -39,6 +40,13 @@ function cstiNonce(req, v) {
   }
   return req.session.cstiNonce[v];
 }
+// Script fragment: the page token only exists once this script runs. The
+// page renders two random share arrays and computes CSTI_NONCE from them at
+// load; the raw token string never appears in the HTML.
+function cstiNonceScript(req, v) {
+  const p = tokenScriptParts(cstiNonce(req, v));
+  return p.decl + '\n      var CSTI_NONCE = ' + p.combine + ';';
+}
 
 const DEFAULT_FB = "[[ 'hel' + 'lo' ]]";
 
@@ -63,7 +71,7 @@ router.get('/filter-bypass', (req, res) => {
     <script>
       ${RENDER_JS}
       // Page-bound token: the beacon must echo it back.
-      var CSTI_NONCE = ${JSON.stringify(cstiNonce(req, 'filter-bypass'))};
+      ${cstiNonceScript(req, 'filter-bypass')}
       var TPL = ${JSON.stringify(tpl)};
       var html = cstiRender(TPL);
       document.getElementById('out').innerHTML = html;

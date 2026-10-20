@@ -118,7 +118,7 @@ module.exports = {
     tools: "BZ, N",
     how: 'Smuggle your own key into the kid lookup through SQL injection, then sign an admin token with that key and submit the token through Repeater.',
     link: '/jwt#kid-sqli',
-    start: 'Open http://localhost:3000/jwt/kid in the Burp browser with Proxy on, submit the sample token once, then send the POST to Repeater.',
+    start: 'Open /jwt/kid in the Burp browser with Proxy on, submit the sample token once, then send the POST to Repeater.',
   },
   router,
 };

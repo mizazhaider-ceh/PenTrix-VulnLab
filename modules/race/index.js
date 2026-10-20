@@ -1,7 +1,7 @@
 'use strict';
 // Race Conditions: intentionally vulnerable check-then-act training targets.
 const express = require('express');
-const { fixCta, brief, esc, hintLadder, page, payloadBlock, toolsPill, trackBanner, difficultyPill  } = require('../../lib/page');
+const { brief, esc, hintLadder, page, toolsPill, trackBanner, difficultyPill, easyFirst, cardConsoles, startBlock, consoleBtn, fixSection , capturedPill } = require('../../lib/page');
 const shared = require('./shared');
 
 const challenges = [
@@ -19,35 +19,35 @@ const router = express.Router();
 // Router-scoped form parsing only (app-level middleware is out of scope).
 router.use(express.urlencoded({ extended: false }));
 
-// GET /race/reset -> wipe all race lab state back to its initial values.
+// POST /race/reset -> wipe ONLY the requesting session's race lab state
+// back to its initial values (P1-1, P1-2). This used to be an unauthenticated
+// GET that wiped the process-global state for every student at once, and
+// being a GET made it CSRF-able. As a POST scoped to the caller's session it
+// can neither be triggered cross-site by a bare link nor disturb anyone else.
 // Module-level helper route, not part of any single challenge.
-router.get('/reset', (req, res) => {
-  shared.resetRace();
+router.post('/reset', (req, res) => {
+  shared.resetRace(req);
   res.send(page('Race lab reset', `
     <h2>State reset</h2>
-    <p>All race state is back to its initial values.</p>
+    <p>Your race state is back to its initial values. No other student's lab was touched.</p>
     <p><a href="/race">Back to the Race Conditions module</a></p>
   `));
 });
 
 // GET /race -> module index page (briefing plus the eight challenge cards).
 router.get('/', (req, res) => {
-  const cards = challenges.map(({ vuln: v }) => `
+  const ordered = easyFirst(challenges);
+  const consoles = cardConsoles('race', ordered);
+  const cards = ordered.map(({ vuln: v }, i) => `
     <article class="vuln-card" id="${esc(v.id)}">
-      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)}</h3>
+      <h3>${esc(v.name)} ${difficultyPill(v.difficulty)} ${capturedPill(req, 'race', v.id)}</h3>
       <p>${esc(v.how)}</p>
-      ${v.start ? payloadBlock('Starting point', v.start) : ''}
+      ${startBlock(v, consoles[i])}
       ${hintLadder(v)}
       ${toolsPill(v)}
+      ${consoleBtn('Open challenge', consoles[i])}
     </article>`).join('');
 
-  // M11 break-then-fix: honest coming-soon note (additive, existing content untouched).
-  const fixSectionHtml = `
-    <section class="fix-mode-section">
-      <h2>Break then fix</h2>
-      <p class="dim">Fix mode is not available for this module yet. When it lands, you will be able to repair each challenge: edit the vulnerable code and the runner will check that the exploit is blocked while legitimate use still works.</p>
-      ${challenges.map((c) => fixCta('race', c.vuln.id)).join('')}
-    </section>`;
   res.send(page('Race Conditions', `
     ${brief('Race Conditions', `Check-then-act flaws: win the race between the check and the use. Send many identical requests in parallel and watch the invariant break.`)}
     ${trackBanner(module.exports)}
@@ -60,10 +60,18 @@ router.get('/', (req, res) => {
 
     <h2>How to attack these labs</h2>
     <p>Send many identical requests <b>in parallel</b>. A single request at a
-    time behaves correctly; twenty at once do not. Each challenge page tells
-    you the exact command, e.g.</p>
-    <pre><code>seq 1 20 | xargs -P20 -I{} curl -s -X POST http://localhost:3000/race/coupon/redeem</code></pre>
-    <p>Use the <b>Reset lab state</b> link before each attempt so you start from
+    time behaves correctly; twenty at once do not. The Burp way: send the
+    request to <b>Repeater</b> (Ctrl+R), duplicate the tab as many times as
+    you need (right-click the tab, <b>Duplicate tab</b>), select all the tabs,
+    right-click and choose <b>Send group in parallel</b>. Every tab fires
+    near-simultaneously, the single-packet attack. Honest note: Community
+    <b>Intruder</b> is throttled and cannot reliably land many requests inside
+    these short windows, so the Repeater group, not Intruder, is the race tool
+    for this module. (The full walkthrough lives in the
+    <a href="/setup-guide">Tool Setup Guide</a>, section 3.)</p>
+    <p>Script alternative (not the default):</p>
+    <pre><code>seq 1 20 | xargs -P20 -I{} curl -s -X POST http://<your-lab-address>/race/coupon/redeem</code></pre>
+    <p>Use the <b>Reset lab state</b> button before each attempt so you start from
     a clean slate. Flags are awarded only when the invariant is actually
     broken.</p>
 
@@ -74,9 +82,9 @@ router.get('/', (req, res) => {
     ${cards}
 
     <h2>Lab state</h2>
-    <p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a>
-    <span class="dim">Resets coupons, balances, votes, accounts, uploads, limits and stock.</span></p>
-  ${fixSectionHtml}
+    <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form>
+    <span class="dim">Resets your own coupons, balances, votes, accounts, uploads, limits and stock (nobody else's).</span>
+  ${fixSection('race', challenges)}
 `));
 });
 

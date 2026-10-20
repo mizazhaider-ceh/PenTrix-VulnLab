@@ -5,6 +5,8 @@
 // Note: the vulnerable exchange lives in the shared token endpoint
 // (doTokenExchange in the module shared code), not in this file; the award
 // condition is rec.challenge set with no code_verifier in the request.
+// VULN: the token endpoint never requires the PKCE code_verifier, so a
+// challenge-bound code can be exchanged by anyone who holds the code alone.
 const express = require('express');
 const { page, esc, hintLadder, payloadBlock, appShell } = require('../../../lib/page');
 
@@ -52,7 +54,7 @@ router.get('/pkce-skip', (req, res) => {
         </ol>
       </div>
       ${payloadBlock('Burp Repeater (no verifier at all)', `POST /oauth/idp/token HTTP/1.1
-Host: localhost:3000
+Host: <your-lab-address>
 Content-Type: application/x-www-form-urlencoded
 Cookie: connect.sid=<PASTE_YOUR_SESSION_COOKIE>
 

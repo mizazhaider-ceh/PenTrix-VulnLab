@@ -25,7 +25,7 @@ const vuln = {
   tools: 'BZ, B, C',
   how: 'In Burp Repeater, issue GET /redirect/polluted with two next parameters: the first carrying a value that looks safe and the second pointing at an external URL. Check the Location header to see which value the server honored.',
   link: '/redirect#redirect-pollution',
-  start: 'In Burp, browse to http://localhost:3000/redirect/polluted through the proxy, send the request to Repeater, and add a second next parameter to the query string. Compare the Location header before and after.',
+  start: 'In Burp, browse to /redirect/polluted through the proxy, send the request to Repeater, and add a second next parameter to the query string. Compare the Location header before and after.',
 };
 
 // ----------------------------------------------- v6: parameter pollution

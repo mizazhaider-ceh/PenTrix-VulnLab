@@ -87,13 +87,13 @@ describe('xss fix blocks: per-block checks', () => {
         assert.ok(block && typeof block === 'object', 'getFixBlock returned nothing for xss/' + vulnId);
       });
 
-      it('validateBlock(block) passes', () => {
-        const res = validateBlock(block);
+      it('validateBlock(block) passes', async () => {
+        const res = await validateBlock(block);
         assert.equal(res.valid, true, 'validateBlock failed for xss/' + vulnId + ': ' + res.error);
       });
 
-      it('testFix on fixedCode returns ok true', () => {
-        const res = testFix('xss', vulnId, block.fixedCode);
+      it('testFix on fixedCode returns ok true', async () => {
+        const res = await testFix('xss', vulnId, block.fixedCode);
         assert.equal(
           res.ok, true,
           'fixedCode for xss/' + vulnId + ' was NOT accepted: ' + res.error +
@@ -103,8 +103,8 @@ describe('xss fix blocks: per-block checks', () => {
         assert.equal(res.legitWorks, true, 'legitWorks should be true');
       });
 
-      it('testFix on vulnerableCode returns ok false', () => {
-        const res = testFix('xss', vulnId, block.vulnerableCode);
+      it('testFix on vulnerableCode returns ok false', async () => {
+        const res = await testFix('xss', vulnId, block.vulnerableCode);
         assert.equal(
           res.ok, false,
           'vulnerableCode for xss/' + vulnId + ' was ACCEPTED as a fix, it must be rejected (exploit must still work)'

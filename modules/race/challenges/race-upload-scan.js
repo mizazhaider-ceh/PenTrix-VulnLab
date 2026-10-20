@@ -18,6 +18,7 @@ const vuln = {
   hint: 'Uploaded files are served immediately, but a simulated AV scan deletes them 2 seconds later. The file exists in a window where it should not.',
   hints: ["The upload is scanned for 2 seconds, then deleted if bad, but the file is live during the scan. Upload through the form with Burp Proxy running.", "TOCTOU: capture the upload POST in Burp Proxy, note the file URL, and send it to Burp Repeater.", "Fetch the file URL in Repeater quickly after the upload, inside the 2-second scan window, before the scanner deletes it."],
   tools: 'BZ, B',
+  est: 'about 5 minutes',
   how: 'Upload a file at /race/upload, then fetch /race/files/<name> with Burp Repeater inside the 2-second scan window, before the scanner deletes it.',
   link: '/race#race-upload-scan',
   start: 'Burp Proxy: upload a file with the form, send the file URL to Burp Repeater, and fetch it before the 2-second scan deletes it.',
@@ -30,11 +31,11 @@ function vault(crumb, body) {
 
 function backLinks() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race">Back to module</a>
-  <a class="clay-btn clay-btn-secondary clay-btn-sm" href="/race/reset">Reset lab state</a></p>`;
+  <form method="POST" action="/race/reset" style="display:inline"><button type="submit" class="clay-btn clay-btn-secondary clay-btn-sm">Reset lab state</button></form></p>`;
 }
 
 router.get('/upload', (req, res) => {
-  const files = shared.state().files;
+  const files = shared.state(req).files;
   const live = Object.keys(files).map((n) => `<li><a href="/race/files/${encodeURIComponent(n)}">${esc(n)}</a></li>`).join('')
     || '<li><i>no live files (the AV scan deletes uploads after 2 seconds)</i></li>';
   res.send(page('File vault upload', vault('Upload', `
@@ -71,15 +72,15 @@ router.get('/upload', (req, res) => {
 router.post('/upload', (req, res) => {
   const filename = String(req.body.filename || 'upload.txt').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 60) || 'upload.txt';
   const content = String(req.body.content || '').slice(0, 5000);
-  const R = shared.state();
+  const R = shared.state(req);
   if (R.files[filename]) clearTimeout(R.files[filename].timer);
-  // VULN (TOCTOU): the file is servable the instant it is stored; the "scan"
+  // VULN: (TOCTOU) the file is servable the instant it is stored; the "scan"
   // that deletes it only runs 2 seconds later, leaving a fetchable window.
-  // The timer re-reads the live state at fire time, exactly like the original
-  // router, so a lab reset between upload and scan clears the file.
+  // The timer closes over this session's state object; a lab reset clears
+  // pending timers, so a reset between upload and scan cancels the scan.
   R.files[filename] = {
     content,
-    timer: setTimeout(() => { delete shared.state().files[filename]; }, 2000),
+    timer: setTimeout(() => { delete R.files[filename]; }, 2000),
   };
   res.send(page('File uploaded', vault('Upload', `
     <section class="clay-card">
@@ -93,7 +94,7 @@ router.post('/upload', (req, res) => {
 
 router.get('/files/:name', (req, res) => {
   const name = String(req.params.name || '').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 60);
-  const f = shared.state().files[name];
+  const f = shared.state(req).files[name];
   if (!f) {
     return res.status(404).send(page('File gone', vault('Files', `
       <section class="clay-card">

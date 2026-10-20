@@ -16,16 +16,17 @@ const vuln = {
   id: 'predictable',
   name: 'Predictable Session IDs',
   difficulty: 'Medium',
-  hint: "Session ids are sequential integers. The demo page shows your id and the admin's id right next to each other. Do the math.",
+  hint: "Session ids are sequential integers, handed out in sign-in order. The demo page shows only your own id, but it tells you the admin signed in right after you. Do the math.",
   hints: [
-    "Session ids are sequential. Open the demo page through Burp Proxy and read your sid and the admin's sid in the response.",
-    "Predictable ids: read the pattern, compute the admin's sid, replay it.",
-    "In Burp, send the admin panel request to Repeater, replace the lab_sid cookie with the admin's sid, and re-send. Intruder with a small numeric range around your sid also works.",
+    "Session ids here are sequential integers, handed out in sign-in order. Open the demo page through Burp Proxy and note your own sid. The page also tells you the admin signed in right after you: what does that let you compute?",
+    "Predictable ids: the admin's sid is not printed anywhere, because it does not need to be. If ids go up by one per sign-in and the admin signed in immediately after you, their sid is a number you already know plus one.",
+    "In Burp, send the admin panel request to Repeater, replace the lab_sid cookie with the computed sid, and re-send. A Proxy Match and Replace rule on the lab_sid cookie (Tool Setup Guide, section 10) does the same job for full browsing. Intruder with a small numeric range around your sid also works.",
   ],
   tools: 'BZ, B, DT',
-  how: 'Read the admin\'s sid off the demo page, set it as your lab_sid cookie in Burp (Repeater or a Match and Replace rule), and open the admin panel.',
+  est: 'about 10 minutes',
+  how: 'Work out the admin sid from yours (ids are sequential and the admin signed in right after you), set it as your lab_sid cookie in Burp (Repeater, or a Match and Replace rule), and open the admin panel.',
   link: '/session#predictable',
-  start: 'Point your browser at Burp, visit http://localhost:3000/session/predictable, and read your sid and the admin\'s sid on the demo page.',
+  start: 'Point your browser at Burp, visit /session/predictable, and note your own session id. The admin signed in right after you; work out theirs.',
 };
 
 // Clay-styled 403 page (same denials as the module helper, full clay).
@@ -43,7 +44,9 @@ function backLink() {
   return `<p><a class="clay-btn clay-btn-secondary clay-btn-sm" href="/session">Back to the Session module</a></p>`;
 }
 
-// GET /session/predictable -> guest session; the admin's sid sits beside yours.
+// GET /session/predictable -> guest session. The admin's sid is deliberately
+// NOT printed: ids are sequential and the copy tells you the admin signed in
+// right after you, so the analysis (yours plus one) is the challenge (P3-7).
 router.get('/predictable', (req, res) => {
   let yours = shared.sidOf(req);
   let adminSid;
@@ -68,8 +71,8 @@ router.get('/predictable', (req, res) => {
       <h2>Guest session</h2>
       <p>Welcome to the guest portal. Sessions here are handed out as sequential integers, in sign-in order.</p>
       <p>Your session id: <code>${esc(yours)}</code></p>
-      <p>The admin signed in right after you. Their session id: <code>${esc(adminSid)}</code></p>
-      <p>Swap your <code>lab_sid</code> cookie for the admin's value, then open the admin panel.</p>
+      <p>The admin signed in right after you did. Their session id is not shown anywhere: work it out.</p>
+      <p>Swap your <code>lab_sid</code> cookie for the value you computed, then open the admin panel.</p>
       <p><a class="clay-btn clay-btn-primary" href="/session/predictable/admin">Open the admin panel</a></p>
     </section>
     ${backLink()}

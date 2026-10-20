@@ -21,7 +21,7 @@ const vuln = {
   tools: "BZ, C",
   how: 'Reach the internal secret through /ssrf/fetch2 by rebuilding the fetch URL with an alternate loopback spelling (decimal, hex octets, or leading-zero octal octets). In Burp Repeater send one request per spelling, or in Intruder fuzz the url parameter with a short payload list of alternate spellings.',
   link: '/ssrf#bypass',
-  start: 'Browse to http://localhost:3000/ssrf/fetch2 through Burp Proxy, use the Fetch a link form once with any URL, then send the request to Repeater.',
+  start: 'Browse to /ssrf/fetch2 through Burp Proxy, use the Fetch a link form once with any URL, then send the request to Repeater.',
 };
 
 // Fetch a URL server-side with a hard timeout. Resolves with the raw body
