@@ -78,7 +78,7 @@ router.get('/collector', (req, res) => {
   // Per-session isolation: a student only ever sees pingbacks their own
   // session's imports caused. Other students' entries are never echoed, so
   // no one can read another student's exfiltrated marker text here.
-  const rows = oobLog.slice().reverse()
+  const rows = oobLog.toReversed()
     .filter((e) => pingbackOwnedBy(e.d, req.sessionID))
     .map((e) => `
     <tr><td>${esc(e.time)}</td><td>${esc(e.ip)}</td><td><code>${esc(e.d)}</code></td></tr>`).join('')

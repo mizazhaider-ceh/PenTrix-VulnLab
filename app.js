@@ -448,7 +448,7 @@ function startHereModule() {
 // numbered learning path.
 const TIER_ORDER = { beginner: 0, intermediate: 1, advanced: 2 };
 function recommendedModuleOrder() {
-  return registry.slice().sort((a, b) =>
+  return registry.toSorted((a, b) =>
     // The canonical entry module always comes first.
     (a.id === ENTRY_MODULE_ID ? -1 : b.id === ENTRY_MODULE_ID ? 1 : 0)
     || trackIndex(a.id) - trackIndex(b.id)
